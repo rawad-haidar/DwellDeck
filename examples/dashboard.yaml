@@ -1,9 +1,3 @@
-title: DwellDeck
-views:
-  - title: Home
-    path: home
-    type: panel
-    cards:
-      - type: custom:dwelldeck-card
-        title: DwellDeck
-        auto_areas: true
+strategy:
+  type: custom:dwelldeck-original
+  title: DwellDeck
