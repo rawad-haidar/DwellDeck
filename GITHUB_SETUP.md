@@ -1,15 +1,13 @@
 # GitHub setup
 
-Repository name: `dwelldeck`
+Repository: `DwellDeck` (or `dwelldeck`).
 
-Description: A room-first Home Assistant dashboard with automatic area discovery and easy visual configuration.
+Description: The original Home Assistant command center design, with easy room and entity configuration.
 
-Suggested topics: `home-assistant`, `lovelace`, `dashboard`, `hacs`, `smart-home`, `custom-card`.
+Topics: `home-assistant`, `lovelace`, `dashboard`, `hacs`, `smart-home`.
 
-Upload the contents of this folder to the repository root, including `.github/workflows/check.yml`. Set visibility to Public if you want others to install it through HACS custom repositories.
+Upload this folder’s contents to the repository root. Publish `v0.3.0` as a pre-release and attach `dwelldeck.js`. Keep the theme under `themes/`. HACS installs the JavaScript; the setup checklist links required dependencies. Theme-file installation is optional.
 
-First release: `v0.1.0` — DwellDeck alpha. Mark it as a pre-release and attach `dwelldeck.js`. Explain that live Home Assistant verification is still pending. The README contains manual installation and HACS custom repository instructions.
+Do not upload private backups, private entity bindings, or screenshots showing a household’s real activity.
 
-Card type: `custom:dwelldeck-card`. Resource file: `dwelldeck.js`.
-
-This folder has not been published to GitHub automatically.
+The source package was prepared locally; no GitHub push was performed.

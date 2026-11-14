@@ -1,113 +1,118 @@
 # DwellDeck
 
-**Your home. Room by room.**
+**Your command center. Your entities. The original design.**
 
-A configurable Home Assistant dashboard that turns your areas into room cards with matching popup controls. Discover rooms automatically, or build your own with visual entity pickers. No template editing or extra card plugins required.
+DwellDeck packages the original multi-view Home Assistant command center: its Home page, animated weather, dark navy styling, navigation tabs, status summaries, room controls, history graphs, security pages and popups. Version 0.3 builds on the original-design edition and replaces the simplified room-grid prototype.
 
-**Status: v0.1.0 alpha.** Room discovery has automated tests and the mock preview has been checked. Installation and native controls still need validation on a real Home Assistant instance. HACS distribution is prepared but has not been verified through a published repository.
+## What stays the same
 
-DwellDeck is a standalone dashboard card. It does not replace Home Assistant automations, provide irrigation scheduling, or migrate other dashboards.
+The original 15 views and their card designs: Home, Lights, Curtains, Climate, Energy, Music Assistant, Media, Security, Pool & garden, Weather, Activity, Device directory, All cameras, Security sensors and the popup library. Some auxiliary views are subviews and are reached through cards rather than the top navigation.
 
-![Dashboard preview using demonstration data](demo/preview.jpg)
+## What is easier
 
-## Features
+- Configure the dashboard using Home Assistant’s **Edit dashboard** screen.
+- Choose an area or individual lights and switches for each lighting room.
+- Rename lighting rooms, exclude entities, or click **+ Add room**.
+- Room summaries, popup tiles and bulk controls are generated from the same room list.
+- Select climate, cover, media, security, weather and energy entities in grouped pickers. A central binding updates that entity everywhere in the original design.
+- Change the dashboard URL without rewriting navigation links.
 
-- Automatic room discovery from Home Assistant areas and device assignments.
-- **Add room** button with room name, icon, area and entity pickers.
-- Optional exclusions per room; combine area discovery with manually selected entities.
-- Room popups generated from the same entities as the room card.
-- Lights, switches, curtains, climate, media, cameras and sensors.
-- Optional weather, home power, solar power and battery cards.
-- Native Home Assistant controls, responsive layout, no other custom card dependencies.
-- No account, cloud service, analytics, credentials, external scripts or build step.
+The shared JavaScript contains neutral entity placeholders, not a household’s working entity IDs. Unselected entities show setup hints. Some summaries remain empty until their entities are configured.
 
-## Install manually
+## Easy installation
 
-1. Download `dwelldeck.js` from this repository.
-2. Copy it to your Home Assistant configuration folder at `www/dwelldeck.js`. Create `www` if needed.
-3. Under **Settings → Dashboards → ⋮ → Resources**, add `/local/dwelldeck.js?v=0.1.0` as **JavaScript module**. Resources may require Advanced mode in your user profile.
-4. Refresh your browser.
-5. Create a dashboard, choose **Edit dashboard → Add card**, search for **DwellDeck**, and select it.
-6. Keep automatic rooms enabled, or click **Add room** to select your own entities. Click **Save**.
+[![Install DwellDeck in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=rawad-haidar&repository=DwellDeck&category=plugin)
 
-For a full-width dashboard, create a Panel view and add this card, or copy `examples/dashboard.yaml` into a new dashboard's raw configuration editor. Do not overwrite an existing dashboard you want to keep.
+1. **Install:** click the button above, open your Home Assistant, add the repository if prompted and download DwellDeck. Refresh the browser.
+2. **Create:** go to **Settings → Dashboards → Add dashboard → DwellDeck · Original design**.
+3. **Configure:** the setup screen shows which dependencies are missing, with an **Install in HACS** link for each. Install those items, refresh, then choose your rooms and entities and save.
 
-## Install with HACS
+**No theme file, no configuration.yaml changes and no YAML dashboard paste on the normal install path.** Colors are included, and the dashboard URL is detected automatically. Advanced overrides remain available.
 
-After this folder has been published as its own GitHub repository:
+Home Assistant/HACS must already be available. This is a guided installation: HACS handles downloads, and users approve installation and configure Browser Mod. It does not silently install integrations or change server settings.
 
-1. Open HACS and add **that repository URL** under Custom repositories, with type **Dashboard** (called Plugin in some versions).
-2. Download DwellDeck and refresh the browser.
-3. Confirm the resource exists; if HACS did not register it, add `/hacsfiles/dwelldeck/dwelldeck.js` as a JavaScript module. This assumes your repository is named `dwelldeck`; use its actual folder name otherwise.
-4. Add the **DwellDeck** card and configure it visually.
+If the HACS button cannot open your instance, add `https://github.com/rawad-haidar/DwellDeck` as a custom repository with category **Dashboard** (Plugin in some versions), then download it. See [the short install guide](INSTALL.md) for troubleshooting.
 
-HACS metadata is included, but installation through a published HACS repository has not yet been verified. The package is not listed in the HACS default store.
+### Required dependencies
 
-## Configure
+These preserve the original dashboard’s custom-card design. The setup screen checks for them and includes these direct install links:
 
-### Easiest: automatic rooms
+| Component | Install |
+| --- | --- |
+| Button Card | [Open in HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=custom-cards&repository=button-card&category=plugin) |
+| card-mod | [Open in HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=thomasloven&repository=lovelace-card-mod&category=plugin) |
+| Mini Graph Card | [Open in HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=kalkih&repository=mini-graph-card&category=plugin) |
+| Browser Mod | [Open in HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=thomasloven&repository=hass-browser_mod&category=integration) |
 
-Leave **Automatically show Home Assistant rooms** enabled. Optionally select included areas and entity types. The dashboard reads the area, entity and device registries; it respects disabled and hidden entities. An entity's own area takes priority over its device's area.
+After installing Browser Mod, follow its instructions to add its integration in **Devices & services**. Its popup service must be available. A restart may be required by that integration. History charts also require retained Recorder data.
 
-New devices appear on **Refresh rooms**, or within one minute. Rooms with no matching entities are omitted. If registry access fails, a message appears and manual entity configuration still works.
+Music Assistant and [Add-on Iframe Card](https://github.com/azuwis/ha-addon-iframe-card) are optional. The Music Assistant page shows setup instructions until you configure its app path.
 
-### Add a custom room
+### Optional theme override
 
-1. Edit the DwellDeck card.
-2. Click **+ Add room**.
-3. Enter a name, for example Garden.
-4. Choose an existing Home Assistant area, select individual entities, or combine both.
-5. Optionally exclude entities or change the icon.
-6. Click Home Assistant's **Save** button.
+The built-in colors use card-mod and do not require a separately installed theme. Existing users who already selected **Villa Midnight** can keep that setting. For a whole-interface theme, the optional `themes/dwelldeck-midnight.yaml` file is still included; use Home Assistant’s normal theme installation instructions and enter its theme name in the advanced field.
 
-The popup buttons follow the room configuration automatically. There is no second popup list to maintain. To customize an automatically discovered room, add a room and select that same area; the custom room replaces its automatic entry.
+### Manual fallback
 
-The editor configures this dashboard only. Create areas and assign devices in **Settings → Areas, labels & zones**.
+Copy `dwelldeck.js` to Home Assistant’s `www` folder, register `/local/dwelldeck.js?v=0.3.0` as a JavaScript module in dashboard Resources, and refresh. Then create the community dashboard as above. If the picker is unavailable, create a blank dashboard and paste `examples/dashboard.yaml` into its raw configuration editor.
 
-### Optional YAML
+HACS registers its own resource URL. Do not manually add a second URL with different capitalization; use the directory HACS actually installed.
+
+## Configure rooms
+
+Open **DwellDeck → Edit dashboard → Lighting rooms**. Expand a room, then select:
+
+- **Room title**: optional replacement name.
+- **Discover lights and switches from area**: automatically include those domains from a Home Assistant area.
+- **Lights and switches**: explicitly selected entities, combined with the area selection.
+- **Excluded entities**: remove specific devices from the room.
+
+Click **+ Add room** for another lighting room in the same original card/popup style. Save to regenerate the dashboard. Area assignments follow the entity’s area first, then its device’s area.
+
+For the other original cards, expand the matching entity domain and choose replacements. These selectors map the original design’s roles; they do not create areas, devices, entities or automations. Use Home Assistant Settings to manage those.
+
+## Strategy configuration
 
 ```yaml
-type: custom:dwelldeck-card
-title: My Home
-auto_areas: true
-domains:
-  - light
-  - switch
-  - cover
-  - climate
-  - media_player
-rooms: []
+strategy:
+  type: custom:dwelldeck-original
+  title: DwellDeck
 ```
 
-All optional sensor fields start empty. The package contains no household-specific entity IDs or server addresses.
+The visual editor writes `rooms`, `extra_rooms` and `entities` for you. All configuration is saved with the Home Assistant dashboard; no settings are stored in the browser. Do not share your configured dashboard export without removing private entity IDs and room names.
 
-## Controls and permissions
+For Music Assistant, enter the app’s path from your Home Assistant sidebar URL in **Music Assistant app path**. Leave it empty for an instruction card. Do not put credentials or access tokens in this field.
 
-Room buttons open a popup. In that popup, light, switch and fan icons toggle their entity; the tile body opens More info. Climate, media and cameras use native cards. Other tile icons open More info. The dashboard does not change automations or control a device merely by being opened or configured. Home Assistant permissions still apply.
+## Editing behavior
 
-Configuration is saved by Home Assistant with the card, shared across browsers and included in normal Home Assistant backups. Browser-local storage is not used for settings. Camera cards use your installed camera integration; they do not guarantee live streams.
+This is a generated dashboard. **Edit dashboard** opens the central setup editor rather than individual card layout editors. Saving regenerates the original layout. Custom per-card layout changes require editing the template source; this is intentional so bindings stay consistent across cards and popups.
 
-## Publish to GitHub
+Some original summaries discover additional entities from Home Assistant state domains. Device names in generated controls come from Home Assistant. The original household-specific bedroom labels have generic defaults in the public package.
 
-Upload the **contents of this folder** to the root of a new public repository, for example `dwelldeck`. Keep `dwelldeck.js`, `hacs.json`, `README.md` and `LICENSE` at the repository root. Create a `v0.1.0` release and attach the JavaScript file. Share the repository link so users can follow either installation method. Do not upload private dashboard backups or Home Assistant configuration files.
+## Verification and status
 
-This package follows [HACS dashboard repository structure](https://hacs.dev/docs/publish/plugin/) and [Home Assistant custom card/editor APIs](https://contributors.home-assistant.io/frontend/custom-ui/card-editor/).
+Version 0.3.0 is an initial guided-install release. Automated tests cover the 15-view structure, central replacement, popup synchronization, area discovery, source immutability, navigation validation and strategy registration. A private round-trip comparison verifies that binding the source household’s entities reproduces every original card, template, style and action, apart from the requested dashboard title and URL prefix.
 
-## Development and verification
+The restored Home page and central editor have been checked in Home Assistant. No device actions were invoked during validation. Full climate/media/camera control behavior and a fresh HACS installation remain to be tested before calling this a stable release.
 
-Requires Node.js 22 or newer for the included checks. No npm dependencies.
+## Development
+
+Node.js 22 or newer; no npm dependencies.
 
 ```sh
+npm run build
 npm run check
 npm test
 ```
 
-Tests cover room discovery, device/entity area precedence, hidden/disabled filtering, exclusions, deduplication, manual rooms and newly discovered devices. GitHub Actions runs these checks on pushes and pull requests.
+`dwelldeck.js` contains the sanitized layout data and runtime. Edit runtime behavior in `original-layout-core.mjs`, then run the build to update the distributable while retaining the embedded layout data. GitHub Actions checks syntax and tests on pushes and pull requests.
 
-For a mock preview, run `python3 -m http.server 8765` in this folder and open `http://localhost:8765/demo/`. This uses demonstration data and mock native controls. It does not test actual Home Assistant card rendering, device services or registry permissions. Verify the initial release on your Home Assistant installation before recommending it broadly.
+## Publish and update
 
-## Remove or update
+Upload this folder’s contents to the repository root. Keep `dwelldeck.js`, `hacs.json`, `README.md` and `LICENSE` at the root. Publish `v0.3.0` as a pre-release and attach the JavaScript file. Include the theme folder in the repository. See `GITHUB_SETUP.md`.
 
-To update, replace the JavaScript file, change the resource URL version and refresh. To remove, remove the dashboard card and resource. No entities, areas or automations need to be deleted.
+Do not upload private dashboard backups, source household entity bindings, Home Assistant configuration files or unredacted screenshots. The supplied package has been checked separately for those files.
+
+For manual updates, replace the JavaScript, update its resource URL version, and refresh. Keep a backup of your strategy settings. The 0.1 room-grid card is not used by this edition; replace its dashboard configuration with the strategy example.
 
 MIT licensed. See `LICENSE`.

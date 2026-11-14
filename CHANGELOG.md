@@ -1,12 +1,18 @@
 # Changelog
 
-## 0.1.0 — Initial alpha
+## 0.3.0 — Guided installation
 
-- Automatic room discovery from Home Assistant areas.
-- Visual room and entity configuration.
-- Popups generated from the room entity list.
-- Optional weather and energy sensors.
-- Native Home Assistant controls and responsive layout.
-- HACS metadata, install guide, mock demo and automated checks.
+- Adds Install in HACS buttons and a three-step quick start.
+- Adds a setup dependency checklist with direct install links.
+- Includes the original colors without a theme YAML installation.
+- Detects dashboard navigation paths automatically.
+- Retains the original 15-view layout and entity configuration.
 
-Known release gate: verify installation, editor persistence and native controls in a real Home Assistant instance.
+## 0.2.0 — Original design edition
+
+- Restores the original 15-view dashboard, Home page, styling, animated weather, navigation and popup library.
+- Adds a dashboard strategy with a visual configuration editor.
+- Central entity bindings update templates, graphs, service targets and popup controls together.
+- Lighting rooms accept area discovery, entity lists, exclusions and custom titles.
+- Includes the matching DwellDeck Midnight theme.
+- Replaces the simplified 0.1.0 room-grid edition.

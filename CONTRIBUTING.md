@@ -1,7 +1,7 @@
 # Contributing
 
-Use Node.js 22 or newer. Run `npm run check` and `npm test` before submitting a pull request. No dependency installation or build step is required.
+Use Node.js 22 or newer. Edit `original-layout-core.mjs`, run `npm run build`, `npm run check` and `npm test`. No dependencies are required. The distributable retains its embedded sanitized template header during rebuilds.
 
-Test visual changes in Home Assistant as well as the mock demo. Never include credentials, private server addresses, household entity lists or unredacted logs in an issue or pull request.
+Test changes in Home Assistant, especially the generated Home view, navigation, setup editor and popups. Do not include private entity bindings, credentials, server addresses or unredacted screenshots in issues or pull requests.
 
-For a bug report include the Home Assistant version, browser, DwellDeck version, steps to reproduce and a minimal redacted card configuration.
+Bug reports should include Home Assistant and browser versions, DwellDeck version, steps to reproduce and a minimal redacted strategy configuration.
