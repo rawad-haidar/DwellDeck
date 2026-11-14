@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — Stable editing
+
+- Keeps expanded room forms and keyboard focus when editing values.
+- Ignores unchanged configuration echoes from Home Assistant.
+- Retains successive field changes and prevents unrelated forms from reverting earlier edits.
+
 ## 0.3.0 — Guided installation
 
 - Adds Install in HACS buttons and a three-step quick start.

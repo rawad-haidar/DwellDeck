@@ -171,13 +171,27 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
 
 class DwellDeckOriginalEditor extends HTMLElement {
   constructor(){super();this.attachShadow({mode:'open'});}
-  setConfig(config){this.config=clone(config);this.render();}
+  setConfig(config){
+    // HA echoes each config-changed event. Keep the live form and its focus.
+    if(JSON.stringify(this.config)===JSON.stringify(config))return;
+    this.config=clone(config);this.render();
+  }
   set hass(hass){this._hass=hass;this.shadowRoot.querySelectorAll('ha-form').forEach(f=>{f.hass=hass;});this.renderDependencies();}
-  change(config){this.config=config;this.dispatchEvent(new CustomEvent('config-changed',{detail:{config},bubbles:true,composed:true}));}
+  change(config){
+    if(JSON.stringify(this.config)===JSON.stringify(config))return;
+    this.config=clone(config);
+    this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:clone(this.config)},bubbles:true,composed:true}));
+  }
   form(schema,data,callback,labels={}){
     const form=document.createElement('ha-form');form.schema=schema;form.data=data;form.hass=this._hass;
     form.computeLabel=field=>labels[field.name]||field.name.replaceAll('_',' ');
-    form.addEventListener('value-changed',event=>{event.stopPropagation();callback(event.detail.value);});return form;
+    form.addEventListener('value-changed',event=>{
+      event.stopPropagation();
+      const value=event.detail?.value;
+      if(!value||typeof value!=='object')return;
+      // ha-form computes the next edit from data, so advance its local data too.
+      form.data=clone(value);callback(value);
+    });return form;
   }
   renderDependencies(){
     const container=this.shadowRoot.querySelector('[data-dependencies]');if(!container)return;
@@ -197,7 +211,7 @@ class DwellDeckOriginalEditor extends HTMLElement {
     const p=document.createElement('p');p.textContent='Original Home page, tabs and popup design. Configure lighting rooms below, then bind climate, energy, security and other entities. Save to update every reference together.';this.shadowRoot.append(p);
     this.shadowRoot.append(this.form([
       {name:'title',selector:{text:{}}},{name:'dashboard_path',selector:{text:{}}},{name:'theme',selector:{text:{}}},{name:'music_app',selector:{text:{}}}
-    ],{title:'DwellDeck',...this.config},data=>this.change({...this.config,...data}),{dashboard_path:'Dashboard URL path (leave empty to detect automatically)',music_app:'Music Assistant app path (optional)',theme:'Optional installed theme (leave empty for built-in colors)'}));
+    ],{title:this.config.title||'DwellDeck',dashboard_path:this.config.dashboard_path,theme:this.config.theme,music_app:this.config.music_app},data=>this.change({...this.config,...data}),{dashboard_path:'Dashboard URL path (leave empty to detect automatically)',music_app:'Music Assistant app path (optional)',theme:'Optional installed theme (leave empty for built-in colors)'}));
     const roomDetails=document.createElement('details');roomDetails.open=true;const summary=document.createElement('summary');summary.textContent='Lighting rooms';roomDetails.append(summary);
     for(const room of ROOM_TEMPLATES){
       const details=document.createElement('details');const title=document.createElement('summary');title.textContent=this.config.rooms?.[room.key]?.name||room.name;details.append(title);
@@ -219,7 +233,7 @@ class DwellDeckOriginalEditor extends HTMLElement {
     for(const domain of domains){
       const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent=`${domain.replaceAll('_',' ')} entities`;details.append(summary);
       const domainSlots=SLOTS.filter(s=>s.domain===domain);const labels=Object.fromEntries(domainSlots.map(s=>[s.key,s.label]));
-      details.append(this.form(domainSlots.map(s=>({name:s.key,selector:{entity:{filter:{domain:s.domain}}}})),this.config.entities||{},value=>this.change({...this.config,entities:{...this.config.entities,...value}}),labels));this.shadowRoot.append(details);
+      details.append(this.form(domainSlots.map(s=>({name:s.key,selector:{entity:{filter:{domain:s.domain}}}})),Object.fromEntries(domainSlots.filter(s=>this.config.entities?.[s.key]!==undefined).map(s=>[s.key,this.config.entities[s.key]])),value=>this.change({...this.config,entities:{...this.config.entities,...value}}),labels));this.shadowRoot.append(details);
     }
     const style=document.createElement('style');style.textContent='p{line-height:1.5;color:var(--secondary-text-color)}details{padding:12px;margin:8px 0;border:1px solid var(--divider-color);border-radius:10px}summary{cursor:pointer;font-weight:600}ha-form{display:block;margin-top:12px}';this.shadowRoot.append(style);
   }

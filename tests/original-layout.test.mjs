@@ -67,3 +67,34 @@ test('dependency checklist reports actual availability and install links',async(
  assert(statuses.every(s=>s.url.startsWith('https://my.home-assistant.io/redirect/hacs_repository/')));
  assert(statuses.find(s=>s.name==='Browser Mod').url.includes('category=integration'));
 });
+test('editor keeps forms mounted when HA echoes a field change',()=>{
+ const Editor=registered.get('dwelldeck-original-editor');const editor=Object.create(Editor.prototype);
+ let renders=0,events=0;editor.render=()=>renders++;editor.config={type:'custom:dwelldeck-original',rooms:{}};
+ editor.dispatchEvent=event=>{events++;editor.setConfig(structuredClone(event.detail.config));};
+ editor.change({...editor.config,rooms:{room_01:{name:'Living room'}}});
+ assert.equal(renders,0);assert.equal(events,1);assert.equal(editor.config.rooms.room_01.name,'Living room');
+ editor.change(structuredClone(editor.config));assert.equal(events,1);
+});
+test('form advances its data across successive edits',()=>{
+ const previous=globalThis.document;let handler;globalThis.document={createElement:()=>({addEventListener:(type,fn)=>{handler=fn;}})};
+ try{
+  const Editor=registered.get('dwelldeck-original-editor');const editor=Object.create(Editor.prototype);
+  const values=[];const form=editor.form([],{name:'Old',entities:['light.a']},value=>values.push(value));
+  handler({stopPropagation(){},detail:{value:{...form.data,name:'New'}}});
+  handler({stopPropagation(){},detail:{value:{...form.data,entities:['light.b']}}});
+  assert.equal(values[1].name,'New');assert.deepEqual(values[1].entities,['light.b']);
+ }finally{globalThis.document=previous;}
+});
+test('editor general and domain forms exclude unrelated configuration',()=>{
+ const previous=globalThis.document;
+ class Node{constructor(tag){this.tag=tag;this.children=[];this.dataset={};}append(...nodes){this.children.push(...nodes);}replaceChildren(){this.children=[];}addEventListener(){}}
+ globalThis.document={createElement:tag=>new Node(tag)};
+ try{
+  const Editor=registered.get('dwelldeck-original-editor');const editor=Object.create(Editor.prototype);editor.shadowRoot=new Node('root');editor.renderDependencies=()=>{};
+  const light=SLOTS.find(s=>s.domain==='light'),sensor=SLOTS.find(s=>s.domain==='sensor');
+  editor.config={type:'custom:dwelldeck-original',rooms:{room_01:{name:'Keep this'}},entities:{[light.key]:'light.a',[sensor.key]:'sensor.b'}};
+  editor.render();const forms=[];const scan=node=>{if(node.tag==='ha-form')forms.push(node);node.children.forEach(scan);};scan(editor.shadowRoot);
+  assert(!('rooms' in forms[0].data));assert(!('entities' in forms[0].data));
+  const lightForm=forms.find(f=>f.schema.some(s=>s.name===light.key));assert(!Object.hasOwn(lightForm.data,sensor.key));
+ }finally{globalThis.document=previous;}
+});
