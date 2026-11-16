@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.1 — Areas, activity and colour themes
+
+- Discover rooms from Home Assistant areas, floors and labels.
+- Separate room controls from light-only room popups; show active light names.
+- Organize curtains, media and camera views, and align Climate monitoring cards.
+- Add activity glows, animated icons and reduced-motion support.
+- Add Ocean Blue, Emerald, Amethyst, Rosewood and Graphite palettes in Edit dashboard.
+- Improve editor styling and preserve live form edits.
+
 ## 0.3.0 — Guided installation
 
 - Adds Install in HACS buttons and a three-step quick start.
