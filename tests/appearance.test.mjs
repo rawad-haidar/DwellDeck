@@ -454,7 +454,7 @@ test('TVs and sound systems are separate in a room, with their own chips',()=>{
  const speaker=JSON.stringify(content).includes('mdi:speaker');
  assert(speaker);
 });
-test('a TV that is on but idle shows TV on, and players named Sound system are sound systems',()=>{
+test('a TV that is on shows what it is on (TV · Netflix), and players named Sound system are sound systems',()=>{
  const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
  const states=Object.fromEntries([st('media_player.rest_area_living_tv','idle',{friendly_name:'Living Tv'}),st('remote.rest_area_living_2f_tv_pro','on',{current_activity:'com.netflix.ninja',friendly_name:'Living 2F TV Pro'}),
   st('media_player.rest_area_sound_system','playing',{friendly_name:'Rest Area Sound System'}),st('light.rest_a','off')]);
@@ -465,12 +465,20 @@ test('a TV that is on but idle shows TV on, and players named Sound system are s
  const card=d.views.find(v=>v.path==='rooms').sections.flatMap(s=>s.cards).find(c=>c.name==='Rest Area');
  const html=Function('states',card.custom_fields.chips.trim().slice(3,-3))(states);
  assert(html.includes('TV on'),'idle Android TV is on');
+ const netflix={...states,'media_player.rest_area_living_tv':{state:'playing',attributes:{app_id:'com.netflix.ninja'}}};
+ assert(Function('states',card.custom_fields.chips.trim().slice(3,-3))(netflix).includes('TV · Netflix'),'the app the TV is on');
+ const titled={...states,'media_player.rest_area_living_tv':{state:'playing',attributes:{app_id:'com.netflix.ninja',media_title:'Stranger Things: Chapter One, The Vanishing'}}};
+ assert(Function('states',card.custom_fields.chips.trim().slice(3,-3))(titled).includes('TV · Netflix · Stranger Things: Chapter On…'),'and what plays, shortened');
  assert(html.includes('Music playing'),'named sound system is a speaker');
  const headings=card.tap_action.browser_mod.data.content.cards.filter(c=>c.type==='heading').map(c=>c.heading);
  assert(headings.includes('TVs')&&headings.includes('Sound systems'));
  const off={...states,'media_player.rest_area_living_tv':{state:'off',attributes:{}},'remote.rest_area_living_2f_tv_pro':{state:'off',attributes:{}},'media_player.rest_area_sound_system':{state:'idle',attributes:{}}};
  const quiet=Function('states',card.custom_fields.chips.trim().slice(3,-3))(off);
- assert(!quiet.includes('TV on')&&!quiet.includes('Music'));
+ assert(!quiet.includes('TV')&&!quiet.includes('Music'));
+ const home={...states,'remote.rest_area_living_2f_tv_pro':{state:'off',attributes:{}},'media_player.rest_area_living_tv':{state:'idle',attributes:{app_name:'Google TV Launcher'}}};
+ assert(Function('states',card.custom_fields.chips.trim().slice(3,-3))(home).includes('TV · Home'),'the launcher is Home');
+ const bare={...home,'media_player.rest_area_living_tv':{state:'idle',attributes:{}}};
+ assert(Function('states',card.custom_fields.chips.trim().slice(3,-3))(bare).includes('TV on'),'no app known: TV on');
 });
 test('security opens with status, alarm and gates of one height, then shortcuts, cameras and detection',()=>{
  const d=generate({});
@@ -625,4 +633,59 @@ test('the Music Assistant page carries a helper that gives the app DwellDeck\'s 
  assert(theme.includes('--sidebar:')&&theme.includes('--card:')&&theme.includes('html.dark')&&theme.includes('--v-theme-overlay'),'newer parts and the player bar too');
  assert(stack.cards[0].extra_styles.includes('height:0'));
  assert(stack.cards[1].card_mod.style.includes('iframe { opacity: 0'),'the app starts hidden, no flash of its own colours');
+});
+
+test('the Media page ends with Recently played: what each player played, from the history, one line per thing',async()=>{
+ const RealDate=Date,noon=new RealDate();noon.setHours(12,0,0,0);const at=noon.getTime();
+ globalThis.Date=class extends RealDate{constructor(...a){a.length?super(...a):super(at);}static now(){return at;}};
+ try{
+ const {designMediaHistory}=await import('../src/music.mjs');
+ const tv={type:'custom:button-card',entity:'media_player.living_tv',name:'Living TV',custom_fields:{now:'x'},triggers_update:['media_player.living_tv','remote.living_tv']};
+ const speaker={type:'custom:button-card',entity:'media_player.living_zone',name:'Living Sound System',custom_fields:{now:'x'},triggers_update:['media_player.living_zone','media_player.living_ma']};
+ const out={views:[{path:'media',sections:[{type:'grid',cards:[tv,speaker]}]}]};
+ designMediaHistory(out);
+ const section=out.views[0].sections.at(-1);
+ assert.equal(section.cards[0].heading,'Recently played');
+ const body=section.cards[1].custom_fields.played.trim().slice(3,-3);
+ const now=Date.now()/1000,calls=[];
+ const fakeHass={callWS:async msg=>{calls.push(msg);return {
+  'media_player.living_tv':[{s:'idle',a:{app_name:'Google TV Launcher'},lu:now-7200},{s:'playing',a:{app_id:'com.netflix.ninja'},lu:now-6000},{s:'off',a:{},lu:now-3000}],
+  'media_player.living_zone':[{s:'playing',a:{media_title:'Blue in Green',media_artist:'Miles Davis',source:'Internet music'},lu:now-2400},{s:'off',a:{},lu:now-600}],
+  'media_player.living_ma':[{s:'playing',a:{media_title:'Blue in Green',media_artist:'Miles Davis',app_id:'music_assistant'},lu:now-2390},{s:'idle',a:{},lu:now-610}]
+ };}};
+ globalThis.window={};globalThis.localStorage=undefined;
+ const shadow={querySelector:()=>null};
+ const run=()=>Function('states','hass',body).call({shadowRoot:shadow},{},fakeHass);
+ assert(run().includes('Reading the history'));
+ await new Promise(r=>setTimeout(r,20));
+ assert.equal(calls[0].type,'history/history_during_period');
+ assert.deepEqual(calls[0].entity_ids.sort(),['media_player.living_ma','media_player.living_tv','media_player.living_zone']);
+ const html=run();
+ assert(html.includes('>Netflix<')&&html.includes('50 min'),'a TV app with how long');
+ assert(!html.includes('>Home<'),'the home screen is not something played');
+ assert.equal(html.split('Blue in Green').length-1,1,'the zone and its Music Assistant copy count once');
+ assert(html.includes('Miles Davis')&&html.includes('Living Sound System')&&html.includes('Music Assistant'));
+ for(const label of ['Today','Yesterday','Last week','All players'])assert(html.includes(`>${label}</option>`),label);
+ window.__dwellPlayedUi.player({value:'Living TV'});
+ const one=run();
+ assert(one.includes('Netflix')&&!one.includes('Blue in Green'),'filtered to one player');
+ } finally { globalThis.Date=RealDate; }
+});
+
+test('player cards are all one size: one width in every room, one height, rows at the top',async()=>{
+ const {tvCard}=await import('../src/tv.mjs');
+ const {organizedEntitySections}=await import('../src/cards.mjs');
+ const st=(id,a={})=>[id,{entity_id:id,state:'off',attributes:{friendly_name:a.name,supported_features:4+16384+1}}];
+ const states=Object.fromEntries([st('media_player.bbq',{name:'BBQ Sound System'}),st('media_player.bar',{name:'Bar Sound System'}),st('media_player.spotify',{name:'Spotify'})]);
+ const entities={'media_player.bbq':{area_id:'pool',platform:'dsppa_am8328'},'media_player.bar':{area_id:'pool',platform:'dsppa_am8328'},'media_player.spotify':{area_id:'hall',platform:'spotify'}};
+ const hass={states,entities,devices:{},floors:{},areas:{pool:{area_id:'pool',name:'Pool'},hall:{area_id:'hall',name:'Hall'}}};
+ const prototype={tap_action:{browser_mod:{data:{content:{cards:[{type:'grid',cards:[{type:'tile'}]}]}}}}};
+ const sections=organizedEntitySections(Object.keys(states),hass,prototype,'mdi:play','media_player');
+ const pool=sections.find(s=>s.cards[0].heading==='Pool'),hall=sections.find(s=>s.cards[0].heading==='Hall');
+ assert.equal(pool.column_span,2);assert.equal(hall.column_span,1,'a room with one player takes one column');
+ assert(pool.cards.slice(1).every(c=>c.grid_options.columns===12)&&hall.cards[1].grid_options.columns===12,'so every player card is one column wide');
+ const card=tvCard('media_player.bbq',hass);
+ assert(card.styles.card.some(r=>r['min-height']==='400px'),'one height');
+ assert(card.styles.grid.some(r=>r['align-content']==='start'),'rows at the top, not spread over a stretched card');
+ assert(card.styles.custom_fields.now.some(r=>r['min-height']==='78px'),'now playing keeps its size with or without artwork');
 });

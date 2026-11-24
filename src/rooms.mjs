@@ -1,7 +1,7 @@
 // Rooms page design: each room card is a glanceable summary with one quick action, and each room
 // opens with a compact status strip instead of rows of sensor tiles.
 
-import {tvGroup, isTv, tvSignals} from './tv.mjs';
+import {tvGroup, isTv, tvSignals, KNOWN_PACKAGES} from './tv.mjs';
 export const ROOM_COLORS = {
   surface: '#1b2d40', surfaceEnd: '#172638', card: '#101c2b', text: '#edf5ff', muted: '#91a8bd',
   line: 'rgba(156,199,225,.12)', onBg: '#493b24', on: '#d5a74c', onText: '#efc875', active: '#39e2bc', alert: '#ff7885'
@@ -40,7 +40,28 @@ function dwellRoomChips(states, cfg) {
   // A TV is on when any of its real entries is on (idle counts: the TV is on, nothing is playing) or its remote is on.
   const tvIsOn = ids => ids.some(id => { const st = states[id]?.state; return st && (id.startsWith('remote.') ? st === 'on' : !['off', 'standby', 'unavailable', 'unknown'].includes(st)); });
   const tvOn = cfg.media.filter(tvIsOn);
-  if (tvOn.length) chip('mdi:television-play', tvOn.some(ids => ids.some(id => states[id]?.state === 'playing')) ? 'TV playing' : 'TV on', 'on');
+  // What the TV shows: the remote's current app, else the player's app or input ("TV · Netflix", "TV · HDMI 1").
+  const appName = value => {
+    if (!value) return '';
+    const text = String(value).trim();
+    if (cfg.known[text]) return cfg.known[text];
+    if (/launcher/i.test(text)) return 'Home';
+    if (!/^[a-z][\w]*(\.[\w:]+)+$/i.test(text)) return text;
+    const part = text.split(/[.:]/).filter(w => !/^(com|net|org|tv|android|androidtv|google|app|apps|mobile|ninja|livingroom|leanback)$/i.test(w)).pop() || text;
+    return part.charAt(0).toUpperCase() + part.slice(1);
+  };
+  const tvApp = ids => ids.map(id => {
+    const e = states[id];
+    if (!e || ['off', 'standby', 'unavailable', 'unknown'].includes(e.state)) return '';
+    if (id.startsWith('remote.')) return appName(e.attributes?.current_activity);
+    return appName(e.attributes?.app_name) || appName(e.attributes?.app_id) || appName(e.attributes?.source);
+  }).find(Boolean) || '';
+  // And what plays in it, when the TV says (shortened so the chip stays small).
+  const tvTitle = ids => ids.map(id => states[id]).find(e => e && ['playing', 'paused'].includes(e.state) && e.attributes?.media_title
+    && !/^home assistant$/i.test(e.attributes.media_title))?.attributes?.media_title || '';
+  const short = text => text.length > 28 ? `${text.slice(0, 27).trim()}…` : text;
+  if (tvOn.length === 1 && tvApp(tvOn[0])) chip('mdi:television-play', `TV · ${tvApp(tvOn[0])}${tvTitle(tvOn[0]) ? ` · ${short(tvTitle(tvOn[0]))}` : ''}`, 'on');
+  else if (tvOn.length) chip('mdi:television-play', `${tvOn.length > 1 ? `${tvOn.length} TVs` : 'TV'} ${tvOn.some(ids => ids.some(id => states[id]?.state === 'playing')) ? 'playing' : 'on'}`, 'on');
   const music = cfg.speakers.filter(id => live(id) && ['playing', 'paused'].includes(states[id].state));
   if (music.length) chip('mdi:speaker', states[music[0]].state === 'playing' ? 'Music playing' : 'Music paused', states[music[0]].state === 'playing' ? 'on' : undefined);
   const open = cfg.covers.filter(id => live(id) && ['open', 'opening'].includes(states[id].state)).length;
@@ -76,7 +97,7 @@ const chipsConfig = (controls, hass, strip = false, room = {}) => ({
   media: [...new Map(controls.filter(id => id.startsWith('media_player.') && isTv(id, hass)).map(id => [tvGroup(id, hass)[0], tvSignals(id, hass)])).values()],
   speakers: [...new Set(controls.filter(id => id.startsWith('media_player.') && !isTv(id, hass)).map(id => tvGroup(id, hass)[0]))],
   covers: controls.filter(id => id.startsWith('cover.')),
-  strip, c: ROOM_COLORS
+  strip, c: ROOM_COLORS, known: KNOWN_PACKAGES
 });
 const chipsTemplate = cfg => `[[[ return (${dwellRoomChips.toString()})(states, ${JSON.stringify(cfg)}); ]]]`;
 

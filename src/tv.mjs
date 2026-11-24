@@ -126,7 +126,7 @@ export const withoutDuplicatePlayers = (ids, hass) => {
 };
 
 // Friendly names for common Android TV packages; other package names are system services and are hidden.
-const KNOWN_PACKAGES = {
+export const KNOWN_PACKAGES = {
   'music_assistant': 'Music Assistant',
   'com.netflix.ninja': 'Netflix', 'com.google.android.youtube.tv': 'YouTube', 'com.google.android.youtube.tvmusic': 'YouTube Music',
   'com.disney.disneyplus': 'Disney+', 'com.amazon.amazonvideo.livingroom': 'Prime Video', 'com.spotify.tv.android': 'Spotify',
@@ -142,7 +142,7 @@ const KNOWN_PACKAGES = {
 // Asks ADB for the TV apps that can be launched from the home screen, and for user-installed apps.
 const FETCH_APPS = 'cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER; pm list packages -3';
 // Launchers, setup and system services are not apps to open.
-const HIDDEN_PACKAGES = /launcher|setupwraith|tungsten|katniss|systemui|inputmethod|\.gms|gsf|tvrecommendations|backdrop|dreamx|remote\.service|mediatek|providers|permissioncontroller|\.tts$|tokenmanager|airplay|tclhome|\.ext\.services|tcl\.(ocean|suspension|dashboard|exhibit|guard|partnercustomizer|waterfall|magiconnect)/;
+export const HIDDEN_PACKAGES = /launcher|setupwraith|tungsten|katniss|systemui|inputmethod|\.gms|gsf|tvrecommendations|backdrop|dreamx|remote\.service|mediatek|providers|permissioncontroller|\.tts$|tokenmanager|airplay|tclhome|\.ext\.services|tcl\.(ocean|suspension|dashboard|exhibit|guard|partnercustomizer|waterfall|magiconnect)/;
 // Shown when the TV lists no apps: common apps, opened by their package with Android TV Remote.
 const COMMON_APPS = [['Netflix', 'com.netflix.ninja'], ['YouTube', 'com.google.android.youtube.tv'], ['Disney+', 'com.disney.disneyplus'],
   ['Prime Video', 'com.amazon.amazonvideo.livingroom'], ['Spotify', 'com.spotify.tv.android'], ['YouTube Music', 'com.google.android.youtube.tvmusic']];
@@ -639,8 +639,14 @@ export function tvCard(requested, hass) {
   fields.now = `[[[ ${current}
     const esc = v => String(v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const off = !m || ${OFF}.includes(m.state);
+    // The title can sit on another entry of the same TV (its Cast, DLNA or Music Assistant entry).
+    // DLNA renderers are left out: they keep an old title ("Home Assistant") long after it stopped.
+    const titled = !off && (m.attributes?.media_title ? m : live.find(p => ${JSON.stringify(sources.filter(p => hass.entities?.[p]?.platform !== 'dlna_dmr'))}.includes(p.entity_id)
+      && ['playing', 'paused'].includes(p.state) && p.attributes?.media_title));
     const playing = m;
-    const a = playing?.attributes || {};
+    const a = {...(playing?.attributes || {}), ...(titled && titled !== m ? {media_title: titled.attributes.media_title, media_series_title: titled.attributes.media_series_title,
+      media_artist: titled.attributes.media_artist, media_album_name: titled.attributes.media_album_name,
+      entity_picture_local: titled.attributes.entity_picture_local, entity_picture: titled.attributes.entity_picture} : {})};
     const state = !m ? 'Unavailable' : off ? 'Off' : playing.state === 'playing' ? 'Playing' : playing.state === 'paused' ? 'Paused' : playing.state === 'buffering' ? 'Loading' : 'On';
     const title = a.media_title || '';
     const detail = [a.media_series_title, a.media_artist, a.media_album_name].filter(Boolean).filter((v, i, list) => list.indexOf(v) === i).join(', ');
@@ -676,7 +682,6 @@ export function tvCard(requested, hass) {
   // Header: button-card's own icon, name and label, so it lines up on the left.
   const status = `[[[ ${current}
     const off = !m || ${OFF}.includes(m.state);
-    const title = [m?.attributes?.media_title, m?.attributes?.media_artist].filter(Boolean).join(', ');
     return !m ? 'Unavailable' : off ? 'Off' : cur ? 'On, ' + cur : 'On'; ]]]`;
   return {
     type: 'custom:button-card', entity: id, name, icon: tv ? 'mdi:television' : 'mdi:speaker', show_name: true, show_icon: true, show_state: false, show_label: true, label: status,
@@ -687,15 +692,18 @@ export function tvCard(requested, hass) {
     custom_fields: fields,
     styles: {
       // Cards in one row stretch to the same height.
-      card: [{padding: '16px'}, {height: '100%'}, {'box-sizing': 'border-box'}, {'align-content': 'start'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
+      // One size for every player card: as tall as a card with artwork, music buttons and tabs.
+      card: [{padding: '16px'}, {height: '100%'}, {'min-height': '400px'}, {'box-sizing': 'border-box'}, {'align-content': 'start'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
         // The artwork of whatever plays fills the card behind a dark veil.
         {background: `[[[ ${current} const p = m?.attributes?.entity_picture_local || m?.attributes?.entity_picture; return m && m.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
-      grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '40px minmax(0,1fr) 46px'}, {gap: '2px 12px'}, {'align-items': 'center'}],
+      // Rows stay at the top, so every card has its header, now playing, buttons and volume at the same height.
+      grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '40px minmax(0,1fr) 46px'}, {'grid-template-rows': 'auto'},
+        {gap: '2px 12px'}, {'align-items': 'center'}, {'align-content': 'start'}],
       img_cell: [{'justify-content': 'flex-start'}, {width: '40px'}, {height: '40px'}],
       icon: [{width: '28px'}, {color: `[[[ ${isOn} return on ? '${C.onText}' : '${C.muted}'; ]]]`}],
       name: [{'justify-self': 'start'}, {'align-self': 'end'}, {'font-size': '17px'}, {'font-weight': '600'}, {color: C.text}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: C.muted}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
-      custom_fields: {power: [{'justify-self': 'end'}], now: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {padding: '10px 12px'}, {'border-radius': '14px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${C.line}`}], media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}],
+      custom_fields: {power: [{'justify-self': 'end'}], now: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {padding: '10px 12px'}, {'min-height': '78px'}, {'box-sizing': 'border-box'}, {display: 'flex'}, {'align-items': 'center'}, {'border-radius': '14px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${C.line}`}], media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}],
         panel: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}],
         ma: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}],
         vol: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}]}

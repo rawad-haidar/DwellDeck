@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.30 — What's playing, and what played
+
+- **Room cards and room status strips**: a TV that is on shows what it is on, such as **TV · Netflix**, **TV · YouTube** or **TV · Home** (the home screen), and what plays in it when the TV says (**TV · Netflix · Stranger Things…**). The app comes from the TV remote's current app, else the TV's app or input. With no app known it still says **TV on** or **TV playing**, and two TVs on show **2 TVs on**.
+- **TV and sound system cards** show the title, artist and artwork from whichever entry of the TV has them (its Cast or Music Assistant entry too), not only the main one. DLNA entries are left out, as they keep an old title long after it stopped.
+- **Media page cards are all one size**: every TV and sound system card has the same width (a room with one player takes one column, so the next room sits beside it), the same height, and its rows at the same place: header, now playing, buttons, volume and Music Assistant buttons line up across cards. The now-playing box keeps its size with or without artwork.
+- **Recently played** at the bottom of the Media page: what every TV and sound system played, newest first and grouped by day, with the time, how long, the player and the app. Pick **Today**, **Yesterday**, **Last 3 days**, **Last week** or **Last 10 days**, and one player or all (tap a player's name to see only that one). Songs show title and artist; a TV app with no title shows the app (Netflix, YouTube, Shahid…). The same song on a zone and its Music Assistant copy counts once; the home screen, settings, the store, system apps and an amplifier's input name are left out. It reads Home Assistant's history, so it reaches back as far as the recorder keeps (10 days by default).
+
 ## 0.9.29 — Sound system power goes straight to the amplifier
 
 - **Sound system cards**: power, volume and playback go to the zone itself (the DSPPA zone), not to its Music Assistant copy. On cards whose Music Assistant copy sorted first by name (M.Kitchen, Living, Pergola, Bar) the power button went through Music Assistant, which turned the zone on and off slowly or not at all. The **Music player** and **Music Assistant** buttons and the artwork still use the Music Assistant player.
