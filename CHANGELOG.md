@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.5 — Live TV apps and one card per TV
+
+- **Apps** and **Sources** popups read the TV's lists when you open them, so they work even if the TV was off when the dashboard loaded. When the TV is off, the popup says to turn it on.
+- Apps and Sources buttons appear for every TV that can switch apps or inputs.
+- TVs whose names include IP addresses in brackets, or repeat the name ("Saloon TV(192.168.14.187) Saloon TV(192.168.14.246)"), now merge with the other entries for the same TV.
+- The card header uses button-card's own icon, name and status, so it lines up on the left.
+
+## 0.9.4 — Compact TV card with popups
+
+- The TV card is compact again: what's on, power, volume and play or pause, and buttons for **Remote**, **Apps**, **Sources** and **Keyboard**. Each opens its own popup.
+- **Remote** popup: round pad with OK, then Back, Home and Menu, then volume and mute.
+- **Apps** and **Sources** popups show readable names only. Android package names (com.android.systemui and the like) are hidden; common ones such as Netflix and YouTube get their proper names. HDMI inputs, TV and the home screen go to Sources; everything else is an app. The one in use is highlighted.
+- Supports the **Android Debug Bridge (androidtv)** integration: the remote uses `androidtv.adb_command`.
+- A TV set up through several integrations ("Saloon TV" and "Saloon TV ADB" in the same area) becomes one card, combining the remote, apps and inputs from all of them.
+- Fixes the card header: the icon and name now sit on the left.
+
 ## 0.9.3 — One card per TV
 
 - Each TV is now one card, in Rooms and on the Media page. It replaces the separate media card, playback tile, Apps card and remote pad from 0.9.1 and 0.9.2.
