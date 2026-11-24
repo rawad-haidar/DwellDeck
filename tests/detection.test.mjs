@@ -23,10 +23,12 @@ test('security view gets a camera detection section with status and recent activ
   assert.match(markdown[1], /\| Camera \| 🧍 Human \| 🚗 Vehicle \|/);
 });
 
-test('detection history button opens the Activity view under the dashboard path', () => {
-  // The button lives with the other Security shortcuts.
-  const button = generate({}).views.find(v => v.path === 'security').sections.flatMap(s => s.cards).find(c => c.name === 'Detection history');
-  assert.equal(button.tap_action.navigation_path, '/dashboard-test/notifications');
+test('the history shortcut opens the Activity view under the dashboard path', () => {
+  // Detection history and Recent history opened the same page; one History button remains.
+  const bar = generate({}).views.find(v => v.path === 'security').sections.find(s => s.cards[0].heading === 'Shortcuts').cards[1].custom_fields.bar;
+  const html = Function('states', bar.trim().slice(3, -3))({});
+  assert(html.includes('data-path="/dashboard-test/notifications"'));
+  assert.equal(html.match(/notifications"/g).length, 1);
 });
 
 test('detection cards use the dashboard colours and selected palette', () => {

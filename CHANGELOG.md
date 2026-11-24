@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.9.27 — Climate, Energy power flow, Security shortcuts
+
+- **Climate** follows Home's arrangement. **Climate now**: the average inside temperature (and outside), how many air conditioners are on, whether heating is on, and a list of everything heating or cooling with its mode and current → target temperature (tap for its controls). **Turn everything off** needs a second tap to confirm. **Heating** (boiler, hot water, valves) sits beside it at the same height. Then **AC scenes** in one row right above **Air conditioners**, then **Thermostats**.
+- **Climate history**, full width, with a date dropdown (today, yesterday, last 24 hours, 2 or 3 days, a week, or a day you pick): every room's temperature as a line (hover for values, tap a name to hide it), and under it an **Activity** timeline, one row per air conditioner, thermostat and heating device, with bars for cooling, heating, drying, fan or on (hover a bar for its times).
+
+- **Energy** follows Home's arrangement. Top row: a live **Power flow** (solar on top, grid left, house right, battery below, the inverter in the middle; moving dots show which way power flows and speed up with more power; tap a circle for its sensor) and **Today** (solar produced, home used, battery charged and discharged, from and to the grid).
+- Inverters are found by their sensor names (Solarman / Deye style) and added up, so two inverters in parallel show as one house. The house uses each inverter's output power.
+- **Energy page sensors** in the dashboard editor: solar, home, battery and grid power, battery level, the sign conventions, and the today and running-total energy sensors. They show what was found; change any to choose your own (several in one field are added up), or press **Find energy sensors automatically again**.
+- **Battery on the power chart**: Solar, home and battery power together, plus the battery level (%) on its own 0–100 % scale on the right; battery above zero while charging, below while discharging (whatever sign the inverter uses).
+- **Switch lines off**: tap a name or colour in a chart's legend to hide that line or bar (crossed out), tap again to show it; the scale fits what is shown. Works in the large view too.
+- **History charts**: hover any point to see every value at that time; negative values (export, discharge) show below a zero line and the scale covers them; tap a chart to open it large with totals, averages, lows and highs, every value in a table, and a CSV download.
+- **Several sensors in one field**: for each energy field, choose in DwellDeck setup whether they are **added up** (inverters in parallel; the default for power and kWh), **averaged** (the default for battery level), or drawn **one line each** in the graphs (lighter shades and dashed lines, named by what differs, like Master and Slave).
+- **History** with a date dropdown: today, yesterday, the last 2 or 3 days, 1, 2 or 3 weeks, a month, or custom dates. Charts: solar and home kWh, battery and grid kWh (with totals for the range), average solar and home power, and the battery level with its low-to-high band. Hours for up to three days, days beyond. The choice is remembered on each device.
+
+- Security shortcuts are one full-width row of buttons (icon, name, what it opens, and an arrow) instead of small tiles squeezed into one column; nothing is cut off, and on a phone they stack one per row.
+- Recent history and Detection history opened the same page; they are one **History** button now.
+- Shortcuts sit above Entrance cameras and Camera detection.
+- The top row lines up: Status, Alarm and Gates each have a heading and end on the same line. The status card has a fixed height (a long attention list scrolls inside), the alarm panel is at least that tall, and the gate rows grow to fill the column. The note under the gates is gone.
+
 ## 0.9.26 — Home and Security in order of importance
 
 - **Security** opens with one status card: the alarm state in large type, pills for safety alerts, open doors and windows, motion, gates and cameras, and a **Needs attention** list (alarm triggered, safety alerts, unlocked gates, open doors and windows, offline cameras, most serious first; each opens its entity). When nothing needs you, it says all clear.
