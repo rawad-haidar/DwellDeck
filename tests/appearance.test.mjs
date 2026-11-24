@@ -99,36 +99,46 @@ const tvCards=()=>{
  const cards={};const find=x=>{if(x&&typeof x==='object'){if(x.type==='custom:button-card'&&x.entity?.startsWith('media_player.')&&x.custom_fields?.media)cards[x.entity]=x;Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
  return cards;
 };
-const launch=(card,name)=>card.custom_fields.launch?.card.custom_fields[name]?.card?.tap_action;
-const popupActions=action=>{const out=[];const walk=x=>{if(x&&typeof x==='object'){if(x.tap_action?.perform_action)out.push(x.tap_action);Object.values(x).forEach(walk);}};walk(action?.browser_mod?.data?.content);return out;};
-// Apps and Sources popups render live from states; run their template like button-card does.
-const popupHtml=(action,states)=>{globalThis.window=globalThis.window||{};const t=action.browser_mod.data.content.custom_fields.list.trim().slice(3,-3);return Function('states',t)(states);};
-const popupNames=(action,states=tvHass().states)=>[...popupHtml(action,states).matchAll(/<span[^>]*>([^<]*)<\/span>/g)].map(m=>m[1].replace('&amp;','&'));
-test('each TV is one compact card with Remote, Apps and Sources popups',()=>{
+// The TV panel renders from states like button-card does; collect its tabs and the actions its buttons call.
+const runField=(card,field,states)=>{globalThis.window=globalThis.window||{};const t=card.custom_fields[field].trim().slice(3,-3);return Function('states',t)(states);};
+const unescape=v=>v.replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
+const panel=(card,states=tvHass().states)=>{
+ const html=runField(card,'panel',states);
+ return {html,tabs:[...html.matchAll(/class="tab" data-tab="([^"]+)"/g)].map(m=>m[1]),
+  calls:[...html.matchAll(/data-call="([^"]*)"/g)].map(m=>JSON.parse(unescape(m[1]))),
+  names:pane=>[...(html.split(`class="pane ${pane}"`)[1]||'').split('class="pane ')[0].matchAll(/<span>([^<]*)<\/span>/g)].map(m=>unescape(m[1]))};
+};
+test('each TV is one compact card with Remote, Apps, Sources and Keyboard tabs and no popups',()=>{
  const cards=tvCards();
  assert.deepEqual(Object.keys(cards).sort(),['media_player.atv','media_player.bedroom_adb','media_player.saloon_tv','media_player.speaker']);
- const saloon=cards['media_player.saloon_tv'];
- assert.deepEqual(Object.keys(saloon.custom_fields.launch.card.custom_fields),['remote','apps','sources','keys']);
- const keys=popupActions(launch(saloon,'remote')).map(a=>a.data?.command).filter(Boolean);
- for(const c of ['DPAD_UP','DPAD_CENTER','BACK','HOME','MENU','MUTE'])assert(keys.includes(c),c);
- assert.deepEqual(popupNames(launch(saloon,'apps')),['Google Cast','Netflix','YouTube']);
- assert.deepEqual(popupNames(launch(saloon,'sources')),['HDMI 1','HDMI 2','Home']);
- assert.equal(launch(saloon,'keys').browser_mod.data.right_button_action.service,'remote.send_command');
+ for(const card of Object.values(cards))assert(!JSON.stringify(card).includes('browser_mod'));
+ const saloon=panel(cards['media_player.saloon_tv']);
+ assert.deepEqual(saloon.tabs,['remote','apps','sources','keys']);
+ const commands=saloon.calls.filter(c=>c[1]==='send_command').map(c=>c[2].command);
+ for(const c of ['DPAD_UP','DPAD_CENTER','BACK','HOME','MENU','MUTE'])assert(commands.includes(c),c);
+ assert.deepEqual(saloon.names('apps-pane'),['Google Cast','Netflix','YouTube']);
+ assert.deepEqual(saloon.names('sources'),['HDMI 1','HDMI 2','Home']);
+ assert(saloon.html.includes('class="dw-kb"'));
  const bedroom=cards['media_player.bedroom_adb'];
- const adb=popupActions(launch(bedroom,'remote'));
- assert(adb.every(a=>a.perform_action!=='remote.send_command'));
- assert(adb.some(a=>a.perform_action==='androidtv.adb_command'&&a.data.command==='CENTER'));
- assert.deepEqual(popupNames(launch(bedroom,'apps')),['YouTube']);
+ const adb=panel(bedroom);
+ assert(adb.calls.some(c=>c[0]==='androidtv'&&c[1]==='adb_command'&&c[2].command==='CENTER'));
+ assert(!adb.calls.some(c=>c[1]==='send_command'));
+ assert.deepEqual(adb.names('apps-pane'),['YouTube']);
+ assert(!adb.tabs.includes('keys'));
  const off=tvHass().states;off['media_player.bedroom_adb'].state='off';off['media_player.bedroom_adb'].attributes.source_list=[];
- assert(popupHtml(launch(bedroom,'apps'),off).includes('Turn the TV on'));
+ assert(panel(bedroom,off).html.includes('Turn the TV on'));
  const live=tvHass().states;live['media_player.bedroom_adb'].attributes.source_list=['com.netflix.ninja','HDMI 4'];
- assert.deepEqual(popupNames(launch(bedroom,'apps'),live),['Netflix']);
- assert.deepEqual(popupNames(launch(bedroom,'sources'),live),['HDMI 4']);
- assert(popupHtml(launch(bedroom,'apps'),live).includes('data-service="select_source"'));
- assert(!launch(bedroom,'keys'));
- const atv=cards['media_player.atv'];
- assert(popupActions(launch(atv,'remote')).some(a=>a.data?.command==='select'));
- assert(!launch(atv,'keys'));
- assert(!cards['media_player.speaker'].custom_fields.launch);
- assert.equal(saloon.name,'Saloon TV');assert.equal(saloon.icon,'mdi:television');
+ assert.deepEqual(panel(bedroom,live).names('apps-pane'),['Netflix']);
+ assert.deepEqual(panel(bedroom,live).names('sources'),['HDMI 4']);
+ const atv=panel(cards['media_player.atv']);
+ assert(atv.calls.some(c=>c[2]?.command==='select'));
+ assert(!atv.tabs.includes('keys'));
+ assert(!cards['media_player.speaker'].custom_fields.panel);
+ const tv=cards['media_player.saloon_tv'];
+ assert.equal(tv.name,'Saloon TV');assert.equal(tv.icon,'mdi:television');
+ const playing=tvHass().states;Object.assign(playing['media_player.saloon_tv'],{state:'playing'});Object.assign(playing['media_player.saloon_tv'].attributes,{media_title:'Episode 3',media_series_title:'The Show',entity_picture:'/api/x.jpg'});
+ const now=runField(tv,'now',playing);
+ assert(now.includes('Playing')&&now.includes('Episode 3')&&now.includes('The Show')&&now.includes('YouTube'));
+ const offNow=tvHass().states;offNow['media_player.saloon_tv'].state='off';
+ assert(runField(tv,'now',offNow).includes('The TV is off.'));
 });

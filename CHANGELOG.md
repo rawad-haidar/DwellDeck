@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.6 — TV tabs in place and Now playing
+
+- **Remote**, **Apps**, **Sources** and **Keyboard** open as tabs inside the TV card instead of popups. Browser Mod shows one popup at a time, so the old popups closed the room they were opened from. Tap a tab again to close it.
+- **Keyboard** is a text box in the card: type, then press Send or Enter.
+- **Now playing** shows the TV's status (Playing, Paused, On or Off), the artwork, the title, the series or artist, and the app.
+
 ## 0.9.5 — Live TV apps and one card per TV
 
 - **Apps** and **Sources** popups read the TV's lists when you open them, so they work even if the TV was off when the dashboard loaded. When the TV is off, the popup says to turn it on.

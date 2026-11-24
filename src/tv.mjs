@@ -1,6 +1,6 @@
-// One compact card per TV: what's on, power, volume and playback, and buttons that open
-// tidy popups: Remote, Apps, Sources and Keyboard. Built from nested button-cards and Browser Mod
-// popups, so every control is a normal Home Assistant action.
+// One compact card per TV: what's on, power, volume and playback, and tabs that open in place:
+// Remote, Apps, Sources and Keyboard. No popups, so a TV inside a room popup keeps the room open
+// (Browser Mod shows one popup at a time).
 
 import {normalizeName} from './util.mjs';
 import {entityArea} from './discovery.mjs';
@@ -73,7 +73,6 @@ const APP_ICONS = [[/netflix/i, 'mdi:netflix'], [/youtube/i, 'mdi:youtube'], [/s
   [/plex/i, 'mdi:plex'], [/kodi/i, 'mdi:kodi'], [/twitch/i, 'mdi:twitch'], [/cast/i, 'mdi:cast'], [/hdmi/i, 'mdi:video-input-hdmi'],
   [/launcher|^home$/i, 'mdi:home-outline'], [/^(tv|live ?tv|antenna|tuner)$/i, 'mdi:television-classic'],
   [/music/i, 'mdi:music-note-outline'], [/settings/i, 'mdi:cog-outline'], [/usb/i, 'mdi:usb']];
-const appIcon = name => APP_ICONS.find(([pattern]) => pattern.test(name))?.[1] || 'mdi:application-outline';
 
 // A readable name for a list entry, or null for package names that are system services.
 export function appName(entry) {
@@ -117,26 +116,35 @@ function group(areas, columns, fields, extra = {}) {
     custom_fields: Object.fromEntries(Object.entries(fields).map(([k, card]) => [k, {card}]))
   };
 }
-const rows = (names, perRow) => {
-  const out = [];
-  for (let i = 0; i < names.length; i += perRow) out.push(`"${[...names.slice(i, i + perRow), ...Array(perRow).fill('.')].slice(0, perRow).join(' ')}"`);
-  return out.join(' ');
-};
-const popup = (title, content) => ({action: 'fire-dom-event', browser_mod: {service: 'browser_mod.popup', data: {title, content}}});
+// The tabs panel. Runs inside a button-card template, so it must be self-contained (serialised with toString).
+// Tabs open and close in the page without a Home Assistant state, and each key calls a Home Assistant action.
+function dwellTvPanel(states, cfg) {
+  window.__dwellTv = window.__dwellTv || {
+    hass: () => document.querySelector('home-assistant')?.hass,
+    call(el) { const [domain, service, data] = JSON.parse(el.dataset.call); this.hass()?.callService(domain, service, data); },
+    tab(el) { const box = el.closest('.dw-tv'); box.dataset.open = box.dataset.open === el.dataset.tab ? '' : el.dataset.tab; },
+    send(el) {
+      const input = el.closest('.dw-kb').querySelector('input');
+      const text = input.value;
+      if (!text) return;
+      const [domain, service, data] = JSON.parse(el.dataset.call);
+      this.hass()?.callService(domain, service, {...data, command: text});
+      input.value = '';
+    }
+  };
+  const c = cfg.c;
+  const esc = value => String(value).replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+  const call = (domain, service, data) => esc(JSON.stringify([domain, service, data]));
+  const keyCall = command => cfg.remote ? call(cfg.remote.domain, cfg.remote.service, {entity_id: cfg.remote.target, command}) : '';
+  const player = service => call('media_player', service, {entity_id: cfg.lead});
+  const btn = (icon, label, callData, cls = 'key', showLabel = true) =>
+    `<button class="${cls}" aria-label="${esc(label)}" onclick="window.__dwellTv.call(this)" data-call="${callData}"><ha-icon icon="${icon}"></ha-icon>${showLabel ? `<span>${esc(label)}</span>` : ''}</button>`;
 
-// Runs inside a button-card template when a popup opens, so the lists are always the TV's current ones.
-// Self-contained: serialised with toString.
-function dwellTvLaunchers(states, cfg) {
-  window.__dwellLaunch = window.__dwellLaunch || (el => {
-    const hass = document.querySelector('home-assistant')?.hass;
-    const d = el.dataset;
-    if (hass) hass.callService(d.domain, d.service, {entity_id: d.target, [d.key]: d.value});
-  });
-  const known = cfg.known;
+  // Apps and inputs from the TV's current lists.
   const nameOf = raw => {
     const text = String(raw || '').trim();
     if (!text) return null;
-    if (known[text]) return known[text];
+    if (cfg.known[text]) return cfg.known[text];
     if (/launcher/i.test(text)) return 'Home';
     if (/^[a-z][\w]*(\.[\w:]+)+$/i.test(text)) return null;
     return text;
@@ -144,47 +152,86 @@ function dwellTvLaunchers(states, cfg) {
   const isInput = new RegExp(cfg.inputPattern, 'i');
   const seen = new Set();
   const items = [];
-  const add = (raw, domain, service, target, keyName) => {
+  const add = (raw, callData) => {
     const name = nameOf(raw);
     if (!name || seen.has(name.toLowerCase())) return;
     seen.add(name.toLowerCase());
-    items.push({name, raw, domain, service, target, keyName, input: isInput.test(name)});
+    items.push({name, callData, input: isInput.test(name)});
   };
-  const remote = cfg.remote ? states[cfg.remote] : undefined;
-  if (cfg.activities) for (const raw of remote?.attributes?.activity_list || []) add(raw, 'remote', 'turn_on', cfg.remote, 'activity');
-  for (const player of cfg.players) for (const raw of states[player]?.attributes?.source_list || []) add(raw, 'media_player', 'select_source', player, 'source');
-  const list = items.filter(item => item.input === (cfg.kind === 'inputs')).sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
-  const cur = remote?.attributes?.current_activity || cfg.players.map(p => states[p]?.attributes?.app_name || states[p]?.attributes?.source).find(Boolean);
-  const esc = value => String(value).replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+  if (cfg.activities) for (const raw of states[cfg.activities]?.attributes?.activity_list || []) add(raw, call('remote', 'turn_on', {entity_id: cfg.activities, activity: raw}));
+  for (const p of cfg.players) for (const raw of states[p]?.attributes?.source_list || []) add(raw, call('media_player', 'select_source', {entity_id: p, source: raw}));
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true});
   const icon = name => (cfg.icons.find(([pattern]) => new RegExp(pattern, 'i').test(name)) || [0, 'mdi:application-outline'])[1];
-  if (!list.length) {
-    const off = cfg.players.every(p => ['off', 'standby', 'unavailable', 'unknown'].includes(states[p]?.state));
-    return `<div style="padding:18px 6px;color:${cfg.c.muted};font-size:14px;line-height:1.5;text-align:left">${off
-      ? `Turn the TV on to see its ${cfg.kind === 'inputs' ? 'sources' : 'apps'}.`
-      : cfg.kind === 'inputs' ? 'This TV doesn\'t list any inputs.' : 'This TV doesn\'t list any apps. For Android TV Remote, add apps in the integration\'s options.'}</div>`;
-  }
-  const tiles = list.map(item => {
-    const on = cur && (cur === item.raw || cur === item.name);
-    return `<button onclick="window.__dwellLaunch(this)" data-domain="${item.domain}" data-service="${item.service}" data-target="${esc(item.target)}" data-key="${item.keyName}" data-value="${esc(item.raw)}"
-      style="all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:84px;padding:12px 6px 10px;border-radius:14px;
-      background:linear-gradient(135deg,${on ? cfg.c.onBg : cfg.c.surface},${cfg.c.surfaceEnd});border:1px solid ${on ? cfg.c.on : cfg.c.line};color:${cfg.c.text};font-size:13px;text-align:center">
-      <ha-icon icon="${icon(item.name)}" style="--mdc-icon-size:30px"></ha-icon>
-      <span style="max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.name)}</span></button>`;
-  }).join('');
-  return `<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%">${tiles}</div>`;
-}
+  const off = cfg.players.every(p => ['off', 'standby', 'unavailable', 'unknown'].includes(states[p]?.state));
+  const grid = (list, kind) => list.length
+    ? `<div class="apps">${list.sort(byName).map(item => btn(icon(item.name), item.name, item.callData, 'app')).join('')}</div>`
+    : `<p class="empty">${off ? `Turn the TV on to see its ${kind}.` : kind === 'sources' ? 'This TV doesn\'t list any inputs.' : 'This TV doesn\'t list any apps. For Android TV Remote, add apps in the integration\'s options.'}</p>`;
 
-// The popup body for apps or inputs: one button-card that renders the live list.
-function launcherPopup(kind, players, remote, watched) {
-  const cfg = {kind, players, remote: remote?.id?.startsWith('remote.') ? remote.id : null, activities: remote?.platform === 'androidtv_remote',
-    known: KNOWN_PACKAGES, inputPattern: SOURCE_PATTERN.source, icons: APP_ICONS.map(([pattern, icon]) => [pattern.source, icon]), c: C};
-  return {
-    type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, tap_action: {action: 'none'}, hold_action: {action: 'none'},
-    triggers_update: watched, variables: {dwell_static: true},
-    custom_fields: {list: `[[[ return (${dwellTvLaunchers.toString()})(states, ${JSON.stringify(cfg)}); ]]]`},
-    styles: {card: [{background: 'transparent'}, {border: 'none'}, {'box-shadow': 'none'}, {padding: '0'}],
-      grid: [{'grid-template-areas': '"list"'}, {'grid-template-columns': '1fr'}], custom_fields: {list: [{width: '100%'}]}}
-  };
+  const tabs = [];
+  const panes = [];
+  if (cfg.remote) {
+    const k = cfg.remote.keys;
+    tabs.push(['remote', 'mdi:remote-tv', 'Remote']);
+    panes.push(`<div class="pane remote">
+      <div class="pad">
+        ${btn('mdi:chevron-up', 'Up', keyCall(k.up), 'arrow up', false)}
+        ${btn('mdi:chevron-left', 'Left', keyCall(k.left), 'arrow left', false)}
+        ${btn('mdi:circle-medium', 'OK', keyCall(k.ok), 'ok', false)}
+        ${btn('mdi:chevron-right', 'Right', keyCall(k.right), 'arrow right', false)}
+        ${btn('mdi:chevron-down', 'Down', keyCall(k.down), 'arrow down', false)}
+      </div>
+      <div class="row">${btn('mdi:arrow-left', 'Back', keyCall(k.back))}${btn('mdi:home-outline', 'Home', keyCall(k.home))}${btn('mdi:menu', 'Menu', keyCall(k.menu))}${k.mute ? btn('mdi:volume-off', 'Mute', keyCall(k.mute)) : ''}</div>
+    </div>`);
+  }
+  if (cfg.canSwitch) {
+    tabs.push(['apps', 'mdi:apps', 'Apps'], ['sources', 'mdi:video-input-hdmi', 'Sources']);
+    panes.push(`<div class="pane apps-pane">${grid(items.filter(i => !i.input), 'apps')}</div>`,
+      `<div class="pane sources">${grid(items.filter(i => i.input), 'sources')}</div>`);
+  }
+  if (cfg.keyboard) {
+    tabs.push(['keys', 'mdi:keyboard-outline', 'Keyboard']);
+    const sendCall = call(cfg.remote.domain, cfg.remote.service, {entity_id: cfg.remote.target});
+    panes.push(`<div class="pane keys"><div class="dw-kb">
+      <input type="text" placeholder="Type, then Send" aria-label="Text to type on the TV" onkeydown="if(event.key==='Enter'){event.preventDefault();window.__dwellTv.send(this.nextElementSibling)}">
+      <button class="send" onclick="window.__dwellTv.send(this)" data-call="${sendCall}">Send</button></div></div>`);
+  }
+  if (!tabs.length) return '';
+  const paneClass = {remote: 'remote', apps: 'apps-pane', sources: 'sources', keys: 'keys'};
+  const open = tabs.map(([name]) => `.dw-tv[data-open="${name}"] .tab[data-tab="${name}"]{background:linear-gradient(135deg,${c.onBg},${c.surfaceEnd});border-color:${c.on}}
+    .dw-tv[data-open="${name}"] .pane.${paneClass[name]}{display:grid}`).join('');
+  return `<div class="dw-tv" data-open="">
+  <style>
+    .dw-tv{display:grid;gap:12px;width:100%;color:${c.text};text-align:left}
+    .dw-tv button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;
+      background:linear-gradient(135deg,${c.surface},${c.surfaceEnd});border:1px solid ${c.line};color:${c.text};font-size:13px;-webkit-tap-highlight-color:transparent}
+    .dw-tv button:active{transform:scale(.96)}
+    .dw-tv button:focus-visible{outline:2px solid ${c.on};outline-offset:2px}
+    .dw-tv ha-icon{--mdc-icon-size:24px}
+    .dw-tv .tabs{display:grid;grid-template-columns:repeat(${tabs.length},minmax(0,1fr));gap:10px}
+    .dw-tv .tab{min-height:68px;padding:8px 4px}
+    .dw-tv .pane{display:none;gap:12px}
+    .dw-tv .pad{position:relative;display:grid;grid-template-areas:". up ." "left ok right" ". down .";grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);
+      justify-content:center;align-items:center;justify-items:center;width:220px;height:220px;margin:4px auto 0;border-radius:50%;background:${c.surface}}
+    .dw-tv .arrow{width:56px;height:56px;border-radius:50%;background:transparent;border:none}
+    .dw-tv .arrow ha-icon{--mdc-icon-size:32px}
+    .dw-tv .up{grid-area:up}.dw-tv .down{grid-area:down}.dw-tv .left{grid-area:left}.dw-tv .right{grid-area:right}
+    .dw-tv .ok{grid-area:ok;width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,${c.surface},${c.card})}
+    .dw-tv .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));grid-auto-flow:column;gap:10px}
+    .dw-tv .row button{min-height:60px}
+    .dw-tv .apps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .dw-tv .app{min-height:80px;padding:10px 6px 8px;border-radius:14px}
+    .dw-tv .app ha-icon{--mdc-icon-size:30px}
+    .dw-tv .app span,.dw-tv .tab span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dw-tv .empty{margin:6px 4px;color:${c.muted};font-size:14px;line-height:1.5}
+    .dw-tv .dw-kb{display:flex;gap:10px}
+    .dw-tv input{flex:1;min-width:0;box-sizing:border-box;height:48px;padding:0 14px;border-radius:12px;border:1px solid ${c.line};background:${c.card};color:${c.text};font:inherit;font-size:15px}
+    .dw-tv .send{flex:none;min-width:88px;height:48px;font-size:14px;font-weight:600;background:linear-gradient(135deg,${c.onBg},${c.surfaceEnd});border-color:${c.on}}
+    ${open}
+    @media (prefers-reduced-motion:reduce){.dw-tv button:active{transform:none}}
+  </style>
+  <div class="tabs">${tabs.map(([name, ic, label]) => `<button class="tab" data-tab="${name}" aria-label="${label}" onclick="window.__dwellTv.tab(this)"><ha-icon icon="${ic}"></ha-icon><span>${label}</span></button>`).join('')}</div>
+  ${panes.join('')}
+</div>`;
 }
 
 export function tvCard(requested, hass) {
@@ -192,51 +239,21 @@ export function tvCard(requested, hass) {
   const id = players[0];
   const name = playerName(id, hass);
   const remote = players.map(player => tvRemote(player, hass)).find(Boolean);
-  const c = remote?.commands || {};
-  const player = (action, data) => ({action: 'perform-action', perform_action: `media_player.${action}`, target: {entity_id: id}, ...(data ? {data} : {})});
+  const player = action => ({action: 'perform-action', perform_action: `media_player.${action}`, target: {entity_id: id}});
   const watched = [...new Set([...players, ...(remote ? [remote.id] : [])])];
   const current = `const m=states[${JSON.stringify(id)}]; const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'}; const all=${JSON.stringify(players)}.map(p=>states[p]).filter(Boolean); const cur = r?.attributes?.current_activity || all.map(p=>p.attributes?.app_name || p.attributes?.source).find(Boolean);`;
-
-  // Remote popup: round pad, then Back, Home, Menu, then volume.
-  const remoteContent = remote && (() => {
-    const send = remote.send;
-    const repeat = remote.platform !== 'androidtv';
-    const arrow = (dir, icon) => key(dir[0].toUpperCase() + dir.slice(1), icon, send(c[dir]), {round: true, size: 30, height: 56,
-      hold: repeat ? send(c[dir], {num_repeats: 5}) : undefined});
-    const ok = key('OK', 'mdi:circle-medium', send(c.ok), {size: 26, height: 72, hold: repeat ? send(c.ok, {hold_secs: 0.6}) : undefined});
-    ok.styles.card = [{background: `linear-gradient(135deg,${C.surface},${C.card})`}, {border: `1px solid ${C.line}`}, {'border-radius': '50%'},
-      {'box-shadow': 'none'}, {width: '72px'}, {height: '72px'}, {margin: 'auto'}];
-    const pad = group('". up ." "left ok right" ". down ."', '1fr 1fr 1fr', {
-      up: arrow('up', 'mdi:chevron-up'), left: arrow('left', 'mdi:chevron-left'), ok, right: arrow('right', 'mdi:chevron-right'), down: arrow('down', 'mdi:chevron-down')
-    }, {card: [{background: `radial-gradient(circle at 50% 50%,${C.surface} 0 64%,transparent 65%)`}, {padding: '14px'}, {width: '260px'}, {margin: '4px auto 0'}],
-      grid: [{'align-items': 'center'}, {'justify-items': 'center'}]});
-    const nav = group('"back home menu"', 'repeat(3,1fr)', {
-      back: key('Back', 'mdi:arrow-left', send(c.back), {label: true}),
-      home: key('Home', 'mdi:home-outline', send(c.home), {label: true}),
-      menu: key('Menu', 'mdi:menu', send(c.menu), {label: true})
-    });
-    const volume = group('"down mute up"', 'repeat(3,1fr)', {
-      down: key('Volume down', 'mdi:volume-minus', player('volume_down'), {label: true}),
-      mute: c.mute ? key('Mute', 'mdi:volume-off', send(c.mute), {label: true}) : key('Play or pause', 'mdi:play-pause', player('media_play_pause'), {label: true}),
-      up: key('Volume up', 'mdi:volume-plus', player('volume_up'), {label: true})
-    });
-    return {type: 'vertical-stack', cards: [pad, nav, volume]};
-  })();
-
-  // The card's own launch buttons, each opening a popup.
-  const launch = {};
-  const big = {label: true, size: 26, height: 72};
-  if (remoteContent) launch.remote = key('Remote', 'mdi:remote-tv', popup(`${name} remote`, remoteContent), big);
-  // Apps and Sources are offered for any TV that can switch apps or inputs; their lists load when opened.
-  const canSwitch = remote?.platform === 'androidtv_remote' || players.some(player =>
-    (Number(hass.states?.[player]?.attributes?.supported_features) & 2048) || hass.states?.[player]?.attributes?.source_list?.length);
-  if (canSwitch) {
-    launch.apps = key('Apps', 'mdi:apps', popup(`${name} apps`, launcherPopup('apps', players, remote, watched)), big);
-    launch.sources = key('Sources', 'mdi:video-input-hdmi', popup(`${name} sources`, launcherPopup('inputs', players, remote, watched)), big);
-  }
-  if (remote?.commands?.keyboard) launch.keys = key('Keyboard', 'mdi:keyboard-outline', {action: 'fire-dom-event', browser_mod: {service: 'browser_mod.popup', data: {
-    title: `Type on ${name}`, content: [{name: 'command', label: 'Text', selector: {text: {}}}],
-    right_button: 'Send', right_button_action: {service: 'remote.send_command', data: {entity_id: remote.id}}, left_button: 'Close'}}}, big);
+  const canSwitch = remote?.platform === 'androidtv_remote' || players.some(p =>
+    (Number(hass.states?.[p]?.attributes?.supported_features) & 2048) || hass.states?.[p]?.attributes?.source_list?.length);
+  const cfg = {
+    lead: id, players, canSwitch, c: C, known: KNOWN_PACKAGES, inputPattern: SOURCE_PATTERN.source,
+    icons: APP_ICONS.map(([pattern, icon]) => [pattern.source, icon]),
+    activities: remote?.platform === 'androidtv_remote' ? remote.id : null,
+    keyboard: !!remote?.commands?.keyboard,
+    remote: remote && {
+      domain: remote.platform === 'androidtv' ? 'androidtv' : 'remote', service: remote.platform === 'androidtv' ? 'adb_command' : 'send_command',
+      target: remote.id, keys: remote.commands
+    }
+  };
 
   const fields = {
     power: {card: {
@@ -252,17 +269,37 @@ export function tvCard(requested, hass) {
       up: key('Volume up', 'mdi:volume-plus', player('volume_up'))
     })}
   };
-  const areas = ['"i n power"', '"i l power"', '"media media media"'];
-  if (Object.keys(launch).length) {
-    fields.launch = {card: group(`"${Object.keys(launch).join(' ')}"`, `repeat(${Object.keys(launch).length},minmax(0,1fr))`, launch)};
-    areas.push('"launch launch launch"');
+  // Now playing: status, artwork, title, artist or series, and the app.
+  fields.now = `[[[ ${current}
+    const esc = v => String(v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const off = !m || ${OFF}.includes(m.state);
+    const playing = all.find(p => p.state === 'playing') || all.find(p => p.state === 'paused') || m;
+    const a = playing?.attributes || {};
+    const state = !m ? 'Unavailable' : off ? 'Off' : playing.state === 'playing' ? 'Playing' : playing.state === 'paused' ? 'Paused' : playing.state === 'buffering' ? 'Loading' : 'On';
+    const title = a.media_title || '';
+    const detail = [a.media_series_title, a.media_artist, a.media_album_name].filter(Boolean).filter((v, i, list) => list.indexOf(v) === i).join(', ');
+    const app = cur || a.app_name || '';
+    const color = state === 'Playing' ? '${C.onText}' : state === 'Off' || state === 'Unavailable' ? '${C.muted}' : '${C.text}';
+    const pill = '<span style="flex:none;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;color:' + color + ';border:1px solid ' + (state === 'Playing' ? '${C.on}' : '${C.line}') + '">' + state + '</span>';
+    if (off || (!title && !app)) return '<div style="display:flex;align-items:center;gap:10px;width:100%;color:${C.muted};font-size:13px;text-align:left">' + pill + '<span>' + (off ? 'The TV is off.' : 'Nothing playing.') + '</span></div>';
+    const art = a.entity_picture ? '<div style="flex:none;width:56px;height:56px;border-radius:10px;background:${C.card} url(&quot;' + esc(a.entity_picture) + '&quot;) center/cover"></div>' : '';
+    return '<div style="display:flex;align-items:center;gap:12px;width:100%;min-width:0;text-align:left">' + art
+      + '<div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:8px;min-width:0">' + pill
+      + '<span style="font-size:12px;color:${C.muted};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(app) + '</span></div>'
+      + (title ? '<div style="margin-top:4px;font-size:15px;font-weight:600;color:${C.text};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(title) + '</div>' : '')
+      + (detail ? '<div style="font-size:13px;color:${C.muted};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(detail) + '</div>' : '')
+      + '</div></div>';
+  ]]]`;
+  const areas = ['"i n power"', '"i l power"', '"now now now"', '"media media media"'];
+  if (remote || canSwitch) {
+    fields.panel = `[[[ return (${dwellTvPanel.toString()})(states, ${JSON.stringify(cfg)}); ]]]`;
+    areas.push('"panel panel panel"');
   }
-
   // Header: button-card's own icon, name and label, so it lines up on the left.
   const status = `[[[ ${current}
     const off = !m || ${OFF}.includes(m.state);
     const title = [m?.attributes?.media_title, m?.attributes?.media_artist].filter(Boolean).join(', ');
-    return !m ? 'Unavailable' : off ? 'Off' : [cur, title].filter(Boolean).join(': ') || (m.state.charAt(0).toUpperCase() + m.state.slice(1)); ]]]`;
+    return !m ? 'Unavailable' : off ? 'Off' : cur ? 'On, ' + cur : 'On'; ]]]`;
   return {
     type: 'custom:button-card', entity: id, name, icon: 'mdi:television', show_name: true, show_icon: true, show_state: false, show_label: true, label: status,
     tap_action: {action: 'none'}, hold_action: {action: 'more-info'}, triggers_update: watched,
@@ -276,8 +313,8 @@ export function tvCard(requested, hass) {
       icon: [{width: '28px'}, {color: `[[[ return ${OFF}.includes(entity?.state) ? '${C.muted}' : '${C.onText}'; ]]]`}],
       name: [{'justify-self': 'start'}, {'align-self': 'end'}, {'font-size': '17px'}, {'font-weight': '600'}, {color: C.text}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: C.muted}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
-      custom_fields: {power: [{'justify-self': 'end'}],
-        media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}], launch: [{'justify-self': 'stretch'}, {'margin-top': '10px'}]}
+      custom_fields: {power: [{'justify-self': 'end'}], now: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {padding: '10px 12px'}, {'border-radius': '14px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${C.line}`}], media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}],
+        panel: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}]}
     }
   };
 }
