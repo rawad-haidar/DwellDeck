@@ -96,12 +96,16 @@ const KNOWN_PACKAGES = {
   'net.mbc.shahid.androidtv': 'Shahid', 'net.mbc.shahidtv': 'Shahid', 'com.tod.tv': 'TOD', 'com.bein.tod': 'TOD',
   'com.apple.atve.androidtv.appletv': 'Apple TV', 'com.plexapp.android': 'Plex', 'org.xbmc.kodi': 'Kodi',
   'com.google.android.tvlauncher': 'Home', 'com.google.android.apps.tv.launcherx': 'Home', 'com.android.tv.settings': 'Settings',
-  'com.google.android.apps.mediashell': 'Google Cast', 'com.android.vending': 'Play Store', 'io.homeassistant.companion.android': 'Home Assistant', 'com.anghami.tv': 'Anghami', 'com.google.android.videos': 'Google TV', 'tv.twitch.android.app': 'Twitch'
+  'com.google.android.apps.mediashell': 'Google Cast', 'com.android.vending': 'Play Store',
+  'com.todtv.tod': 'TOD', 'com.disneyplus.mea': 'Disney+', 'net.mbc.shahidTV': 'Shahid', 'com.tcl.tv': 'Live TV',
+  'com.google.android.play.games': 'Play Games', 'com.iqiyi.i18n.tv': 'iQIYI', 'com.yango.saft.tv': 'Yango Play',
+  'com.CV.CablevisionPlus': 'Cablevision Plus', 'com.fadaatmediagroup.live.tv': 'Fadaat Live', 'com.samaitv': 'Samai TV',
+  'com.onplus': 'OnPlus', 'com.tcl.ui_mediaCenter': 'Media Center', 'com.tcl.t_solo': 'Listen Alone', 'io.homeassistant.companion.android': 'Home Assistant', 'com.anghami.tv': 'Anghami', 'com.google.android.videos': 'Google TV', 'tv.twitch.android.app': 'Twitch'
 };
 // Asks ADB for the TV apps that can be launched from the home screen, and for user-installed apps.
 const FETCH_APPS = 'cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER; pm list packages -3';
 // Launchers, setup and system services are not apps to open.
-const HIDDEN_PACKAGES = /launcher|setupwraith|tungsten|katniss|systemui|inputmethod|\.gms|gsf|tvrecommendations|backdrop|dreamx|remote\.service|mediatek|providers|permissioncontroller|\.tts$|tokenmanager|airplay|tclhome|\.ext\.services/;
+const HIDDEN_PACKAGES = /launcher|setupwraith|tungsten|katniss|systemui|inputmethod|\.gms|gsf|tvrecommendations|backdrop|dreamx|remote\.service|mediatek|providers|permissioncontroller|\.tts$|tokenmanager|airplay|tclhome|\.ext\.services|tcl\.(ocean|suspension|dashboard|exhibit|guard|partnercustomizer|waterfall|magiconnect)/;
 // Shown when the TV lists no apps: common apps, opened by their package with Android TV Remote.
 const COMMON_APPS = [['Netflix', 'com.netflix.ninja'], ['YouTube', 'com.google.android.youtube.tv'], ['Disney+', 'com.disney.disneyplus'],
   ['Prime Video', 'com.amazon.amazonvideo.livingroom'], ['Spotify', 'com.spotify.tv.android'], ['YouTube Music', 'com.google.android.youtube.tvmusic']];
@@ -229,7 +233,7 @@ function dwellTvPanel(states, cfg) {
   const prettify = pkg => {
     if (cfg.known[pkg]) return cfg.known[pkg];
     const part = pkg.split(/[.:]/).filter(w => !/^(com|net|org|tv|android|androidtv|google|app|apps|mobile|ninja|livingroom|leanback|atv|player)$/i.test(w)).pop() || pkg;
-    return part.charAt(0).toUpperCase() + part.slice(1);
+    return part.replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, ch => ch.toUpperCase());
   };
   if (cfg.activities) for (const raw of states[cfg.activities]?.attributes?.activity_list || []) add(raw, call('remote', 'turn_on', {entity_id: cfg.activities, activity: raw}));
   // ADB's source list is the running apps, which change as apps open and close: use it only for inputs.
@@ -266,7 +270,7 @@ function dwellTvPanel(states, cfg) {
     const name = prettify(pkg);
     if (seen.has(name.toLowerCase())) continue;
     seen.add(name.toLowerCase());
-    items.push({name, callData: launch(pkg), input: false});
+    items.push({name, callData: launch(pkg), input: isInput.test(name)});
   }
 
   // Without an installed list, Android TV Remote TVs get common apps; input keys when the TV lists no inputs.
@@ -281,8 +285,8 @@ function dwellTvPanel(states, cfg) {
     fallbackNote.apps = 'Turn the TV on and press Refresh to load the apps installed on it (needs the ADB connection).';
   }
   // Input keys for any Android TV (Android TV Remote or ADB) that lists no inputs of its own.
-  // (The home screen is listed as a source by most TVs; it doesn't count as the TV listing its inputs.)
-  if (cfg.inputKeys && cfg.remote && !items.some(i => i.input && !/^home$/i.test(i.name))) {
+  // (Only HDMI or AV inputs of its own replace the keys; a listed home screen or Live TV app doesn't.)
+  if (cfg.inputKeys && cfg.remote && !items.some(i => i.input && /hdmi|^av\b|composite|component/i.test(i.name))) {
     cfg.inputKeys.forEach(([name, command], index) => {
       const existing = items.find(i => i.name.toLowerCase() === name.toLowerCase());
       if (existing) { existing.order = index; return; }

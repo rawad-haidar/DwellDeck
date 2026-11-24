@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.15 — Readable apps on TCL Google TVs
+
+- App names for packages seen on TCL Google TVs (Disney+ MEA, Shahid TV, TOD, iQIYI, Yango Play and others); unknown packages split camelCase into words.
+- TCL system tools (instructions, suspension, dashboard, exhibit, guard, partner customizer, TCL home) are hidden from Apps.
+- TCL's Live TV app goes to Sources; HDMI and Inputs keys stay next to it unless the TV lists HDMI inputs of its own.
+
 ## 0.9.14 — Tab bar and HDMI keys
 
 - The Remote, Apps, Sources and Keyboard tabs are a slim segmented bar with the icon beside the label, so they no longer look like the app tiles. The open tab is highlighted.

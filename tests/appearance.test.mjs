@@ -281,3 +281,18 @@ test('a TV that lists only its home screen as a source still gets HDMI and Live 
  const cards=[];const find=x=>{if(x&&typeof x==='object'){if(x.custom_fields?.media&&x.entity)cards.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
  assert.deepEqual(panel(cards[0],states).names('sources'),['Home','Live TV','HDMI 1','HDMI 2','HDMI 3','HDMI 4','Inputs']);
 });
+test('a real TCL Google TV app list from ADB gives readable apps and Live TV in Sources',async()=>{
+ const fs=await import('node:fs');
+ const response=fs.readFileSync(new URL('./fixtures/tcl-adb-apps.txt',import.meta.url),'utf8');
+ const states={'media_player.rest_area_living_tv':{state:'on',attributes:{friendly_name:'Living Tv',device_class:'tv',supported_features:23997,adb_response:response}}};
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{rest:{area_id:'rest',name:'Rest Area',labels:[]}},floors:{},labels:{},devices:{},
+  entities:{'media_player.rest_area_living_tv':{entity_id:'media_player.rest_area_living_tv',platform:'androidtv',device_id:'d1',area_id:'rest'}}};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const cards=[];const find=x=>{if(x&&typeof x==='object'){if(x.custom_fields?.media&&x.entity)cards.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ const p=panel(cards[0],states);
+ const apps=p.names('apps-pane');
+ for(const name of ['Netflix','YouTube','Shahid','TOD','Disney+','Prime Video','Spotify','Play Store','Settings'])assert(apps.includes(name),name);
+ for(const name of ['Mea','ShahidTV','Tcl','Instructions','Suspension','Dashboard','Exhibit','Guard','Overseas'])assert(!apps.includes(name),name);
+ assert.deepEqual(p.names('sources'),['Home','Live TV','HDMI 1','HDMI 2','HDMI 3','HDMI 4','Inputs']);
+ assert(p.calls.some(c=>c[0]==='androidtv'&&c[2].command.startsWith('monkey -p com.tcl.tv ')));
+});
