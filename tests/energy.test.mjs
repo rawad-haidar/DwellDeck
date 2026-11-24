@@ -152,5 +152,5 @@ test('charts show negative values below zero, a readout on hover, and open large
   assert(html.includes('__dwellHistUi.open(this)'));
   const big = window.__dwellHistBig.energy('flows');
   assert(big.includes('Download CSV') && big.includes('<th>Average</th>') && big.includes('To grid'));
-  assert(big.includes('-9.0 kWh'), 'three days of -3 kWh exported');
+  assert(big.includes('-18.0 kWh'), 'two inverters, three days of -3 kWh exported');
 });
