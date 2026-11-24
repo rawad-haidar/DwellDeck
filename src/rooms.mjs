@@ -56,22 +56,30 @@ const chipsConfig = (controls, hass, strip = false) => ({
 });
 const chipsTemplate = cfg => `[[[ return (${dwellRoomChips.toString()})(states, ${JSON.stringify(cfg)}); ]]]`;
 
-// The room's lights button: turns everything off when anything is on, otherwise turns it on.
-function lightsButton(lights, show, action, icon, name) {
-  const any = `const ids=${JSON.stringify(lights)}; const on=ids.some(id=>states[id]?.state==='on');`;
+// The room's lights button: turns everything off when anything is on, otherwise turns it on. The two
+// buttons sit in one slot; Home Assistant's conditional cards show the one that applies.
+function lightsButton(lights, action, icon, name) {
   return {
-    type: 'custom:button-card', name, icon, show_name: false, show_state: false, triggers_update: lights,
+    type: 'custom:button-card', name, icon, show_name: false, show_state: false,
     variables: {dwell_static: true},
     tap_action: {action: 'perform-action', perform_action: `homeassistant.${action}`, target: {entity_id: lights}},
     hold_action: {action: 'none'},
     styles: {
-      card: [{display: `[[[ ${any} return ${show} ? 'flex' : 'none'; ]]]`}, {width: '48px'}, {height: '48px'}, {padding: '0'},
-        {'border-radius': '50%'}, {'box-shadow': 'none'},
+      card: [{width: '48px'}, {height: '48px'}, {padding: '0'}, {'border-radius': '50%'}, {'box-shadow': 'none'},
         {background: action === 'turn_off' ? ROOM_COLORS.on : 'transparent'}, {border: `1px solid ${action === 'turn_off' ? ROOM_COLORS.on : ROOM_COLORS.line}`}],
       icon: [{width: '24px'}, {color: action === 'turn_off' ? ROOM_COLORS.card : ROOM_COLORS.muted}]
     }
   };
 }
+const lightsSlot = lights => ({
+  type: 'vertical-stack',
+  cards: [
+    {type: 'conditional', conditions: [{condition: 'or', conditions: lights.map(entity => ({condition: 'state', entity, state: 'on'}))}],
+      card: lightsButton(lights, 'turn_off', 'mdi:lightbulb-group-off-outline', 'Turn the room\'s lights off')},
+    {type: 'conditional', conditions: lights.map(entity => ({condition: 'state', entity, state_not: 'on'})),
+      card: lightsButton(lights, 'turn_on', 'mdi:lightbulb-group-outline', 'Turn the room\'s lights on')}
+  ]
+});
 
 // Restyles a room card: icon, name, a short summary, a lights button and status chips.
 export function designRoomCard(card, {lights, controls, hass}) {
@@ -89,10 +97,7 @@ export function designRoomCard(card, {lights, controls, hass}) {
     : (controls.length ? 'No lights' : 'Nothing assigned');
   card.custom_fields = {chips: chipsTemplate(chipsConfig(controls, hass))};
   const areas = ['"i n power"', '"i l power"', '"chips chips chips"'];
-  if (total) {
-    card.custom_fields.power = {card: lightsButton(lights, 'on', 'turn_off', 'mdi:lightbulb-group-off-outline', 'Turn the room\'s lights off')};
-    card.custom_fields.powerOn = {card: lightsButton(lights, '!on', 'turn_on', 'mdi:lightbulb-group-outline', 'Turn the room\'s lights on')};
-  }
+  if (total) card.custom_fields.power = {card: lightsSlot(lights)};
   card.triggers_update = [...new Set([...lights, ...controls])];
   card.grid_options = {columns: 6, rows: 'auto'};
   card.styles = {
@@ -103,11 +108,12 @@ export function designRoomCard(card, {lights, controls, hass}) {
     img_cell: [{width: '48px'}, {height: '48px'}, {'border-radius': '14px'},
       {background: `[[[ return ${active} ? 'rgba(213,167,76,.18)' : 'rgba(0,0,0,.18)'; ]]]`}],
     icon: [{width: '26px'}, {color: `[[[ return ${active} ? '${ROOM_COLORS.onText}' : '${ROOM_COLORS.muted}'; ]]]`}],
+    // Long room names wrap onto a second line rather than being cut off.
     name: [{'justify-self': 'start'}, {'align-self': 'end'}, {'font-size': '16px'}, {'font-weight': '600'}, {color: ROOM_COLORS.text},
-      {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
+      {'white-space': 'normal'}, {'line-height': '1.25'}, {'text-align': 'left'}, {'overflow-wrap': 'anywhere'}, {'max-width': '100%'}],
     label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: ROOM_COLORS.muted}, {'white-space': 'nowrap'},
       {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
-    custom_fields: {power: [{'grid-area': 'power'}, {'justify-self': 'end'}], powerOn: [{'grid-area': 'power'}, {'justify-self': 'end'}],
+    custom_fields: {power: [{'justify-self': 'end'}, {'align-self': 'center'}, {width: '48px'}],
       chips: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {'min-height': '0'}]}
   };
   return card;

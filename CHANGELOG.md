@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.19 — Room card layout fix
+
+- The room's lights button sits top right in every card: the off and on buttons share one slot and Home Assistant's conditional cards show the one that applies. Before, the on button fell into an extra row and squeezed the room name to a few letters.
+- Long room names wrap onto a second line instead of being cut off.
+
 ## 0.9.18 — Rooms redesign
 
 - Room cards: icon, name and "3 of 9 lights on", a round lights button (turns the room off, or on when all is off), and status chips for temperature, humidity, air conditioning, TV, open curtains, motion, open doors and alerts. Status uses an icon and text, not colour alone.

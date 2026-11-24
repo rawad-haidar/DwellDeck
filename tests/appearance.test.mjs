@@ -343,8 +343,13 @@ test('room cards show a summary, status chips and a lights button; rooms open wi
  globalThis.window=globalThis.window||{};
  const chips=Function('states',card.custom_fields.chips.trim().slice(3,-3))(states).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
  for(const text of ['26.9°C','55%','Cooling 22°','TV on','Motion'])assert(chips.includes(text),text);
- assert.equal(card.custom_fields.power.card.tap_action.perform_action,'homeassistant.turn_off');
- assert.equal(card.custom_fields.powerOn.card.tap_action.perform_action,'homeassistant.turn_on');
+ const slot=card.custom_fields.power.card.cards;
+ assert.equal(slot[0].card.tap_action.perform_action,'homeassistant.turn_off');
+ assert.equal(slot[0].conditions[0].condition,'or');
+ assert.equal(slot[1].card.tap_action.perform_action,'homeassistant.turn_on');
+ assert(slot[1].conditions.every(c=>c.state_not==='on'));
+ assert(!card.custom_fields.powerOn);
+ assert(card.styles.grid[0]['grid-template-areas'].includes('power'));
  const content=card.tap_action.browser_mod.data.content.cards;
  assert(content[0].custom_fields?.chips,'status strip first');
  const headings=content.filter(c=>c.type==='heading').map(c=>c.heading);
