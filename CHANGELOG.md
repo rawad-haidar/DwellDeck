@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.33 — Faster pages
+
+- **Lighter dashboard, faster pages.** TV and sound system cards and room status chips used to carry their own copy of the same code (the TV remote panel, the volume slider, the Music Assistant buttons, the "what's playing" logic and the list of app names, that one up to seven times per card). That code is now loaded once and every card refers to it, so the generated dashboard is about 44% smaller: the Media page about 62% smaller, Home and Rooms about half. The browser reads and runs far less when a page opens, most noticeably on phones and tablets. Every card draws exactly what it drew before (checked template by template, in two palettes).
+
 ## 0.9.32 — Modern tabs
 
 - **The dashboard's tab bar** (Home, Rooms, Lights, …) is restyled: each tab is a rounded pill, the open tab is filled with the palette's accent (amber in Lamplight, cyan in Ocean blue, and so on) with a soft glow, and the other tabs light up under the pointer with their icon lifting slightly. The old underline is gone. It only applies on DwellDeck dashboards, follows the chosen palette, and respects reduced motion. Set `modern_tabs: false` in the dashboard's configuration to keep Home Assistant's own tabs.

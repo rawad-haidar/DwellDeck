@@ -2,7 +2,7 @@
 // Remote, Apps, Sources and Keyboard. No popups, so a TV inside a room popup keeps the room open
 // (Browser Mod shows one popup at a time).
 
-import {normalizeName} from './util.mjs';
+import {normalizeName, sharedCode, shareData} from './util.mjs';
 import {entityArea} from './discovery.mjs';
 
 // Key names per control method.
@@ -239,6 +239,8 @@ function group(areas, columns, fields, extra = {}) {
 // The tabs panel. Runs inside a button-card template, so it must be self-contained (serialised with toString).
 // Tabs open and close in the page without a Home Assistant state, and each key calls a Home Assistant action.
 function dwellTvPanel(states, cfg) {
+  // App names: shared once for every card, not copied into each one.
+  cfg = {known: globalThis.__dwell?.KNOWN || {}, ...cfg};
   window.__dwellTv = window.__dwellTv || {
     hass: () => document.querySelector('home-assistant')?.hass,
     call(el) { const [domain, service, data] = JSON.parse(el.dataset.call); this.hass()?.callService(domain, service, data); },
@@ -571,6 +573,33 @@ export function musicAssistantPlayer(players, hass) {
   return pick(all);
 }
 
+// Which entry of a TV or sound system the card shows, and what app it is on. Runs in every template of a
+// card, from one shared copy. Self-contained: shared once per page.
+function dwellTvState(states, cfg) {
+  const OFFS = ['off', 'standby', 'unavailable', 'unknown'];
+  const known = globalThis.__dwell?.KNOWN || {};
+  const nice = v => { if (!v) return ''; const t = String(v).trim(); if (known[t]) return known[t]; if (/launcher/i.test(t)) return 'Home';
+    if (!/^[a-z][\w]*(\.[\w:]+)+$/i.test(t)) return t;
+    const part = t.split(/[.:]/).filter(w => !/^(com|net|org|tv|android|androidtv|google|app|apps|mobile|ninja|livingroom|leanback)$/i.test(w)).pop() || t;
+    return part.charAt(0).toUpperCase() + part.slice(1); };
+  const all = cfg.sources.map(p => states[p]).filter(Boolean), live = all.filter(p => !OFFS.includes(p.state));
+  const lead = states[cfg.lead], tvs = live.filter(p => p.attributes?.device_class === 'tv');
+  // When the card has real TV entries, they decide on or off: a cast or speaker entry that keeps "playing"
+  // while the TV is off doesn't make the TV look on.
+  const hasTv = all.some(p => p.attributes?.device_class === 'tv');
+  // A sound system shows whichever of its players plays something, the entry with artwork first: an amplifier
+  // zone reports the title too, but only its Music Assistant player has the picture.
+  const busy = p => ['playing', 'paused'].includes(p.state);
+  const withMedia = live.find(p => busy(p) && (p.attributes?.entity_picture_local || p.attributes?.entity_picture) && p.attributes?.media_title)
+    || live.find(p => busy(p) && (p.attributes?.media_title || p.attributes?.entity_picture_local || p.attributes?.entity_picture));
+  const m = !hasTv && withMedia ? withMedia : (lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || (hasTv ? lead : live.find(p => p.state === 'playing') || lead);
+  const r = cfg.remote ? states[cfg.remote] : undefined;
+  const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '')
+    || [...(m && !OFFS.includes(m.state) ? [m] : []), ...live].map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';
+  return {OFFS, live, m, cur, on: !!m && !OFFS.includes(m.state)};
+}
+shareData('KNOWN', KNOWN_PACKAGES);
+
 export function tvCard(requested, hass) {
   const players = tvGroup(requested, hass);
   const id = players[0];
@@ -595,32 +624,14 @@ export function tvCard(requested, hass) {
   // What plays on a sound system comes from its Music Assistant player: watch it for the title and artwork.
   const watched = [...new Set([...sources, ...(remote ? [remote.id] : [])])];
   // Status comes from whichever entry is on: the TV's own player first, then anything playing.
-  const current = `const OFFS=${OFF}; const known=${JSON.stringify(KNOWN_PACKAGES)};
-    const nice = v => { if (!v) return ''; const t = String(v).trim(); if (known[t]) return known[t]; if (/launcher/i.test(t)) return 'Home';
-      if (!/^[a-z][\\w]*(\\.[\\w:]+)+$/i.test(t)) return t;
-      const part = t.split(/[.:]/).filter(w => !/^(com|net|org|tv|android|androidtv|google|app|apps|mobile|ninja|livingroom|leanback)$/i.test(w)).pop() || t;
-      return part.charAt(0).toUpperCase() + part.slice(1); };
-    const all=${JSON.stringify(sources)}.map(p=>states[p]).filter(Boolean); const live=all.filter(p=>!OFFS.includes(p.state));
-    const lead=states[${JSON.stringify(id)}]; const tvs=live.filter(p=>p.attributes?.device_class==='tv');
-    // When the card has real TV entries, they decide on or off: a cast or speaker entry that keeps "playing"
-    // while the TV is off doesn't make the TV look on.
-    const hasTv=all.some(p=>p.attributes?.device_class==='tv');
-    // A sound system shows whichever of its players is playing something with a title or picture
-    // (its Music Assistant player), so the music and artwork appear on the card.
-    // The entry with artwork first: an amplifier zone reports the title too, but only its Music Assistant
-    // player has the picture.
-    const busy=p=>['playing','paused'].includes(p.state);
-    const withMedia=live.find(p=>busy(p)&&(p.attributes?.entity_picture_local||p.attributes?.entity_picture)&&p.attributes?.media_title)
-      || live.find(p=>busy(p)&&(p.attributes?.media_title||p.attributes?.entity_picture_local||p.attributes?.entity_picture));
-    const m=!hasTv && withMedia ? withMedia : (lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || (hasTv ? lead : live.find(p=>p.state==='playing') || lead);
-    const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'};
-    const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || [...(m && !OFFS.includes(m.state) ? [m] : []), ...live].map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
+  // Status comes from whichever entry is on: the TV's own player first, then anything playing.
+  const current = `const {OFFS, live, m, cur, on} = ${sharedCode(dwellTvState)}(states, ${JSON.stringify({sources, lead: id, remote: remote?.id.startsWith('remote.') ? remote.id : null})});`;
   // One on/off rule for the status, the TV icon and the power button: the entry the status uses is on.
-  const isOn = `${current} const on = !!m && !OFFS.includes(m.state);`;
+  const isOn = current;
   const canSwitch = remote?.platform === 'androidtv_remote' || players.some(p =>
     (Number(hass.states?.[p]?.attributes?.supported_features) & 2048) || hass.states?.[p]?.attributes?.source_list?.length);
   const cfg = {
-    lead: id, players, canSwitch, tv, c: C, known: KNOWN_PACKAGES, inputPattern: SOURCE_PATTERN.source,
+    lead: id, players, canSwitch, tv, c: C, inputPattern: SOURCE_PATTERN.source,
     icons: APP_ICONS.map(([pattern, icon, color]) => [pattern.source, icon, color || '']),
     activities: remote?.platform === 'androidtv_remote' ? remote.id : null,
     keyboard: !!remote?.commands?.keyboard,
@@ -693,17 +704,17 @@ export function tvCard(requested, hass) {
   ]]]`;
   const areas = ['"i n power"', '"i l power"', '"now now now"', '"media media media"'];
   if (sliderPlayer || volumePlayer) {
-    fields.vol = `[[[ return (${dwellVolume.toString()})(states, ${JSON.stringify({entity: sliderPlayer, step: sliderPlayer ? null : volumePlayer,
+    fields.vol = `[[[ return ${sharedCode(dwellVolume)}(states, ${JSON.stringify({entity: sliderPlayer, step: sliderPlayer ? null : volumePlayer,
       mute: playerFor(sources, hass, FEATURE.volumeMute), c: {line: C.line, text: C.text, muted: C.muted, on: C.on, onText: C.onText, card: C.card}})}); ]]]`;
     areas.push('"vol vol vol"');
   }
   if (ma) {
     // Two buttons under the controls: this room's Music Assistant player, and the Music Assistant app.
-    fields.ma = `[[[ return (${dwellMaButtons.toString()})(${JSON.stringify({player: ma, playerName: String(playerName(ma, hass)).replace(/["<>&]/g, ''), c: {line: C.line, text: C.text, onText: C.onText, muted: C.muted}})}); ]]]`;
+    fields.ma = `[[[ return ${sharedCode(dwellMaButtons)}(${JSON.stringify({player: ma, playerName: String(playerName(ma, hass)).replace(/["<>&]/g, ''), c: {line: C.line, text: C.text, onText: C.onText, muted: C.muted}})}); ]]]`;
     areas.push('"ma ma ma"');
   }
   if (remote || canSwitch) {
-    fields.panel = `[[[ return (${dwellTvPanel.toString()})(states, ${JSON.stringify(cfg)}); ]]]`;
+    fields.panel = `[[[ return ${sharedCode(dwellTvPanel)}(states, ${JSON.stringify(cfg)}); ]]]`;
     areas.push('"panel panel panel"');
   }
   // Header: button-card's own icon, name and label, so it lines up on the left.

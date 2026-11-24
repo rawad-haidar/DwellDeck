@@ -1,8 +1,8 @@
 // Original layout generator: one entity binding updates every reference.
-import {clone, entityPattern, listPattern, walk, visit, changeLists} from './util.mjs';
+import {clone, entityPattern, listPattern, walk, visit, changeLists, installShared} from './util.mjs';
 import {discoverConfiguration, roomEntities} from './discovery.mjs';
-import {addBuiltinColors, applyDwellPalette, addLivingDesign, DEFAULT_PALETTE} from './theme.mjs';
-import {applyDesignRefresh, skyFirst} from './design.mjs';
+import {addBuiltinColors, applyDwellPalette, addLivingDesign, DEFAULT_PALETTE, paletteText} from './theme.mjs';
+import {applyDesignRefresh, skyFirst, refreshText} from './design.mjs';
 import {addRoomControls, makeLightPopup, areaRoomSections, scenesOverview} from './cards.mjs';
 import {rebuildRichAreaViews} from './views.mjs';
 import {cameraDetectionSection} from './detection.mjs';
@@ -143,5 +143,8 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
   visit(output, item => { if (item.type === 'tile' && item.color === 'state') delete item.color; });
   if(!config.theme && config.builtin_colors!==false)addBuiltinColors(output);
   addLivingDesign(output);
+  // Shared card code gets the same rewrite as the cards: palette colours, text sizes and wording.
+  const palette = paletteText(config.color_palette || DEFAULT_PALETTE);
+  installShared(text => palette(refreshText(text)));
   return applyDwellPalette(applyDesignRefresh(output, config), config.color_palette || DEFAULT_PALETTE);
 }
