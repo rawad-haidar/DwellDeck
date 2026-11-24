@@ -1,7 +1,7 @@
 // Reorganises generated views (rooms, lights, curtains, media, cameras, climate).
 import {clone, listPattern, visit} from './util.mjs';
 import {roomEntities, entityArea, roomSensorCandidate, availableAreaEntities, sceneName} from './discovery.mjs';
-import {roomTile, areaRoomSections, richEntityCard, floorEntitySections, updateClimateStatus, setCardWidth} from './cards.mjs';
+import {roomTile, areaRoomSections, stateCardStyle, richEntityCard, floorEntitySections, updateClimateStatus, setCardWidth, organizedEntitySections} from './cards.mjs';
 
 function organizeDashboardViews(output, config, hass, prototype) {
   const lighting = output.views.find(view => view.path === 'lighting');

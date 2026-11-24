@@ -190,7 +190,7 @@ export function scenesOverview(config, hass, prototype, prototypeIds) {
   return card;
 }
 
-function stateCardStyle(id) {
+export function stateCardStyle(id) {
   return `{% set s = states('${id}') %}
 {% set action = state_attr('${id}', 'hvac_action') %}
 {% set active = s in ['on', 'playing'] or action in ['heating', 'cooling', 'drying', 'fan'] or (s in ['heat', 'cool', 'heat_cool', 'auto', 'dry', 'fan_only'] and action not in ['idle', 'off']) %}
@@ -311,7 +311,7 @@ function curtainBulkControls(ids, prototype) {
   })}];
 }
 
-function organizedEntitySections(ids, hass, prototype, icon, domain) {
+export function organizedEntitySections(ids, hass, prototype, icon, domain) {
   const areas = Object.values(hass.areas || {}).sort((a, b) => {
     const af = hass.floors?.[a.floor_id], bf = hass.floors?.[b.floor_id];
     return (af?.level ?? -1) - (bf?.level ?? -1) ||

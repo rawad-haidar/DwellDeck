@@ -90,6 +90,16 @@ for (const [name, [config, context]] of Object.entries(cases)) {
   actual[name] = hash(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, config, context));
   assert.equal(JSON.stringify(config), before, `${name}: config was mutated`);
 }
+// The src/ modules run without the bundle's shared scope, so they catch missing imports.
+const source = await import('../src/index.mjs');
+const sourceHashes = {};
+for (const [name, [config, context]] of Object.entries(cases)) {
+  try {
+    sourceHashes[name] = hash(source.generateOriginal(source.ORIGINAL_TEMPLATE, source.SLOTS, source.ROOM_TEMPLATES, config, context));
+  } catch (error) {
+    sourceHashes[name] = `${error.name}: ${error.message}`;
+  }
+}
 actual['discoverConfiguration'] = hash(discoverConfiguration({...base, rooms: {x: {area: 'living', discover_controls: false}}}, hass));
 const strategy = registered.get('ll-strategy-dashboard-dwelldeck-original');
 const callWS = async ({type}) => ({
@@ -106,5 +116,8 @@ const golden = JSON.parse(fs.readFileSync(goldenFile, 'utf8'));
 
 for (const name of Object.keys(actual)) {
   test(`golden: ${name}`, () => assert.equal(actual[name], golden[name], 'generated dashboard changed'));
+}
+for (const name of Object.keys(sourceHashes)) {
+  test(`golden (src): ${name}`, () => assert.equal(sourceHashes[name], golden[name], 'src/ output differs from the bundle'));
 }
 test('golden: no stale cases', () => assert.deepEqual(Object.keys(golden).sort(), Object.keys(actual).sort()));

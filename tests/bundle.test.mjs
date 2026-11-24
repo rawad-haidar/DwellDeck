@@ -31,6 +31,24 @@ test('bundle is self-contained', async () => {
   assert(!/^import /m.test(text), 'HACS serves a single file, so the bundle cannot import modules');
 });
 
+test('src/ modules import every top-level name they use from another module', async () => {
+  // The bundle shares one scope, so a missing import only fails when src/ is used directly.
+  const fs = await import('node:fs/promises');
+  const modules = ['util', 'dependencies', 'discovery', 'theme', 'cards', 'views', 'generator', 'editor', 'strategy'];
+  const sources = Object.fromEntries(await Promise.all(modules.map(async m => [m, await fs.readFile(new URL(`../src/${m}.mjs`, import.meta.url), 'utf8')])));
+  const owners = new Map(['ORIGINAL_TEMPLATE', 'SLOTS', 'ROOM_TEMPLATES', 'LABELS', 'BUILTIN_THEME'].map(name => [name, 'data']));
+  for (const m of modules) for (const [, name] of sources[m].matchAll(/^(?:export )?(?:async )?(?:function|const|let|class) ([\w$]+)/gm)) owners.set(name, m);
+  const missing = [];
+  for (const m of modules) {
+    const imported = new Set([...sources[m].matchAll(/^import \{([^}]*)\}/gm)].flatMap(x => x[1].split(',').map(s => s.trim())));
+    for (const [name, owner] of owners) {
+      // Match bare uses and spreads (...name), not property access (obj.name).
+      if (owner !== m && !imported.has(name) && new RegExp(`(?:^|[^\\w$.]|\\.\\.\\.)${name.replace('$', '\\$')}(?![\\w$])`, 'm').test(sources[m])) missing.push(`${m} uses ${name} from ${owner}`);
+    }
+  }
+  assert.deepEqual(missing, []);
+});
+
 test('dwelldeck.js is up to date with src/', () => {
   execFileSync(process.execPath, [new URL('../scripts/build.mjs', import.meta.url).pathname, '--check'], {stdio: 'pipe'});
 });
