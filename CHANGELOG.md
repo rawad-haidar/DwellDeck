@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.18 — Rooms redesign
+
+- Room cards: icon, name and "3 of 9 lights on", a round lights button (turns the room off, or on when all is off), and status chips for temperature, humidity, air conditioning, TV, open curtains, motion, open doors and alerts. Status uses an icon and text, not colour alone.
+- A room card glows only when something in it is switched on (lights, TV, running air conditioning, switches); doors, curtains and sensors show as chips instead.
+- Two room cards per row in each floor.
+- Rooms open with a compact status strip, then Lights, Climate, TV and media, Scenes, Curtains, Switches and Cameras; safety and all sensor tiles move to the end.
+
 ## 0.9.17 — TCL HDMI inputs
 
 - On TCL TVs, HDMI 1 to 3 open with TCL's passthrough links (HW15, HW16, HW17): through Android TV Remote (`remote.turn_on`) or ADB (`am start`). Live TV opens TCL's TV app. A TV counts as TCL by its device manufacturer or its installed TCL apps.

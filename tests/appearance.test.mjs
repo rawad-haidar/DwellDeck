@@ -324,3 +324,30 @@ test('a TCL TV with Android TV Remote opens HDMI through remote.turn_on and pair
  assert(p.calls.some(c=>c[1]==='turn_on'&&c[2].activity==='com.tcl.tv'));
  assert(p.calls.some(c=>c[1]==='send_command'&&c[2].command==='DPAD_UP'));
 });
+test('room cards show a summary, status chips and a lights button; rooms open with a status strip',()=>{
+ const st=(state,attributes)=>({state,attributes});
+ const states={'light.saloon_a':st('on',{friendly_name:'A'}),'light.saloon_b':st('off',{friendly_name:'B'}),
+  'sensor.saloon_temp':st('26.9',{device_class:'temperature',unit_of_measurement:'°C',friendly_name:'Saloon Temp'}),
+  'sensor.saloon_hum':st('55',{device_class:'humidity',unit_of_measurement:'%',friendly_name:'Saloon Humidity'}),
+  'binary_sensor.saloon_motion':st('on',{device_class:'motion',friendly_name:'Saloon Motion'}),
+  'climate.saloon_ac':st('cool',{hvac_action:'cooling',temperature:22,friendly_name:'Saloon AC',hvac_modes:['off','cool']}),
+  'media_player.saloon_tv':st('on',{device_class:'tv',friendly_name:'Saloon TV'})};
+ const E=id=>({entity_id:id,platform:'x',device_id:'d',area_id:'saloon'});
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{saloon:{area_id:'saloon',name:'Saloon',labels:[]}},floors:{},labels:{},devices:{d:{id:'d',area_id:'saloon'}},
+  entities:Object.fromEntries(Object.keys(states).map(id=>[id,E(id)]))};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const rooms=d.views.find(v=>v.path==='rooms');
+ let card;const find=x=>{if(x&&typeof x==='object'){if(x.name==='Saloon'&&x.tap_action?.browser_mod)card=x;Object.values(x).forEach(find);}};find(rooms);
+ assert(card);
+ assert.equal(Function('states',card.label.trim().slice(3,-3))(states),'1 of 2 lights on');
+ globalThis.window=globalThis.window||{};
+ const chips=Function('states',card.custom_fields.chips.trim().slice(3,-3))(states).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+ for(const text of ['26.9°C','55%','Cooling 22°','TV on','Motion'])assert(chips.includes(text),text);
+ assert.equal(card.custom_fields.power.card.tap_action.perform_action,'homeassistant.turn_off');
+ assert.equal(card.custom_fields.powerOn.card.tap_action.perform_action,'homeassistant.turn_on');
+ const content=card.tap_action.browser_mod.data.content.cards;
+ assert(content[0].custom_fields?.chips,'status strip first');
+ const headings=content.filter(c=>c.type==='heading').map(c=>c.heading);
+ assert(headings.indexOf('Climate')<headings.indexOf('TV and media'));
+ assert(headings.indexOf('TV and media')<headings.indexOf('All sensors'));
+});
