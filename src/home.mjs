@@ -239,7 +239,7 @@ export function designHome(output, {prefix, hass = {}}) {
     // The weather sits top right, beside the glance card.
     section([heading('Outside', 'mdi:weather-partly-cloudy'), ...weather]),
     section([heading('Safety', 'mdi:shield-home-outline'), ...alerts, ...alarm, ...latest]),
-    section([heading('Climate and energy', 'mdi:lightning-bolt-outline'), ...climate, ...energy]),
+    section([heading('Energy and climate', 'mdi:lightning-bolt-outline'), ...energy, ...climate]),
     section([heading('Shortcuts', 'mdi:view-grid-outline'), ...shortcuts.map(evenShortcut)])
   ];
   if (rest.length) sections.push(section([heading('More', 'mdi:dots-horizontal'), ...rest]));
