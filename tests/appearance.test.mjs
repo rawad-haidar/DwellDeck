@@ -765,3 +765,15 @@ test('a theme\'s frosted-glass blur is off on DwellDeck pages: cards are solid, 
  const d=generate({});
  for(const view of d.views)assert(String(view.card_mod?.style||'').includes('--ha-card-backdrop-filter:none'),view.path);
 });
+
+test('icon and label sit together, centred, in the player buttons and tabs (button-card centres icons with automatic margins)',async()=>{
+ const {tvCard}=await import('../src/tv.mjs');
+ const hass=tvHass();
+ const card=tvCard('media_player.saloon_tv',hass);
+ const panel=runField(card,'panel',hass.states);
+ assert(/\.dw-tv \.tab ha-icon,\.dw-tv \.refresh ha-icon\{margin:0\}/.test(panel),'tabs and refresh');
+ const ma=Function('states',card.custom_fields.ma?.trim().slice(3,-3)||'return ""')(hass.states);
+ if(ma)assert(ma.includes('flex:none;margin:0'),'Music player and Music Assistant buttons');
+ const vol=Function('states',card.custom_fields.vol.trim().slice(3,-3))(hass.states);
+ assert(!vol.includes('<ha-icon')||vol.includes('margin:0'),'volume row');
+});

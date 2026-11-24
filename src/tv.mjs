@@ -437,6 +437,8 @@ function dwellTvPanel(states, cfg) {
     .dw-tv .tabs{display:grid;grid-template-columns:repeat(${tabs.length},minmax(0,1fr));gap:4px;padding:4px;border-radius:999px;background:${c.card};border:1px solid ${c.line}}
     .dw-tv .tab{flex-direction:row;gap:5px;min-height:40px;padding:0 6px;border:none;border-radius:999px;background:transparent;color:${c.muted};font-size:13px;font-weight:600}
     .dw-tv .tab ha-icon{--mdc-icon-size:18px;flex:none}
+    /* button-card centres icons with automatic margins; beside a label that pushes the label to the edge. */
+    .dw-tv .tab ha-icon,.dw-tv .refresh ha-icon{margin:0}
     .dw-tv .pane{display:none;gap:12px}
     .dw-tv .pad{position:relative;display:grid;grid-template-areas:". up ." "left ok right" ". down .";grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);
       place-content:center;place-items:center;box-sizing:border-box;width:220px;height:220px;margin:4px auto 0;border-radius:50%;background:${c.surface}}
@@ -478,7 +480,7 @@ function dwellVolume(states, cfg) {
     step(el) { this.hass()?.callService('media_player', el.dataset.dir === 'up' ? 'volume_up' : 'volume_down', {entity_id: el.dataset.entity}); }
   };
   const btn = `all:unset;box-sizing:border-box;cursor:pointer;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:rgba(0,0,0,.18);border:1px solid ${cfg.c.line};color:${cfg.c.text}`;
-  const icon = name => `<ha-icon icon="${name}" style="--mdc-icon-size:20px;width:20px;height:20px;display:block"></ha-icon>`;
+  const icon = name => `<ha-icon icon="${name}" style="--mdc-icon-size:20px;width:20px;height:20px;display:block;flex:none;margin:0"></ha-icon>`;
   if (!cfg.entity) {
     return `<div style="display:flex;align-items:center;gap:8px;justify-content:center">
       <button style="${btn}" aria-label="Volume down" data-entity="${cfg.step}" data-dir="down" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-minus')}</button>
@@ -532,7 +534,7 @@ function dwellMaButtons(cfg) {
     }
   };
   const style = `all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;height:40px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid ${cfg.c.line};color:${cfg.c.text};font-size:13.5px;font-weight:600`;
-  const icon = (name, color) => `<ha-icon icon="${name}" style="--mdc-icon-size:18px;width:18px;height:18px;display:block;color:${color}"></ha-icon>`;
+  const icon = (name, color) => `<ha-icon icon="${name}" style="--mdc-icon-size:18px;width:18px;height:18px;display:block;flex:none;margin:0;color:${color}"></ha-icon>`;
   return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%">
     <button style="${style}" data-entity="${cfg.player}" aria-label="Music Assistant player for this room" onclick="event.stopPropagation();window.__dwellTvMa.player(this)">${icon('mdi:music-box-outline', cfg.c.onText)}Music player</button>
     <button style="${style}" data-name="${cfg.playerName}" aria-label="Open Music Assistant with this room's player" onclick="event.stopPropagation();window.__dwellTvMa.app(this)">${icon('mdi:open-in-app', cfg.c.muted)}Music Assistant</button></div>`;

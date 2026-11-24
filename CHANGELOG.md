@@ -2,6 +2,7 @@
 
 ## 0.9.34 — Smooth scrolling
 
+- **Button labels are centred with their icon again**: in Music player, Music Assistant, and the Remote, Apps, Sources and Keyboard tabs, the label was pushed to the far edge of the button (button-card gives every icon automatic margins, which took all the free space).
 - **Cards no longer stay blank for a moment while scrolling** (most visible on the Media page on phones and tablets). A Home Assistant theme can put a frosted-glass blur behind every card (Alpine Morning does); on DwellDeck's solid cards it is invisible, but it had to be recomputed for every card and every button inside it (52 on the Media page) while scrolling. DwellDeck pages now turn that blur off; the theme is unchanged everywhere else, and DwellDeck's own frosted panels (the weather sky) keep theirs.
 
 ## 0.9.33 — Faster pages
