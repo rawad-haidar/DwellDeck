@@ -100,13 +100,13 @@ const tvCards=()=>{
  return cards;
 };
 // The TV panel renders from states like button-card does; collect its tabs and the actions its buttons call.
-const runField=(card,field,states)=>{globalThis.window=globalThis.window||{};const t=card.custom_fields[field].trim().slice(3,-3);return Function('states',t)(states);};
+const runField=(card,field,states)=>{globalThis.window=globalThis.window||{};globalThis.window.__dwellTvApps={};const t=card.custom_fields[field].trim().slice(3,-3);return Function('states',t)(states);};
 const unescape=v=>v.replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
 const panel=(card,states=tvHass().states)=>{
  const html=runField(card,'panel',states);
  return {html,tabs:[...html.matchAll(/class="tab" data-tab="([^"]+)"/g)].map(m=>m[1]),
   calls:[...html.matchAll(/data-call="([^"]*)"/g)].map(m=>JSON.parse(unescape(m[1]))),
-  names:pane=>[...(html.split(`class="pane ${pane}"`)[1]||'').split('class="pane ')[0].matchAll(/<span>([^<]*)<\/span>/g)].map(m=>unescape(m[1]))};
+  names:pane=>[...(html.split(`class="pane ${pane}"`)[1]||'').split('class="pane ')[0].matchAll(/<span>([^<]*)<\/span>/g)].map(m=>unescape(m[1])).filter(n=>n!=='Refresh installed apps')};
 };
 test('each TV is one compact card with Remote, Apps, Sources and Keyboard tabs and no popups',()=>{
  const cards=tvCards();
@@ -116,19 +116,20 @@ test('each TV is one compact card with Remote, Apps, Sources and Keyboard tabs a
  assert.deepEqual(saloon.tabs,['remote','apps','sources','keys']);
  const commands=saloon.calls.filter(c=>c[1]==='send_command').map(c=>c[2].command);
  for(const c of ['DPAD_UP','DPAD_CENTER','BACK','HOME','MENU','MUTE'])assert(commands.includes(c),c);
- assert.deepEqual(saloon.names('apps-pane'),['Google Cast','Netflix','YouTube']);
+ assert.deepEqual(saloon.names('apps-pane'),['Netflix','YouTube']);
  assert.deepEqual(saloon.names('sources'),['HDMI 1','HDMI 2','Home']);
  assert(saloon.html.includes('class="dw-kb"'));
  const bedroom=cards['media_player.bedroom_adb'];
  const adb=panel(bedroom);
  assert(adb.calls.some(c=>c[0]==='androidtv'&&c[1]==='adb_command'&&c[2].command==='CENTER'));
  assert(!adb.calls.some(c=>c[1]==='send_command'));
- assert.deepEqual(adb.names('apps-pane'),['YouTube']);
+ assert.deepEqual(adb.names('apps-pane'),[]);
+ assert(adb.html.includes('press Refresh to load the apps installed'));
  assert(!adb.tabs.includes('keys'));
  const off=tvHass().states;off['media_player.bedroom_adb'].state='off';off['media_player.bedroom_adb'].attributes.source_list=[];
  assert(panel(bedroom,off).html.includes('Turn the TV on'));
  const live=tvHass().states;live['media_player.bedroom_adb'].attributes.source_list=['com.netflix.ninja','HDMI 4'];
- assert.deepEqual(panel(bedroom,live).names('apps-pane'),['Netflix']);
+ assert.deepEqual(panel(bedroom,live).names('apps-pane'),[]);
  assert.deepEqual(panel(bedroom,live).names('sources'),['HDMI 4']);
  const atv=panel(cards['media_player.atv']);
  assert(atv.calls.some(c=>c[2]?.command==='select'));
@@ -198,7 +199,7 @@ test('a TV whose integration is unknown still gets its remote, keyboard and stat
  const p=panel(tv,states);
  assert.deepEqual(p.tabs,['remote','apps','sources','keys']);
  assert(p.calls.some(c=>c[1]==='send_command'&&c[2].entity_id==='remote.saloon_tv'&&c[2].command==='DPAD_UP'));
- assert(!p.calls.some(c=>c[0]==='androidtv'));
+ assert(!p.calls.some(c=>c[0]==='androidtv'&&/^[A-Z_]+$/.test(c[2].command)));
  assert(p.names('apps-pane').includes('Netflix'));
  assert(p.names('sources').includes('HDMI 1'));
  const now=runField(tv,'now',states);
@@ -240,4 +241,23 @@ test('a hidden TV entry still leads its card, and a TV never gets two cards',()=
  assert.equal(tv.custom_fields.power.card.tap_action.target.entity_id,'media_player.saloon_saloon_tv');
  assert.equal(tv.custom_fields.media.card.custom_fields.play.card.tap_action.target.entity_id,'media_player.saloon_saloon_tv');
  assert(panel(tv,states).calls.some(c=>c[2].entity_id==='remote.saloon_tv'&&c[2].command==='DPAD_UP'));
+});
+test('installed apps come from ADB, are remembered, and drop out only when a new list no longer has them',()=>{
+ const cards=tvCards();const bedroom=cards['media_player.bedroom_adb'];
+ globalThis.window.__dwellTvApps={};
+ const run=states=>Function('states',bedroom.custom_fields.panel.trim().slice(3,-3))(states);
+ const names=(html,pane)=>[...(html.split(`class="pane ${pane}"`)[1]||'').split('class="pane ')[0].matchAll(/<span>([^<]*)<\/span>/g)].map(m=>m[1]).filter(n=>n!=='Refresh installed apps');
+ const base=tvHass().states;
+ const first=run(base);
+ assert(first.includes('data-fetch='));
+ assert(first.includes('query-activities'));
+ const answer=tvHass().states;answer['media_player.bedroom_adb'].attributes.adb_response='com.netflix.ninja/.MainActivity\ncom.google.android.youtube.tv/com.google.android.apps.youtube.tv.activity.ShellActivity\ncom.google.android.tvlauncher/.MainActivity\npackage:net.mbc.shahid.androidtv\npackage:com.android.systemui';
+ assert.deepEqual(names(run(answer),'apps-pane'),['Netflix','Shahid','YouTube']);
+ const running=tvHass().states;running['media_player.bedroom_adb'].attributes.adb_response=null;running['media_player.bedroom_adb'].attributes.source_list=['com.google.android.youtube.tv'];
+ assert.deepEqual(names(run(running),'apps-pane'),['Netflix','Shahid','YouTube']);
+ const removed=tvHass().states;removed['media_player.bedroom_adb'].attributes.adb_response='package:com.netflix.ninja';
+ assert.deepEqual(names(run(removed),'apps-pane'),['Netflix']);
+ assert(run(removed).includes('monkey -p com.netflix.ninja'));
+ globalThis.window.__dwellTv.open['media_player.bedroom_adb']='apps';
+ assert(run(removed).includes('data-open="apps"'));
 });

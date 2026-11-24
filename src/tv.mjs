@@ -96,8 +96,12 @@ const KNOWN_PACKAGES = {
   'net.mbc.shahid.androidtv': 'Shahid', 'net.mbc.shahidtv': 'Shahid', 'com.tod.tv': 'TOD', 'com.bein.tod': 'TOD',
   'com.apple.atve.androidtv.appletv': 'Apple TV', 'com.plexapp.android': 'Plex', 'org.xbmc.kodi': 'Kodi',
   'com.google.android.tvlauncher': 'Home', 'com.google.android.apps.tv.launcherx': 'Home', 'com.android.tv.settings': 'Settings',
-  'com.google.android.apps.mediashell': 'Google Cast', 'com.google.android.videos': 'Google TV', 'tv.twitch.android.app': 'Twitch'
+  'com.google.android.apps.mediashell': 'Google Cast', 'com.android.vending': 'Play Store', 'com.google.android.videos': 'Google TV', 'tv.twitch.android.app': 'Twitch'
 };
+// Asks ADB for the TV apps that can be launched from the home screen, and for user-installed apps.
+const FETCH_APPS = 'cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER; pm list packages -3';
+// Launchers, setup and system services are not apps to open.
+const HIDDEN_PACKAGES = /launcher|setupwraith|tungsten|katniss|systemui|inputmethod|\.gms|gsf|tvrecommendations|backdrop|dreamx|remote\.service|mediatek|providers|permissioncontroller|\.tts$|tokenmanager|airplay|tclhome|\.ext\.services/;
 // Shown when the TV lists no apps: common apps, opened by their package with Android TV Remote.
 const COMMON_APPS = [['Netflix', 'com.netflix.ninja'], ['YouTube', 'com.google.android.youtube.tv'], ['Disney+', 'com.disney.disneyplus'],
   ['Prime Video', 'com.amazon.amazonvideo.livingroom'], ['Spotify', 'com.spotify.tv.android'], ['YouTube Music', 'com.google.android.youtube.tvmusic']];
@@ -158,7 +162,21 @@ function dwellTvPanel(states, cfg) {
   window.__dwellTv = window.__dwellTv || {
     hass: () => document.querySelector('home-assistant')?.hass,
     call(el) { const [domain, service, data] = JSON.parse(el.dataset.call); this.hass()?.callService(domain, service, data); },
-    tab(el) { const box = el.closest('.dw-tv'); box.dataset.open = box.dataset.open === el.dataset.tab ? '' : el.dataset.tab; },
+    // The open tab is kept per TV, so a redraw of the card keeps it open.
+    open: {},
+    fetched: {},
+    tab(el) {
+      const box = el.closest('.dw-tv');
+      const next = box.dataset.open === el.dataset.tab ? '' : el.dataset.tab;
+      box.dataset.open = next;
+      this.open[box.dataset.tv] = next;
+      // Opening Apps asks ADB for the installed apps, at most once a minute per TV.
+      if (next && el.dataset.fetch && Date.now() - (this.fetched[box.dataset.tv] || 0) > 60000) {
+        this.fetched[box.dataset.tv] = Date.now();
+        const [domain, service, data] = JSON.parse(el.dataset.fetch);
+        this.hass()?.callService(domain, service, data);
+      }
+    },
     send(el) {
       const input = el.closest('.dw-kb').querySelector('input');
       const text = input.value;
@@ -194,18 +212,63 @@ function dwellTvPanel(states, cfg) {
     seen.add(name.toLowerCase());
     items.push({name, callData, input: isInput.test(name)});
   };
+  const prettify = pkg => {
+    if (cfg.known[pkg]) return cfg.known[pkg];
+    const part = pkg.split(/[.:]/).filter(w => !/^(com|net|org|tv|android|androidtv|google|app|apps|mobile|ninja|livingroom|leanback|atv|player)$/i.test(w)).pop() || pkg;
+    return part.charAt(0).toUpperCase() + part.slice(1);
+  };
   if (cfg.activities) for (const raw of states[cfg.activities]?.attributes?.activity_list || []) add(raw, call('remote', 'turn_on', {entity_id: cfg.activities, activity: raw}));
-  for (const p of cfg.players) for (const raw of states[p]?.attributes?.source_list || []) add(raw, call('media_player', 'select_source', {entity_id: p, source: raw}));
-  // When the TV lists nothing, offer common apps and input keys (Android TV Remote only).
+  // ADB's source list is the running apps, which change as apps open and close: use it only for inputs.
+  for (const p of cfg.players) for (const raw of states[p]?.attributes?.source_list || []) {
+    if (p === cfg.adb && !isInput.test(nameOf(raw) || '')) continue;
+    add(raw, call('media_player', 'select_source', {entity_id: p, source: raw}));
+  }
   const keyCallFor = command => call(cfg.remote.domain, cfg.remote.service, {entity_id: cfg.remote.target, command});
   const fallbackNote = {};
-  if (cfg.fallback && !items.some(i => !i.input)) {
-    for (const [name, activity] of cfg.fallback.apps) items.push({name, callData: call('remote', 'turn_on', {entity_id: cfg.fallback.remote, activity}), input: false});
-    fallbackNote.apps = 'Common apps. To list the apps on this TV, add them in the Android TV Remote integration\'s options (Configure, then Applications).';
+
+  // Installed apps from ADB. The card asks ADB for the TV's launchable apps; the answer arrives in the
+  // ADB player's adb_response. The list is remembered in the browser until a newer answer replaces it,
+  // so an app drops out only once it is uninstalled.
+  const storeKey = 'dwelldeck-apps-' + cfg.lead;
+  const store = (window.__dwellTvApps ||= {});
+  if (!(storeKey in store)) {
+    store[storeKey] = null;
+    try { store[storeKey] = JSON.parse(localStorage.getItem(storeKey) || 'null'); } catch (error) { /* storage unavailable */ }
   }
-  if (cfg.fallback && cfg.remote && !items.some(i => i.input)) {
-    cfg.fallback.inputs.forEach(([name, command], index) => items.push({name, callData: keyCallFor(command), input: true, order: index}));
-    fallbackNote.sources = 'Input keys. Some TVs ignore the HDMI keys; Inputs opens the TV\'s own input menu.';
+  const response = cfg.adb ? String(states[cfg.adb]?.attributes?.adb_response || '') : '';
+  if (/package:|\//.test(response)) {
+    const found = [...new Set(response.split(/\r?\n/).map(line => (line.match(/^\s*(?:package:)?([a-z][\w]*(?:\.[\w]+)+)(?:\/\S*)?\s*$/i) || [])[1]).filter(Boolean))]
+      .filter(pkg => !new RegExp(cfg.hiddenPackages, 'i').test(pkg));
+    if (found.length && JSON.stringify(found) !== JSON.stringify(store[storeKey])) {
+      store[storeKey] = found;
+      try { localStorage.setItem(storeKey, JSON.stringify(found)); } catch (error) { /* storage unavailable */ }
+    }
+  }
+  const installed = store[storeKey] || [];
+  const launch = pkg => cfg.androidRemote
+    ? call('remote', 'turn_on', {entity_id: cfg.androidRemote, activity: pkg})
+    : call('androidtv', 'adb_command', {entity_id: cfg.adb, command: `monkey -p ${pkg} -c android.intent.category.LEANBACK_LAUNCHER 1`});
+  for (const pkg of installed) {
+    const name = prettify(pkg);
+    if (seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    items.push({name, callData: launch(pkg), input: false});
+  }
+
+  // Without an installed list, Android TV Remote TVs get common apps; input keys when the TV lists no inputs.
+  if (cfg.fallback) {
+    if (!items.some(i => !i.input)) {
+      for (const [name, activity] of cfg.fallback.apps) items.push({name, callData: call('remote', 'turn_on', {entity_id: cfg.fallback.remote, activity}), input: false});
+      fallbackNote.apps = cfg.adb
+        ? 'Common apps. Turn the TV on and press Refresh to load the apps installed on it (needs the ADB connection).'
+        : 'Common apps. To list the apps on this TV, add them in the Android TV Remote integration\'s options (Configure, then Applications).';
+    }
+    if (cfg.remote?.target === cfg.fallback.remote && !items.some(i => i.input)) {
+      cfg.fallback.inputs.forEach(([name, command], index) => items.push({name, callData: keyCallFor(command), input: true, order: index}));
+      fallbackNote.sources = 'Input keys. Some TVs ignore the HDMI keys; Inputs opens the TV\'s own input menu.';
+    }
+  } else if (cfg.adb && !installed.length && !items.some(i => !i.input)) {
+    fallbackNote.apps = 'Turn the TV on and press Refresh to load the apps installed on it (needs the ADB connection).';
   }
   const byName = (a, b) => (a.order ?? 99) - (b.order ?? 99) || a.name.localeCompare(b.name, undefined, {numeric: true});
   const icon = name => (cfg.icons.find(([pattern]) => new RegExp(pattern, 'i').test(name)) || [0, 'mdi:application-outline'])[1];
@@ -216,6 +279,8 @@ function dwellTvPanel(states, cfg) {
 
   const tabs = [];
   const panes = [];
+  const tabFetch = {};
+  const appsGrid = list => list.length || !cfg.adb ? grid(list, 'apps') : `<p class="empty">${fallbackNote.apps || ''}</p>`;
   if (cfg.remote) {
     const k = cfg.remote.keys;
     tabs.push(['remote', 'mdi:remote-tv', 'Remote']);
@@ -232,7 +297,10 @@ function dwellTvPanel(states, cfg) {
   }
   if (cfg.canSwitch) {
     tabs.push(['apps', 'mdi:apps', 'Apps'], ['sources', 'mdi:video-input-hdmi', 'Sources']);
-    panes.push(`<div class="pane apps-pane">${grid(items.filter(i => !i.input), 'apps')}</div>`,
+    const fetchCall = cfg.adb ? call('androidtv', 'adb_command', {entity_id: cfg.adb, command: cfg.fetchCommand}) : '';
+    const refresh = cfg.adb ? `<button class="refresh" onclick="window.__dwellTv.call(this)" data-call="${fetchCall}"><ha-icon icon="mdi:refresh"></ha-icon><span>Refresh installed apps</span></button>` : '';
+    tabFetch.apps = fetchCall;
+    panes.push(`<div class="pane apps-pane">${appsGrid(items.filter(i => !i.input))}${refresh}</div>`,
       `<div class="pane sources">${grid(items.filter(i => i.input), 'sources')}</div>`);
   }
   if (cfg.keyboard) {
@@ -246,7 +314,8 @@ function dwellTvPanel(states, cfg) {
   const paneClass = {remote: 'remote', apps: 'apps-pane', sources: 'sources', keys: 'keys'};
   const open = tabs.map(([name]) => `.dw-tv[data-open="${name}"] .tab[data-tab="${name}"]{background:linear-gradient(135deg,${c.onBg},${c.surfaceEnd});border-color:${c.on}}
     .dw-tv[data-open="${name}"] .pane.${paneClass[name]}{display:grid}`).join('');
-  return `<div class="dw-tv" data-open="">
+  const openTab = window.__dwellTv.open[cfg.lead] || '';
+  return `<div class="dw-tv" data-tv="${esc(cfg.lead)}" data-open="${esc(openTab)}">
   <style>
     .dw-tv{display:grid;gap:12px;width:100%;color:${c.text};text-align:left}
     .dw-tv button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:12px;
@@ -269,6 +338,8 @@ function dwellTvPanel(states, cfg) {
     .dw-tv .app{min-height:80px;padding:10px 6px 8px;border-radius:14px}
     .dw-tv .app ha-icon{--mdc-icon-size:30px}
     .dw-tv .app span,.dw-tv .tab span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dw-tv .refresh{flex-direction:row;gap:8px;min-height:44px;margin-top:2px;color:${c.muted}}
+    .dw-tv .refresh ha-icon{--mdc-icon-size:20px}
     .dw-tv .empty{margin:6px 4px;color:${c.muted};font-size:14px;line-height:1.5}
     .dw-tv .dw-kb{display:flex;gap:10px}
     .dw-tv input{flex:1;min-width:0;box-sizing:border-box;height:48px;padding:0 14px;border-radius:12px;border:1px solid ${c.line};background:${c.card};color:${c.text};font:inherit;font-size:15px}
@@ -276,7 +347,7 @@ function dwellTvPanel(states, cfg) {
     ${open}
     @media (prefers-reduced-motion:reduce){.dw-tv button:active{transform:none}}
   </style>
-  <div class="tabs">${tabs.map(([name, ic, label]) => `<button class="tab" data-tab="${name}" aria-label="${label}" onclick="window.__dwellTv.tab(this)"><ha-icon icon="${ic}"></ha-icon><span>${label}</span></button>`).join('')}</div>
+  <div class="tabs">${tabs.map(([name, ic, label]) => `<button class="tab" data-tab="${name}" ${tabFetch[name] ? `data-fetch="${tabFetch[name]}" ` : ''}aria-label="${label}" onclick="window.__dwellTv.tab(this)"><ha-icon icon="${ic}"></ha-icon><span>${label}</span></button>`).join('')}</div>
   ${panes.join('')}
 </div>`;
 }
@@ -314,6 +385,9 @@ export function tvCard(requested, hass) {
     activities: remote?.platform === 'androidtv_remote' ? remote.id : null,
     keyboard: !!remote?.commands?.keyboard,
     fallback: remote?.platform === 'androidtv_remote' ? {remote: remote.id, apps: COMMON_APPS, inputs: COMMON_INPUTS} : null,
+    adb: players.find(p => hass.entities?.[p]?.platform === 'androidtv') || null,
+    androidRemote: remote?.platform === 'androidtv_remote' ? remote.id : null,
+    fetchCommand: FETCH_APPS, hiddenPackages: HIDDEN_PACKAGES.source,
     remote: remote && {
       domain: remote.platform === 'androidtv' ? 'androidtv' : 'remote', service: remote.platform === 'androidtv' ? 'adb_command' : 'send_command',
       target: remote.id, keys: remote.commands

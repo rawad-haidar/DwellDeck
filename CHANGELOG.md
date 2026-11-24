@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.11 — Installed TV apps from ADB
+
+- **Apps** lists the apps installed on the TV. Opening the tab (at most once a minute) or pressing **Refresh installed apps** asks ADB for the TV's launchable apps and user-installed apps. The list is remembered in the browser until a newer answer replaces it, so an app drops out only once it is uninstalled.
+- ADB's running-apps list no longer feeds Apps, so apps no longer disappear when you open one. It is still used for inputs.
+- Apps open with Android TV Remote (`remote.turn_on` with the package) when the TV has it, otherwise through ADB.
+- The open tab stays open when the card redraws.
+
 ## 0.9.10 — Hidden TV entries lead their card
 
 - A TV entry hidden in Home Assistant still joins its TV and can lead the card. On the Saloon TV the real player was hidden, so the card fell back to the disconnected ADB entry.
