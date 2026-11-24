@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.30 — Room cards show what the TV is on
+
+- **Room cards and room status strips**: a TV that is on shows what it is on, such as **TV · Netflix**, **TV · YouTube** or **TV · Home** (the home screen), taken from the TV remote's current app, else the TV's app or input. With no app known it still says **TV on** or **TV playing**, and two TVs on show **2 TVs on**.
+
 ## 0.9.29 — Sound system power goes straight to the amplifier
 
 - **Sound system cards**: power, volume and playback go to the zone itself (the DSPPA zone), not to its Music Assistant copy. On cards whose Music Assistant copy sorted first by name (M.Kitchen, Living, Pergola, Bar) the power button went through Music Assistant, which turned the zone on and off slowly or not at all. The **Music player** and **Music Assistant** buttons and the artwork still use the Music Assistant player.

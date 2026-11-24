@@ -126,7 +126,7 @@ export const withoutDuplicatePlayers = (ids, hass) => {
 };
 
 // Friendly names for common Android TV packages; other package names are system services and are hidden.
-const KNOWN_PACKAGES = {
+export const KNOWN_PACKAGES = {
   'music_assistant': 'Music Assistant',
   'com.netflix.ninja': 'Netflix', 'com.google.android.youtube.tv': 'YouTube', 'com.google.android.youtube.tvmusic': 'YouTube Music',
   'com.disney.disneyplus': 'Disney+', 'com.amazon.amazonvideo.livingroom': 'Prime Video', 'com.spotify.tv.android': 'Spotify',

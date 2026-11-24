@@ -454,7 +454,7 @@ test('TVs and sound systems are separate in a room, with their own chips',()=>{
  const speaker=JSON.stringify(content).includes('mdi:speaker');
  assert(speaker);
 });
-test('a TV that is on but idle shows TV on, and players named Sound system are sound systems',()=>{
+test('a TV that is on shows what it is on (TV · Netflix), and players named Sound system are sound systems',()=>{
  const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
  const states=Object.fromEntries([st('media_player.rest_area_living_tv','idle',{friendly_name:'Living Tv'}),st('remote.rest_area_living_2f_tv_pro','on',{current_activity:'com.netflix.ninja',friendly_name:'Living 2F TV Pro'}),
   st('media_player.rest_area_sound_system','playing',{friendly_name:'Rest Area Sound System'}),st('light.rest_a','off')]);
@@ -465,12 +465,18 @@ test('a TV that is on but idle shows TV on, and players named Sound system are s
  const card=d.views.find(v=>v.path==='rooms').sections.flatMap(s=>s.cards).find(c=>c.name==='Rest Area');
  const html=Function('states',card.custom_fields.chips.trim().slice(3,-3))(states);
  assert(html.includes('TV on'),'idle Android TV is on');
+ const netflix={...states,'media_player.rest_area_living_tv':{state:'playing',attributes:{app_id:'com.netflix.ninja'}}};
+ assert(Function('states',card.custom_fields.chips.trim().slice(3,-3))(netflix).includes('TV · Netflix'),'the app the TV is on');
  assert(html.includes('Music playing'),'named sound system is a speaker');
  const headings=card.tap_action.browser_mod.data.content.cards.filter(c=>c.type==='heading').map(c=>c.heading);
  assert(headings.includes('TVs')&&headings.includes('Sound systems'));
  const off={...states,'media_player.rest_area_living_tv':{state:'off',attributes:{}},'remote.rest_area_living_2f_tv_pro':{state:'off',attributes:{}},'media_player.rest_area_sound_system':{state:'idle',attributes:{}}};
  const quiet=Function('states',card.custom_fields.chips.trim().slice(3,-3))(off);
- assert(!quiet.includes('TV on')&&!quiet.includes('Music'));
+ assert(!quiet.includes('TV')&&!quiet.includes('Music'));
+ const home={...states,'remote.rest_area_living_2f_tv_pro':{state:'off',attributes:{}},'media_player.rest_area_living_tv':{state:'idle',attributes:{app_name:'Google TV Launcher'}}};
+ assert(Function('states',card.custom_fields.chips.trim().slice(3,-3))(home).includes('TV · Home'),'the launcher is Home');
+ const bare={...home,'media_player.rest_area_living_tv':{state:'idle',attributes:{}}};
+ assert(Function('states',card.custom_fields.chips.trim().slice(3,-3))(bare).includes('TV on'),'no app known: TV on');
 });
 test('security opens with status, alarm and gates of one height, then shortcuts, cameras and detection',()=>{
  const d=generate({});
