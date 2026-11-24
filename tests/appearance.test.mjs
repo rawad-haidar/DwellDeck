@@ -467,6 +467,8 @@ test('a TV that is on shows what it is on (TV · Netflix), and players named Sou
  assert(html.includes('TV on'),'idle Android TV is on');
  const netflix={...states,'media_player.rest_area_living_tv':{state:'playing',attributes:{app_id:'com.netflix.ninja'}}};
  assert(Function('states',card.custom_fields.chips.trim().slice(3,-3))(netflix).includes('TV · Netflix'),'the app the TV is on');
+ const titled={...states,'media_player.rest_area_living_tv':{state:'playing',attributes:{app_id:'com.netflix.ninja',media_title:'Stranger Things: Chapter One, The Vanishing'}}};
+ assert(Function('states',card.custom_fields.chips.trim().slice(3,-3))(titled).includes('TV · Netflix · Stranger Things: Chapter On…'),'and what plays, shortened');
  assert(html.includes('Music playing'),'named sound system is a speaker');
  const headings=card.tap_action.browser_mod.data.content.cards.filter(c=>c.type==='heading').map(c=>c.heading);
  assert(headings.includes('TVs')&&headings.includes('Sound systems'));
@@ -631,4 +633,41 @@ test('the Music Assistant page carries a helper that gives the app DwellDeck\'s 
  assert(theme.includes('--sidebar:')&&theme.includes('--card:')&&theme.includes('html.dark')&&theme.includes('--v-theme-overlay'),'newer parts and the player bar too');
  assert(stack.cards[0].extra_styles.includes('height:0'));
  assert(stack.cards[1].card_mod.style.includes('iframe { opacity: 0'),'the app starts hidden, no flash of its own colours');
+});
+
+test('the Media page ends with Recently played: what each player played, from the history, one line per thing',async()=>{
+ const RealDate=Date,noon=new RealDate();noon.setHours(12,0,0,0);const at=noon.getTime();
+ globalThis.Date=class extends RealDate{constructor(...a){a.length?super(...a):super(at);}static now(){return at;}};
+ try{
+ const {designMediaHistory}=await import('../src/music.mjs');
+ const tv={type:'custom:button-card',entity:'media_player.living_tv',name:'Living TV',custom_fields:{now:'x'},triggers_update:['media_player.living_tv','remote.living_tv']};
+ const speaker={type:'custom:button-card',entity:'media_player.living_zone',name:'Living Sound System',custom_fields:{now:'x'},triggers_update:['media_player.living_zone','media_player.living_ma']};
+ const out={views:[{path:'media',sections:[{type:'grid',cards:[tv,speaker]}]}]};
+ designMediaHistory(out);
+ const section=out.views[0].sections.at(-1);
+ assert.equal(section.cards[0].heading,'Recently played');
+ const body=section.cards[1].custom_fields.played.trim().slice(3,-3);
+ const now=Date.now()/1000,calls=[];
+ const fakeHass={callWS:async msg=>{calls.push(msg);return {
+  'media_player.living_tv':[{s:'idle',a:{app_name:'Google TV Launcher'},lu:now-7200},{s:'playing',a:{app_id:'com.netflix.ninja'},lu:now-6000},{s:'off',a:{},lu:now-3000}],
+  'media_player.living_zone':[{s:'playing',a:{media_title:'Blue in Green',media_artist:'Miles Davis',source:'Internet music'},lu:now-2400},{s:'off',a:{},lu:now-600}],
+  'media_player.living_ma':[{s:'playing',a:{media_title:'Blue in Green',media_artist:'Miles Davis',app_id:'music_assistant'},lu:now-2390},{s:'idle',a:{},lu:now-610}]
+ };}};
+ globalThis.window={};globalThis.localStorage=undefined;
+ const shadow={querySelector:()=>null};
+ const run=()=>Function('states','hass',body).call({shadowRoot:shadow},{},fakeHass);
+ assert(run().includes('Reading the history'));
+ await new Promise(r=>setTimeout(r,20));
+ assert.equal(calls[0].type,'history/history_during_period');
+ assert.deepEqual(calls[0].entity_ids.sort(),['media_player.living_ma','media_player.living_tv','media_player.living_zone']);
+ const html=run();
+ assert(html.includes('>Netflix<')&&html.includes('50 min'),'a TV app with how long');
+ assert(!html.includes('>Home<'),'the home screen is not something played');
+ assert.equal(html.split('Blue in Green').length-1,1,'the zone and its Music Assistant copy count once');
+ assert(html.includes('Miles Davis')&&html.includes('Living Sound System')&&html.includes('Music Assistant'));
+ for(const label of ['Today','Yesterday','Last week','All players'])assert(html.includes(`>${label}</option>`),label);
+ window.__dwellPlayedUi.player({value:'Living TV'});
+ const one=run();
+ assert(one.includes('Netflix')&&!one.includes('Blue in Green'),'filtered to one player');
+ } finally { globalThis.Date=RealDate; }
 });

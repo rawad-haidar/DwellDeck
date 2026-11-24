@@ -56,7 +56,11 @@ function dwellRoomChips(states, cfg) {
     if (id.startsWith('remote.')) return appName(e.attributes?.current_activity);
     return appName(e.attributes?.app_name) || appName(e.attributes?.app_id) || appName(e.attributes?.source);
   }).find(Boolean) || '';
-  if (tvOn.length === 1 && tvApp(tvOn[0])) chip('mdi:television-play', `TV · ${tvApp(tvOn[0])}`, 'on');
+  // And what plays in it, when the TV says (shortened so the chip stays small).
+  const tvTitle = ids => ids.map(id => states[id]).find(e => e && ['playing', 'paused'].includes(e.state) && e.attributes?.media_title
+    && !/^home assistant$/i.test(e.attributes.media_title))?.attributes?.media_title || '';
+  const short = text => text.length > 28 ? `${text.slice(0, 27).trim()}…` : text;
+  if (tvOn.length === 1 && tvApp(tvOn[0])) chip('mdi:television-play', `TV · ${tvApp(tvOn[0])}${tvTitle(tvOn[0]) ? ` · ${short(tvTitle(tvOn[0]))}` : ''}`, 'on');
   else if (tvOn.length) chip('mdi:television-play', `${tvOn.length > 1 ? `${tvOn.length} TVs` : 'TV'} ${tvOn.some(ids => ids.some(id => states[id]?.state === 'playing')) ? 'playing' : 'on'}`, 'on');
   const music = cfg.speakers.filter(id => live(id) && ['playing', 'paused'].includes(states[id].state));
   if (music.length) chip('mdi:speaker', states[music[0]].state === 'playing' ? 'Music playing' : 'Music paused', states[music[0]].state === 'playing' ? 'on' : undefined);

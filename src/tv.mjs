@@ -142,7 +142,7 @@ export const KNOWN_PACKAGES = {
 // Asks ADB for the TV apps that can be launched from the home screen, and for user-installed apps.
 const FETCH_APPS = 'cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER; pm list packages -3';
 // Launchers, setup and system services are not apps to open.
-const HIDDEN_PACKAGES = /launcher|setupwraith|tungsten|katniss|systemui|inputmethod|\.gms|gsf|tvrecommendations|backdrop|dreamx|remote\.service|mediatek|providers|permissioncontroller|\.tts$|tokenmanager|airplay|tclhome|\.ext\.services|tcl\.(ocean|suspension|dashboard|exhibit|guard|partnercustomizer|waterfall|magiconnect)/;
+export const HIDDEN_PACKAGES = /launcher|setupwraith|tungsten|katniss|systemui|inputmethod|\.gms|gsf|tvrecommendations|backdrop|dreamx|remote\.service|mediatek|providers|permissioncontroller|\.tts$|tokenmanager|airplay|tclhome|\.ext\.services|tcl\.(ocean|suspension|dashboard|exhibit|guard|partnercustomizer|waterfall|magiconnect)/;
 // Shown when the TV lists no apps: common apps, opened by their package with Android TV Remote.
 const COMMON_APPS = [['Netflix', 'com.netflix.ninja'], ['YouTube', 'com.google.android.youtube.tv'], ['Disney+', 'com.disney.disneyplus'],
   ['Prime Video', 'com.amazon.amazonvideo.livingroom'], ['Spotify', 'com.spotify.tv.android'], ['YouTube Music', 'com.google.android.youtube.tvmusic']];
@@ -639,8 +639,14 @@ export function tvCard(requested, hass) {
   fields.now = `[[[ ${current}
     const esc = v => String(v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const off = !m || ${OFF}.includes(m.state);
+    // The title can sit on another entry of the same TV (its Cast, DLNA or Music Assistant entry).
+    // DLNA renderers are left out: they keep an old title ("Home Assistant") long after it stopped.
+    const titled = !off && (m.attributes?.media_title ? m : live.find(p => ${JSON.stringify(sources.filter(p => hass.entities?.[p]?.platform !== 'dlna_dmr'))}.includes(p.entity_id)
+      && ['playing', 'paused'].includes(p.state) && p.attributes?.media_title));
     const playing = m;
-    const a = playing?.attributes || {};
+    const a = {...(playing?.attributes || {}), ...(titled && titled !== m ? {media_title: titled.attributes.media_title, media_series_title: titled.attributes.media_series_title,
+      media_artist: titled.attributes.media_artist, media_album_name: titled.attributes.media_album_name,
+      entity_picture_local: titled.attributes.entity_picture_local, entity_picture: titled.attributes.entity_picture} : {})};
     const state = !m ? 'Unavailable' : off ? 'Off' : playing.state === 'playing' ? 'Playing' : playing.state === 'paused' ? 'Paused' : playing.state === 'buffering' ? 'Loading' : 'On';
     const title = a.media_title || '';
     const detail = [a.media_series_title, a.media_artist, a.media_album_name].filter(Boolean).filter((v, i, list) => list.indexOf(v) === i).join(', ');
@@ -676,7 +682,6 @@ export function tvCard(requested, hass) {
   // Header: button-card's own icon, name and label, so it lines up on the left.
   const status = `[[[ ${current}
     const off = !m || ${OFF}.includes(m.state);
-    const title = [m?.attributes?.media_title, m?.attributes?.media_artist].filter(Boolean).join(', ');
     return !m ? 'Unavailable' : off ? 'Off' : cur ? 'On, ' + cur : 'On'; ]]]`;
   return {
     type: 'custom:button-card', entity: id, name, icon: tv ? 'mdi:television' : 'mdi:speaker', show_name: true, show_icon: true, show_state: false, show_label: true, label: status,
