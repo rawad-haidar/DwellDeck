@@ -21,7 +21,9 @@ class DwellDeckOriginalStrategy extends HTMLElement {
     return generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, config, context);
   }
 }
+// Shows which build is loaded, so a cached old file is easy to spot in the browser console.
+if(typeof DWELLDECK_VERSION!=='undefined'&&typeof console!=='undefined'&&!window.__dwelldeckLogged){window.__dwelldeckLogged=true;console.info(`%c DwellDeck ${DWELLDECK_VERSION} `,'background:#f2b950;color:#141a22;font-weight:700;border-radius:4px');}
 if(!customElements.get('dwelldeck-original-editor'))customElements.define('dwelldeck-original-editor',DwellDeckOriginalEditor);
 if(!customElements.get('ll-strategy-dashboard-dwelldeck-original'))customElements.define('ll-strategy-dashboard-dwelldeck-original',DwellDeckOriginalStrategy);
 window.customStrategies=window.customStrategies||[];
-if(!window.customStrategies.some(s=>s.type==='dwelldeck-original'))window.customStrategies.push({type:'dwelldeck-original',strategyType:'dashboard',name:'DwellDeck · Original design',description:'The original Home page, navigation, styled cards and room popups with visual entity setup.'});
+if(!window.customStrategies.some(s=>s.type==='dwelldeck-original'))window.customStrategies.push({type:'dwelldeck-original',strategyType:'dashboard',name:'DwellDeck · Original design',description:`The original Home page, navigation, styled cards and room popups with visual entity setup.${typeof DWELLDECK_VERSION!=='undefined'?' Version '+DWELLDECK_VERSION+'.':''}`});

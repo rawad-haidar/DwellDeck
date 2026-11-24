@@ -10,6 +10,10 @@ The Security page shows live **human** and **vehicle** detection for your camera
 
 Each camera appears as a tile that glows while something is detected. Tap a tile to see the latest **snapshot** of each human and vehicle detection and the live camera view. To save snapshots, open **Edit dashboard**, press **Set up detection snapshots**, then **Save**. This creates one automation, *DwellDeck · Detection snapshots*, that saves a picture from the sensor's camera each time a detection starts, replacing the previous one. Pictures are stored in `/media/dwelldeck/snapshots`, which needs a Home Assistant login to view. A sensor is linked to the camera on the same device, or else to a camera whose name starts with the camera name (for example *Front Gate Main* for *Front Gate Smart Motion Human*); main streams are preferred over sub streams. Press the button again after adding cameras or sensors. UI automations must be enabled (`automation: !include automations.yaml` in `configuration.yaml`, the default).
 
+## New in 0.9.0
+
+The Home page opens with a live weather hero: the sky follows the real sun, weather moves across it, and a 6-hour forecast, sunrise or sunset countdown, wind, humidity and solar output sit at the bottom. The new **Lamplight** palette is the default (see below). To check which version your browser loaded, open the browser console: it shows **DwellDeck 0.9.0**.
+
 ## New in 0.8.1
 
 Use **Edit dashboard → Discover rooms and devices** to organize rooms from Home Assistant areas, floors and labels. The Rooms tab contains room controls; Lights keeps light-only popups with the names and count of lights currently on. Curtains, media and cameras have grouped layouts, and Climate history and activity stay together at the bottom.
@@ -70,7 +74,7 @@ The built-in colors use card-mod and do not require a separately installed theme
 
 ### Manual fallback
 
-Copy `dwelldeck.js` to Home Assistant’s `www` folder, register `/local/dwelldeck.js?v=0.8.1` as a JavaScript module in dashboard Resources, and refresh. Then create the community dashboard as above. If the picker is unavailable, create a blank dashboard and paste `examples/dashboard.yaml` into its raw configuration editor.
+Copy `dwelldeck.js` to Home Assistant’s `www` folder, register `/local/dwelldeck.js?v=0.9.0` as a JavaScript module in dashboard Resources, and refresh. Then create the community dashboard as above. If the picker is unavailable, create a blank dashboard and paste `examples/dashboard.yaml` into its raw configuration editor.
 
 HACS registers its own resource URL. Do not manually add a second URL with different capitalization; use the directory HACS actually installed.
 
@@ -141,7 +145,7 @@ Golden tests in `tests/golden.test.mjs` hash the generated dashboard for many co
 
 ## Publish and update
 
-Upload this folder’s contents to the repository root. Keep `dwelldeck.js`, `hacs.json`, `README.md` and `LICENSE` at the root. Publish `v0.8.1` as a pre-release and attach the JavaScript file. Include the theme folder in the repository. See `GITHUB_SETUP.md`.
+Upload this folder’s contents to the repository root. Keep `dwelldeck.js`, `hacs.json`, `README.md` and `LICENSE` at the root. Publish `v0.9.0` as a pre-release and attach the JavaScript file. Include the theme folder in the repository. See `GITHUB_SETUP.md`.
 
 Do not upload private dashboard backups, source household entity bindings, Home Assistant configuration files or unredacted screenshots. The supplied package has been checked separately for those files.
 

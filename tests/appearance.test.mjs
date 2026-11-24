@@ -71,3 +71,13 @@ test('the readable font can be switched off',()=>{
  assert(JSON.stringify(generate({})).includes('Atkinson Hyperlegible Next'));
  assert(!JSON.stringify(generate({font:'system'})).includes('Atkinson Hyperlegible Next'));
 });
+test('Home weather is the live hero card spanning two columns',()=>{
+ const key=SLOTS.find(s=>s.placeholder==='weather.dwelldeck_slot_295').key;
+ const d=generate({entities:{[key]:'weather.home'}});
+ const section=d.views[0].sections[0];const card=section.cards[0];
+ assert.equal(section.column_span,2);
+ assert(card.custom_fields.sky.includes('weather/subscribe_forecast'));
+ assert(card.custom_fields.sky.includes('"weather":"weather.home"'));
+ assert(!card.custom_fields.sky.slice(3,-3).includes(']]]'));
+ assert(card.custom_fields.sky.includes('prefers-reduced-motion'));
+});
