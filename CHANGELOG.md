@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.22 — Room lights button targets
+
+- The room card's lights button sends off only to lights that are on, and on only to lights that are reachable, so an already-off or unreachable device can't fail the whole action.
+
 ## 0.9.21 — Fixed room card height
 
 - Room cards have their own fixed height (128px), so cards with and without chips are identical even when the content would stretch the grid row.

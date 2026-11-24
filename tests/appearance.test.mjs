@@ -353,6 +353,10 @@ test('room cards show a summary, status chips and a lights button; rooms open wi
  assert.equal(slot[0].conditions[0].condition,'or');
  assert.equal(slot[1].card.tap_action.perform_action,'homeassistant.turn_on');
  assert(slot[1].conditions.every(c=>c.state_not==='on'));
+ const target=(button,st)=>Function('states',button.tap_action.target.entity_id.trim().slice(3,-3))(st);
+ assert.deepEqual(target(slot[0].card,states),['light.saloon_a']);
+ const offline={...states,'light.saloon_b':{state:'unavailable',attributes:{}}};
+ assert.deepEqual(target(slot[1].card,offline),['light.saloon_a']);
  assert(!card.custom_fields.powerOn);
  assert(card.styles.grid[0]['grid-template-areas'].includes('power'));
  const content=card.tap_action.browser_mod.data.content.cards;

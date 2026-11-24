@@ -70,7 +70,11 @@ function lightsButton(lights, action, icon, name) {
   return {
     type: 'custom:button-card', name, icon, show_name: false, show_state: false,
     variables: {dwell_static: true},
-    tap_action: {action: 'perform-action', perform_action: `homeassistant.${action}`, target: {entity_id: lights}},
+    // The target is worked out when tapped: off goes only to lights that are on, on only to reachable lights,
+    // so an already-off or unreachable device can't fail the whole action.
+    tap_action: {action: 'perform-action', perform_action: `homeassistant.${action}`, target: {entity_id: action === 'turn_off'
+      ? `[[[ return ${JSON.stringify(lights)}.filter(id => states[id]?.state === 'on'); ]]]`
+      : `[[[ return ${JSON.stringify(lights)}.filter(id => states[id] && !['unavailable','unknown'].includes(states[id].state)); ]]]`}},
     hold_action: {action: 'none'},
     styles: {
       card: [{width: '48px'}, {height: '48px'}, {padding: '0'}, {'border-radius': '50%'}, {'box-shadow': 'none'},
