@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.31 — One card per Android TV, Recently played on top
+
+- **An Android TV added through both Android TV integrations is one TV**, even when they named it differently ("Living Tv" by Android Debug Bridge, "Living 2F TV Pro" by Android TV Remote): when a room has one TV of each, they are the same TV. The card keeps the name you gave the TV, and shows the app from Android TV Remote (ADB on newer Google TVs keeps reporting the home screen). Its remote, room chip and Recently played use both.
+- **Artwork is back on sound system cards.** Since 0.9.29 the amplifier zone leads the card (so power reaches it directly), and the zone reports the song's title but not its artwork, so the card stopped showing it. The card now takes the song from whichever entry has the artwork (the Music Assistant player), and the app label next to Playing is that entry's (Music Assistant, not the zone's input).
+- **Recently played** is now at the top of the Media page, under the Music Assistant buttons. The list scrolls inside the card, so the players stay close below.
+
 ## 0.9.30 — What's playing, and what played
 
 - **Room cards and room status strips**: a TV that is on shows what it is on, such as **TV · Netflix**, **TV · YouTube** or **TV · Home** (the home screen), and what plays in it when the TV says (**TV · Netflix · Stranger Things…**). The app comes from the TV remote's current app, else the TV's app or input. With no app known it still says **TV on** or **TV playing**, and two TVs on show **2 TVs on**.

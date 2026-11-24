@@ -635,7 +635,7 @@ test('the Music Assistant page carries a helper that gives the app DwellDeck\'s 
  assert(stack.cards[1].card_mod.style.includes('iframe { opacity: 0'),'the app starts hidden, no flash of its own colours');
 });
 
-test('the Media page ends with Recently played: what each player played, from the history, one line per thing',async()=>{
+test('the Media page opens with Recently played: what each player played, from the history, one line per thing',async()=>{
  const RealDate=Date,noon=new RealDate();noon.setHours(12,0,0,0);const at=noon.getTime();
  globalThis.Date=class extends RealDate{constructor(...a){a.length?super(...a):super(at);}static now(){return at;}};
  try{
@@ -644,8 +644,9 @@ test('the Media page ends with Recently played: what each player played, from th
  const speaker={type:'custom:button-card',entity:'media_player.living_zone',name:'Living Sound System',custom_fields:{now:'x'},triggers_update:['media_player.living_zone','media_player.living_ma']};
  const out={views:[{path:'media',sections:[{type:'grid',cards:[tv,speaker]}]}]};
  designMediaHistory(out);
- const section=out.views[0].sections.at(-1);
- assert.equal(section.cards[0].heading,'Recently played');
+ const section=out.views[0].sections[0];
+ assert.equal(section.cards[0].heading,'Recently played','at the top');
+ assert.equal(out.views[0].sections.at(-1).cards[1],speaker,'the players follow');
  const body=section.cards[1].custom_fields.played.trim().slice(3,-3);
  const now=Date.now()/1000,calls=[];
  const fakeHass={callWS:async msg=>{calls.push(msg);return {
@@ -688,4 +689,51 @@ test('player cards are all one size: one width in every room, one height, rows a
  assert(card.styles.card.some(r=>r['min-height']==='400px'),'one height');
  assert(card.styles.grid.some(r=>r['align-content']==='start'),'rows at the top, not spread over a stretched card');
  assert(card.styles.custom_fields.now.some(r=>r['min-height']==='78px'),'now playing keeps its size with or without artwork');
+});
+
+test('an Android TV added by ADB and by Android TV Remote under different names is one TV, named as you named it',async()=>{
+ const {tvCard,tvGroup}=await import('../src/tv.mjs');
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([
+  st('media_player.rest_area_living_tv','idle',{friendly_name:'Living Tv',app_name:'Google TV Launcher',source:'Google TV Launcher',device_class:'tv'}),
+  st('remote.rest_area_living_tv','unknown',{friendly_name:'Living Tv'}),
+  st('media_player.rest_area_living_2f_tv_pro','on',{friendly_name:'Living 2F TV Pro',app_id:'com.netflix.ninja'}),
+  st('remote.rest_area_living_2f_tv_pro','on',{friendly_name:'Living 2F TV Pro',current_activity:'com.netflix.ninja',activity_list:[]}),
+  st('media_player.living_sound_system','playing',{friendly_name:'Living Sound System'})]);
+ const ent=(platform,device_id,hidden)=>({platform,device_id,hidden});
+ const entities={'media_player.rest_area_living_tv':ent('androidtv','adb'),'remote.rest_area_living_tv':ent('androidtv','adb'),
+  'media_player.rest_area_living_2f_tv_pro':ent('androidtv_remote','atvr',true),'remote.rest_area_living_2f_tv_pro':ent('androidtv_remote','atvr'),
+  'media_player.living_sound_system':ent('dsppa_am8328','zone')};
+ const devices={adb:{id:'adb',area_id:'rest',name:'Android TV 192.168.14.173',name_by_user:'Living Tv'},atvr:{id:'atvr',area_id:'rest',name:'Living 2F TV Pro'},zone:{id:'zone',area_id:'rest',name:'Rest'}};
+ for(const [id,e] of Object.entries(entities))e.entity_id=id;
+ const hass={states,entities,devices,areas:{rest:{area_id:'rest',name:'Rest Area'}},floors:{}};
+ const group=tvGroup('media_player.rest_area_living_tv',hass);
+ assert.deepEqual([...group].sort(),['media_player.rest_area_living_2f_tv_pro','media_player.rest_area_living_tv']);
+ assert.deepEqual(tvGroup('media_player.rest_area_living_2f_tv_pro',hass),group,'the same group from either entry');
+ const card=tvCard('media_player.rest_area_living_tv',hass);
+ assert.equal(card.name,'Living Tv','the name you gave it');
+ assert.equal(Function('states',card.label.trim().slice(3,-3))(states),'On, Netflix','the app from Android TV Remote, not the launcher from ADB');
+ // A second Android TV in the room: names decide again.
+ const two={...hass,states:{...states,'media_player.bedroom_adb':{entity_id:'media_player.bedroom_adb',state:'off',attributes:{friendly_name:'Other TV'}}},
+  entities:{...entities,'media_player.bedroom_adb':{...ent('androidtv','adb2'),entity_id:'media_player.bedroom_adb'}},devices:{...devices,adb2:{id:'adb2',area_id:'rest',name:'Other'}}};
+ assert.deepEqual(tvGroup('media_player.rest_area_living_tv',two),['media_player.rest_area_living_tv']);
+});
+
+test('a sound system card shows the artwork from its Music Assistant player while its zone leads',async()=>{
+ const {tvCard}=await import('../src/tv.mjs');
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([
+  st('media_player.rest_area_rest_living_sound_system','playing',{friendly_name:'Living Sound System',media_title:'Feel It Still',media_artist:'Portugal. The Man',source:'Internet music',supported_features:4+128+256+16384+1}),
+  st('media_player.living_sound_system_2','playing',{friendly_name:'Living Sound System',mass_player_type:'player',media_title:'Feel It Still',media_artist:'Portugal. The Man',
+   entity_picture:'http://192.168.14.243:8095/imageproxy/abc',app_id:'music_assistant',entity_picture_local:'/api/media_player_proxy/media_player.living_sound_system_2?token=x',supported_features:1+4+16+32+16384})]);
+ const entities={'media_player.rest_area_rest_living_sound_system':{entity_id:'media_player.rest_area_rest_living_sound_system',platform:'dsppa_am8328',device_id:'z'},
+  'media_player.living_sound_system_2':{entity_id:'media_player.living_sound_system_2',platform:'music_assistant',device_id:'m'}};
+ const hass={states,entities,devices:{z:{id:'z',area_id:'rest'},m:{id:'m',area_id:'rest'}},areas:{rest:{area_id:'rest',name:'Rest Area'}},floors:{}};
+ const card=tvCard('media_player.rest_area_rest_living_sound_system',hass);
+ assert.equal(card.entity,'media_player.rest_area_rest_living_sound_system','the zone leads (power goes to the amplifier)');
+ const now=runField(card,'now',states);
+ assert(now.includes('/api/media_player_proxy/media_player.living_sound_system_2')&&now.includes('Feel It Still'),'artwork and title on the card');
+ assert(now.includes('>Music Assistant<')&&!now.includes('Internet music'),'the app of the entry shown, not the zone\'s input');
+ const bg=card.styles.card.find(r=>r.background).background.trim().slice(3,-3);
+ assert(Function('states',bg)(states).includes('url("/api/media_player_proxy/media_player.living_sound_system_2'),'artwork behind the card');
 });

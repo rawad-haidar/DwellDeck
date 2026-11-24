@@ -105,13 +105,35 @@ const supports = (id, hass, bits) => (Number(hass.states?.[id]?.attributes?.supp
 const playerFor = (players, hass, bits) => players.find(id => supports(id, hass, bits));
 // Hidden entries still join their TV (a hidden "Saloon TV" can lead the card); disabled ones and
 // entries without a state do not.
-export function tvGroup(id, hass) {
-  const base = baseName(id, hass);
+// An Android TV added through both Android TV integrations under different names ("Living Tv" by ADB,
+// "Living 2F TV Pro" by Android TV Remote) is one TV when its room has one TV of each.
+const ANDROID_PAIR = ['androidtv', 'androidtv_remote'];
+const sameTvInArea = (id, other, players, hass) => {
+  const platform = entry => hass.entities?.[entry]?.platform;
+  if (!ANDROID_PAIR.includes(platform(id)) || !ANDROID_PAIR.includes(platform(other)) || platform(id) === platform(other)) return false;
   const area = entityArea(id, hass);
+  if (!area || entityArea(other, hass) !== area) return false;
+  const devices = {androidtv: new Set(), androidtv_remote: new Set()};
+  for (const entry of players) if (entityArea(entry, hass) === area && ANDROID_PAIR.includes(platform(entry))) devices[platform(entry)].add(hass.entities?.[entry]?.device_id || entry);
+  return devices.androidtv.size === 1 && devices.androidtv_remote.size === 1;
+};
+export function tvGroup(id, hass) {
   const players = [...new Set([...Object.keys(hass.entities || {}), ...Object.keys(hass.states || {})])]
     .filter(other => other.startsWith('media_player.') && hass.states?.[other] && !hass.entities?.[other]?.disabled_by);
-  const peers = base ? players.filter(other => other !== id && entityArea(other, hass) === area && baseName(other, hass) === base) : [];
-  return [id, ...peers].sort((a, b) => rank(a, hass) - rank(b, hass) || a.localeCompare(b));
+  // Same room and same base name, or the room's one TV seen through another integration; followed through,
+  // so every entry of a TV finds the same group.
+  const group = new Set([id]);
+  for (let added = true; added;) {
+    added = false;
+    for (const member of [...group]) {
+      const base = baseName(member, hass), area = entityArea(member, hass);
+      for (const other of players) {
+        if (group.has(other)) continue;
+        if ((base && entityArea(other, hass) === area && baseName(other, hass) === base) || sameTvInArea(member, other, players, hass)) { group.add(other); added = true; }
+      }
+    }
+  }
+  return [...group].sort((a, b) => rank(a, hass) - rank(b, hass) || a.localeCompare(b));
 }
 // One card per TV: keeps the first entry of each TV in the list and drops the rest.
 export const withoutDuplicatePlayers = (ids, hass) => {
@@ -554,7 +576,8 @@ export function tvCard(requested, hass) {
   const id = players[0];
   // A sound system gets the same card without TV wording.
   const tv = players.some(entry => tvEntry(entry, hass));
-  const name = playerName(id, hass);
+  // The name you gave the TV's device ("Living Tv") wins over a name an integration made up ("Living 2F TV Pro").
+  const name = players.map(entry => tvEntry(entry, hass) && hass.devices?.[hass.entities?.[entry]?.device_id]?.name_by_user).find(Boolean) || playerName(id, hass);
   const remote = players.map(player => tvRemote(player, hass)).find(Boolean);
   const player = (action, target = id) => ({action: 'perform-action', perform_action: `media_player.${action}`, target: {entity_id: target}});
   // Power: an entry that can turn on and off, else the TV remote, else ADB's power key.
@@ -584,10 +607,14 @@ export function tvCard(requested, hass) {
     const hasTv=all.some(p=>p.attributes?.device_class==='tv');
     // A sound system shows whichever of its players is playing something with a title or picture
     // (its Music Assistant player), so the music and artwork appear on the card.
-    const withMedia=live.find(p=>['playing','paused'].includes(p.state)&&(p.attributes?.media_title||p.attributes?.entity_picture_local||p.attributes?.entity_picture));
+    // The entry with artwork first: an amplifier zone reports the title too, but only its Music Assistant
+    // player has the picture.
+    const busy=p=>['playing','paused'].includes(p.state);
+    const withMedia=live.find(p=>busy(p)&&(p.attributes?.entity_picture_local||p.attributes?.entity_picture)&&p.attributes?.media_title)
+      || live.find(p=>busy(p)&&(p.attributes?.media_title||p.attributes?.entity_picture_local||p.attributes?.entity_picture));
     const m=!hasTv && withMedia ? withMedia : (lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || (hasTv ? lead : live.find(p=>p.state==='playing') || lead);
     const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'};
-    const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || live.map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
+    const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || [...(m && !OFFS.includes(m.state) ? [m] : []), ...live].map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
   // One on/off rule for the status, the TV icon and the power button: the entry the status uses is on.
   const isOn = `${current} const on = !!m && !OFFS.includes(m.state);`;
   const canSwitch = remote?.platform === 'androidtv_remote' || players.some(p =>
