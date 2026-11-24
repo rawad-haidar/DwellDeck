@@ -313,6 +313,11 @@ export function tvCard(requested, hass) {
     }
   };
 
+  // One console line per TV, so a setup can be checked from the browser console (F12).
+  if (typeof document !== 'undefined' && typeof console !== 'undefined') {
+    console.info(`DwellDeck TV "${name}": entries ${players.join(', ')}; remote ${remote ? `${remote.id} (${remote.platform})` : 'none'}; ` +
+      `power ${power.perform_action} ${power.target?.entity_id}; volume ${volumePlayer}; play ${playPlayer}`);
+  }
   const fields = {
     power: {card: {
       ...key('Power', 'mdi:power', power), entity: powerPlayer || id, triggers_update: [],
