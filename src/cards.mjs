@@ -135,7 +135,7 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
   const groupedDomains = new Set(categories.flatMap(([, , domains]) => domains));
   content.push(...groupedRoomTiles(controls.filter(id => !groupedDomains.has(id.split('.')[0])), 'Other entities', 'mdi:cog-outline', tilePrototype, hass));
   if (!content.length) content.push({type: 'markdown', content: 'No supported controls are assigned to this area.'});
-  else if (controls.some(id => /^(sensor|binary_sensor|climate|media_player|cover)\./.test(id))) content.unshift(roomStatusStrip(controls, hass));
+  else if (room.temperature_sensors?.length || controls.some(id => /^(sensor|binary_sensor|climate|media_player|cover)\./.test(id))) content.unshift(roomStatusStrip(controls, hass, room));
   card.tap_action.browser_mod.data.content.cards = content;
   const activityIds = [...lights, ...controls.filter(id => !cameraEntity(id, hass) && !hass.entities?.[id]?.entity_category)];
   const active = `const ids=${JSON.stringify(activityIds)}; return ids.some(id=>{const e=states[id];if(!e)return false;const a=e.attributes?.hvac_action;if(id.startsWith('climate.'))return ['heating','cooling','drying','fan'].includes(a)||(!a&&!['off','idle','unknown','unavailable'].includes(e.state));return ['on','playing','open','opening','closing'].includes(e.state);});`;
@@ -144,7 +144,7 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
     {border: `[[[ return ${condition} ? '1px solid #d5a74c' : '1px solid rgba(156,199,225,.18)'; ]]]`});
   card.label = `[[[ const lights=${JSON.stringify(lights)}; const controls=${JSON.stringify(controls)}; const on=lights.filter(id=>states[id]?.state==='on').length; const scenes=controls.filter(id=>id.startsWith('scene.')).length; const unavailable=[...lights,...controls].filter(id=>!states[id]||states[id].state==='unavailable'||(!id.startsWith('scene.')&&states[id].state==='unknown')).length; const parts=[]; if(lights.length)parts.push(on+' on / '+lights.length+' lights'); if(scenes)parts.push(scenes+' scenes'); if(controls.length)parts.push(controls.length+' controls & sensors'); if(unavailable)parts.push(unavailable+' unavailable'); return parts.join(' · ')||'No controls assigned'; ]]]`;
   if (room.discover_controls === false) card.label = lightingStatusLabel;
-  designRoomCard(card, {lights, controls, hass});
+  designRoomCard(card, {lights, controls, hass, room});
   return {card, lights};
 }
 

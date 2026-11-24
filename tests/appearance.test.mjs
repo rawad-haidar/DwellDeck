@@ -365,3 +365,21 @@ test('room cards show a summary, status chips and a lights button; rooms open wi
  assert(headings.indexOf('Climate')<headings.indexOf('TV and media'));
  assert(headings.indexOf('TV and media')<headings.indexOf('All sensors'));
 });
+test('room temperature averages the room\'s sensors, or the sensors chosen for the room',()=>{
+ const st=(state,attributes)=>({state,attributes});
+ const states={'light.den_a':st('off',{}),
+  'sensor.den_t1':st('26',{device_class:'temperature',unit_of_measurement:'°C'}),'sensor.den_t2':st('22',{device_class:'temperature',unit_of_measurement:'°C'}),
+  'sensor.den_t3':st('unavailable',{device_class:'temperature',unit_of_measurement:'°C'}),
+  'sensor.hall_t':st('19',{device_class:'temperature',unit_of_measurement:'°C'})};
+ const E=(id,area)=>({entity_id:id,platform:'x',area_id:area});
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{den:{area_id:'den',name:'Den',labels:[]},hall:{area_id:'hall',name:'Hall',labels:[]}},floors:{},labels:{},devices:{},
+  entities:{'light.den_a':E('light.den_a','den'),'sensor.den_t1':E('sensor.den_t1','den'),'sensor.den_t2':E('sensor.den_t2','den'),'sensor.den_t3':E('sensor.den_t3','den'),'sensor.hall_t':E('sensor.hall_t','hall')}};
+ const den=config=>{
+  const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true,...config},hass);
+  let card;const find=x=>{if(x&&typeof x==='object'){if(x.name==='Den'&&x.tap_action?.browser_mod)card=x;Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+  return Function('states',card.custom_fields.chips.trim().slice(3,-3))(states).replace(/<[^>]+>/g,' ');
+ };
+ assert(den({}).includes('24°C'),'average of 26 and 22, unavailable skipped');
+ const manual=den({rooms:{den:{name:'Den',area:'den',temperature_sensors:['sensor.den_t1','sensor.hall_t']}}});
+ assert(manual.includes('22.5°C'),'average of the chosen sensors');
+});

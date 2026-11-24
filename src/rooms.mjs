@@ -15,8 +15,12 @@ function dwellRoomChips(states, cfg) {
   const chips = [];
   const chip = (icon, text, tone = '') => chips.push({icon, text, tone});
   const byClass = cls => cfg.sensors.filter(id => live(id) && states[id].attributes?.device_class === cls);
-  const temp = byClass('temperature')[0];
-  if (temp) chip('mdi:thermometer', `${number(states[temp].state, 1)}${states[temp].attributes?.unit_of_measurement || '°'}`);
+  // Room temperature: the sensors chosen for the room, or else every temperature sensor in it; several are averaged.
+  const temps = (cfg.temps.length ? cfg.temps.filter(live) : byClass('temperature')).filter(id => Number.isFinite(Number(states[id].state)));
+  if (temps.length) {
+    const average = temps.reduce((sum, id) => sum + Number(states[id].state), 0) / temps.length;
+    chip('mdi:thermometer', `${number(average, 1)}${states[temps[0]].attributes?.unit_of_measurement || '°'}`);
+  }
   const humidity = byClass('humidity')[0];
   if (humidity) chip('mdi:water-percent', `${number(states[humidity].state)}%`);
   for (const id of cfg.climates.filter(live)) {
@@ -54,7 +58,8 @@ function dwellRoomChips(states, cfg) {
     : `<div style="display:flex;flex-wrap:wrap;gap:6px;width:100%;height:28px;overflow:hidden;justify-content:flex-start">${items}</div>`;
 }
 
-const chipsConfig = (controls, hass, strip = false) => ({
+const chipsConfig = (controls, hass, strip = false, room = {}) => ({
+  temps: (room.temperature_sensors || []).filter(id => typeof id === 'string' && id.startsWith('sensor.')),
   sensors: controls.filter(id => id.startsWith('sensor.')),
   binary: controls.filter(id => id.startsWith('binary_sensor.')),
   climates: controls.filter(id => id.startsWith('climate.')),
@@ -94,7 +99,7 @@ const lightsSlot = lights => ({
 });
 
 // Restyles a room card: icon, name, a short summary, a lights button and status chips.
-export function designRoomCard(card, {lights, controls, hass}) {
+export function designRoomCard(card, {lights, controls, hass, room = {}}) {
   const total = lights.length;
   // Active means something in the room is switched on: lights, a TV or player, air conditioning running, a switch.
   // Sensors, doors and open curtains are shown as chips, not as activity.
@@ -107,10 +112,10 @@ export function designRoomCard(card, {lights, controls, hass}) {
   card.label = total
     ? `[[[ const ids=${JSON.stringify(lights)}; const on=ids.filter(id=>states[id]?.state==='on').length; return on ? on + ' of ' + ids.length + (ids.length === 1 ? ' light on' : ' lights on') : 'All lights off'; ]]]`
     : (controls.length ? 'No lights' : 'Nothing assigned');
-  card.custom_fields = {chips: chipsTemplate(chipsConfig(controls, hass))};
+  card.custom_fields = {chips: chipsTemplate(chipsConfig(controls, hass, false, room))};
   const areas = ['"i n power"', '"i l power"', '"chips chips chips"'];
   if (total) card.custom_fields.power = {card: lightsSlot(lights)};
-  card.triggers_update = [...new Set([...lights, ...controls])];
+  card.triggers_update = [...new Set([...lights, ...controls, ...(room.temperature_sensors || [])])];
   // Every room card has the same fixed height, whatever it shows, so cards line up in every row.
   card.grid_options = {columns: 6, rows: 'auto'};
   card.styles = {
@@ -133,12 +138,12 @@ export function designRoomCard(card, {lights, controls, hass}) {
 }
 
 // The status strip at the top of a room: every reading in one compact row instead of sensor tiles.
-export function roomStatusStrip(controls, hass) {
-  const watched = controls.filter(id => /^(sensor|binary_sensor|climate|media_player|cover)\./.test(id));
+export function roomStatusStrip(controls, hass, room = {}) {
+  const watched = [...new Set([...controls.filter(id => /^(sensor|binary_sensor|climate|media_player|cover)\./.test(id)), ...(room.temperature_sensors || [])])];
   return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, tap_action: {action: 'none'}, hold_action: {action: 'none'},
     triggers_update: watched, variables: {dwell_static: true},
-    custom_fields: {chips: chipsTemplate(chipsConfig(controls, hass, true))},
+    custom_fields: {chips: chipsTemplate(chipsConfig(controls, hass, true, room))},
     styles: {card: [{padding: '12px 14px'}, {'border-radius': '16px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${ROOM_COLORS.line}`}, {'box-shadow': 'none'}],
       grid: [{'grid-template-areas': '"chips"'}, {'grid-template-columns': '1fr'}], custom_fields: {chips: [{width: '100%'}]}},
     grid_options: {columns: 'full', rows: 'auto'}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.23 — Room temperature
+
+- A room's temperature is the average of its temperature sensors; unavailable sensors are skipped.
+- **Edit dashboard → Home Assistant areas and controls → (room) → Room temperature sensors** chooses the sensors for a room, from any area. Chosen sensors replace the room's own and are averaged when there are several.
+
 ## 0.9.22 — Room lights button targets
 
 - The room card's lights button sends off only to lights that are on, and on only to lights that are reachable, so an already-off or unreachable device can't fail the whole action.
