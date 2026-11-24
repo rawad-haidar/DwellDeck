@@ -164,7 +164,7 @@ function detectionTile(group, snapshots) {
   else cards.push({type: 'markdown', content: '_No camera is linked to these sensors, so there is no picture. Put them on the camera’s device, or name the camera like the sensors._'});
   return {
     type: 'custom:button-card', name: group.cam, icon: 'mdi:cctv', show_label: true, show_state: false,
-    triggers_update: ids, label: tileLabel(rows),
+    triggers_update: ids, label: tileLabel(rows), variables: {dwell_rows: rows},
     tap_action: {action: 'fire-dom-event', browser_mod: {service: 'browser_mod.popup', data: {
       title: `${group.cam} | Detection`, initial_style: 'wide', content: {type: 'vertical-stack', cards}, popup_styles: POPUP_STYLES}}},
     grid_options: {columns: 6, rows: 'auto'},
@@ -197,12 +197,96 @@ function detectionTiles(hass, snapshots) {
   return [...groups.values()].sort((a, b) => rank(a) - rank(b) || latest(b) - latest(a)).map(group => detectionTile(group, snapshots));
 }
 
+// Media browser page of the snapshot folder (media/dwelldeck/snapshots).
+export const SNAPSHOT_BROWSER = '/media-browser/browser/' + encodeURIComponent(['app', 'media-source://media_source', 'media-source://media_source/local/dwelldeck/snapshots'].join(','));
+
+// Runs inside a button-card template: one folding list of cameras, newest detection first. It is folded
+// by default and remembers being open on this device. Each row opens the camera's detection popup.
+// Self-contained: serialised with toString.
+function dwellDetections(states, cfg) {
+  const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+  const open = store?.getItem('dwelldeck-detections-open') === '1';
+  window.__dwellDet = window.__dwellDet || {};
+  const esc = v => String(v).replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+  const when = t => { const d = new Date(t), now = new Date(); const time = d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    return d.toDateString() === now.toDateString() ? time : d.toLocaleDateString([], {day: 'numeric', month: 'short'}) + ', ' + time; };
+  const groups = cfg.groups.map((g, i) => {
+    window.__dwellDet['g' + i] = g.popup;
+    const found = g.rows.map(r => ({...r, s: states[r.id]})).filter(r => r.s);
+    const live = found.filter(r => !['unavailable', 'unknown'].includes(r.s.state));
+    const now = [...new Set(live.filter(r => r.s.state === 'on').map(r => r.kind))];
+    const latest = Math.max(0, ...live.map(r => Date.parse(r.s.last_changed) || 0));
+    const latestKind = live.slice().sort((a, b) => Date.parse(b.s.last_changed) - Date.parse(a.s.last_changed))[0]?.kind;
+    return {key: 'g' + i, cam: g.cam, now, latest, latestKind, offline: !live.length};
+  }).sort((a, b) => (b.now.length > 0) - (a.now.length > 0) || a.offline - b.offline || b.latest - a.latest);
+  const icon = kind => kind === 'vehicle' ? 'mdi:car' : 'mdi:account';
+  const active = groups.filter(g => g.now.length);
+  const last = groups.find(g => !g.offline && g.latest);
+  const summary = active.length ? 'Detected now: ' + active.map(g => esc(g.cam)).join(', ')
+    : last ? 'Latest: ' + esc(last.cam) + ', ' + when(last.latest) : 'No detections yet';
+  const toggle = `event.stopPropagation();const r=this.closest('.det');const o=!r.classList.contains('open');r.classList.toggle('open',o);try{localStorage.setItem('dwelldeck-detections-open',o?'1':'0')}catch(e){}`;
+  const popup = key => `event.stopPropagation();this.dispatchEvent(new CustomEvent('ll-custom',{detail:{browser_mod:window.__dwellDet['${key}']},bubbles:true,composed:true}));`;
+  const go = path => `event.stopPropagation();history.pushState(null,'','${path}');window.dispatchEvent(new CustomEvent('location-changed'));`;
+  const row = g => `<button class="row${g.now.length ? ' now' : ''}" onclick="${popup(g.key)}">
+    <ha-icon icon="${g.now.length ? icon(g.now[0]) : g.offline ? 'mdi:video-off' : g.latestKind ? icon(g.latestKind) : 'mdi:cctv'}"></ha-icon><span class="nm">${esc(g.cam)}</span>
+    <span class="st">${g.now.length ? 'Detected now' : g.offline ? 'Unavailable' : g.latest ? when(g.latest) : '—'}</span></button>`;
+  return `<style>
+    .det{display:grid;gap:10px;text-align:left}
+    .head{all:unset;box-sizing:border-box;display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:12px;cursor:pointer;width:100%}
+    .ic{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:rgba(0,0,0,.18);color:${active.length ? cfg.c.onText : cfg.c.muted}}
+    .t{font-size:15px;font-weight:600;color:${cfg.c.text}}
+    .sum{font-size:13px;color:${active.length ? cfg.c.onText : cfg.c.muted};white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .chev{display:flex;align-items:center;gap:4px;font-size:13px;color:${cfg.c.muted}}
+    .chev ha-icon{transition:transform .2s ease}
+    .det.open .chev ha-icon{transform:rotate(180deg)}
+    .list{display:none;gap:4px}
+    .det.open .list{display:grid}
+    .row,.snap{all:unset;box-sizing:border-box;display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:44px;padding:0 12px;
+      border-radius:12px;background:rgba(0,0,0,.18);cursor:pointer;font-size:14px;color:${cfg.c.text}}
+    .row ha-icon{--mdc-icon-size:20px;color:${cfg.c.muted}}
+    .row.now{border:1px solid ${cfg.c.on};background:rgba(213,167,76,.12)}
+    .row.now ha-icon,.row.now .st{color:${cfg.c.onText};font-weight:600}
+    .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .st{color:${cfg.c.muted};font-size:13px;font-variant-numeric:tabular-nums}
+    .snap{grid-template-columns:22px 1fr;color:${cfg.c.muted}}
+    .head:focus-visible,.row:focus-visible,.snap:focus-visible{outline:2px solid ${cfg.c.onText};outline-offset:2px}
+    @media (prefers-reduced-motion:reduce){.chev ha-icon{transition:none}}
+  </style>
+  <div class="det${open ? ' open' : ''}">
+    <button class="head" onclick="${toggle}" aria-label="Show or hide cameras"><span class="ic"><ha-icon icon="mdi:cctv"></ha-icon></span>
+      <span style="min-width:0"><div class="t">${groups.length} cameras with detection</div><div class="sum">${summary}</div></span>
+      <span class="chev"><ha-icon icon="mdi:chevron-down"></ha-icon></span></button>
+    <div class="list">${groups.map(row).join('')}
+      <button class="snap" onclick="${go(cfg.snapshots)}"><ha-icon icon="mdi:image-multiple-outline"></ha-icon><span>Open all detection snapshots</span></button></div>
+  </div>`;
+}
+
+function detectionPanel(tiles, snapshotsPath) {
+  const groups = tiles.map(tile => ({cam: tile.name, rows: tile.variables.dwell_rows, popup: tile.tap_action.browser_mod}));
+  return {
+    type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
+    tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true, dwell_groups: groups},
+    triggers_update: [...new Set(groups.flatMap(group => group.rows.map(row => row.id)))],
+    custom_fields: {list: `[[[ return (${dwellDetections.toString()})(states, ${JSON.stringify({groups, snapshots: snapshotsPath, c: {text: '#edf5ff', muted: '#91a8bd', on: '#d5a74c', onText: '#efc875'}})}); ]]]`},
+    styles: {
+      card: [{padding: '12px'}, {'border-radius': '20px'}, {background: 'linear-gradient(135deg, #1b2d40, #101c2b)'}, {border: '1px solid rgba(156,199,225,.12)'}, {'box-shadow': 'none'}, {cursor: 'default'}],
+      grid: [{'grid-template-areas': '"list"'}, {'grid-template-columns': '1fr'}],
+      custom_fields: {list: [{width: '100%'}]}
+    },
+    grid_options: {columns: 'full', rows: 'auto'}
+  };
+}
+
 export function cameraDetectionSection(prefix, config = {}, hass = {}) {
   const tiles = detectionTiles(hass, config.detection_snapshots === true);
+  // With detection sensors: one folding list, newest first. Without: the status and recent-activity summaries.
   return {type: 'grid', column_span: 2, cards: [
     {type: 'heading', heading: 'Camera detection', icon: 'mdi:cctv'},
-    {type: 'markdown', content: STATUS, grid_options: {columns: 12, rows: 'auto'}, card_mod: detectionStyle()},
-    ...(tiles.length ? tiles : [{type: 'markdown', content: RECENT, grid_options: {columns: 12, rows: 'auto'}, card_mod: detectionStyle()}]),
+    ...(tiles.length ? [detectionPanel(tiles, SNAPSHOT_BROWSER)] : [
+      {type: 'markdown', content: STATUS, grid_options: {columns: 12, rows: 'auto'}, card_mod: detectionStyle()},
+      {type: 'markdown', content: RECENT, grid_options: {columns: 12, rows: 'auto'}, card_mod: detectionStyle()}]),
+    {type: 'button', name: 'Detection snapshots', icon: 'mdi:image-multiple-outline', icon_height: '30px', show_state: false,
+      tap_action: {action: 'navigate', navigation_path: SNAPSHOT_BROWSER}, grid_options: {columns: 6, rows: 2}},
     {type: 'button', name: 'Detection history', icon: 'mdi:history', icon_height: '30px', show_state: false,
       tap_action: {action: 'navigate', navigation_path: `${prefix}/notifications`}, grid_options: {columns: 6, rows: 2},
       card_mod: {style: 'ha-card { background: linear-gradient(135deg, #1b2d40, #101c2b); border: 1px solid rgba(156,199,225,.12); border-radius: 16px; --primary-text-color: #edf5ff; --secondary-text-color: #91a8bd; }'}}

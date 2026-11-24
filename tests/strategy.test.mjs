@@ -18,9 +18,9 @@ const denied = {states, callWS: async () => { throw {code: 'unauthorized', messa
 test('camera detection falls back to name matching when the registries cannot be read', async () => {
   const dashboard = await strategy.generate({dashboard_path: '/dashboard-test', detection_snapshots: true}, denied);
   const section = dashboard.views.find(v => v.path === 'security').sections.find(s => s.cards.some(c => c.heading === 'Camera detection'));
-  const tile = section.cards.find(c => c.type === 'custom:button-card');
-  assert.equal(tile.name, 'Front Gate');
-  assert(JSON.stringify(tile.tap_action).includes('"entity":"camera.front_gate_main"'));
+  const tile = section.cards.find(c => c.type === 'custom:button-card').variables.dwell_groups[0];
+  assert.equal(tile.cam, 'Front Gate');
+  assert(JSON.stringify(tile.popup).includes('"entity":"camera.front_gate_main"'));
 });
 
 test('features that need the registries still report the failure', async () => {

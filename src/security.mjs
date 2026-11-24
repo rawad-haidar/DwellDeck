@@ -117,7 +117,7 @@ const SHORTCUT_HINTS = {'security-sensors': 'Doors, motion and safety', notifica
 function securityShortcut(card) {
   const path = card.tap_action?.navigation_path || '';
   const view = path.split('/').pop();
-  const label = card.name === 'Detection history' ? 'People and vehicles' : SHORTCUT_HINTS[view] || '';
+  const label = card.name === 'Detection history' ? 'People and vehicles' : card.name === 'Detection snapshots' ? 'Latest picture per sensor' : SHORTCUT_HINTS[view] || '';
   return {
     type: 'custom:button-card', name: card.name, icon: card.icon, label, show_label: !!label, show_state: false,
     tap_action: card.tap_action, hold_action: {action: 'none'}, variables: {dwell_static: true},

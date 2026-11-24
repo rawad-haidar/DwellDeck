@@ -58,26 +58,40 @@ test('the snapshot automation saves one picture per sensor from its camera', () 
 });
 
 const generate = config => generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/dashboard-test', ...config}, hass);
-const tiles = d => d.views.find(v => v.path === 'security').sections
-  .find(s => s.cards.some(c => c.heading === 'Camera detection')).cards.filter(c => c.type === 'custom:button-card');
+// One folding card lists every camera; each entry keeps its detection popup.
+const panel = d => d.views.find(v => v.path === 'security').sections
+  .find(s => s.cards.some(c => c.heading === 'Camera detection')).cards.find(c => c.type === 'custom:button-card');
+const tiles = d => panel(d).variables.dwell_groups;
 
-test('each camera gets a clickable tile, active detections first', () => {
-  const cards = tiles(generate({}));
-  assert.deepEqual(cards.map(c => c.name), ['Front Gate', 'Gym', 'Garden']);
-  assert.deepEqual(cards[0].triggers_update, ['binary_sensor.front_gate_smd_human', 'binary_sensor.front_gate_smd_vehicle']);
-  assert.match(cards[0].label, /Detected now/);
-  assert.equal(cards[0].tap_action.browser_mod.service, 'browser_mod.popup');
+test('each camera is listed with its detection popup, newest detection first, folded by default', () => {
+  const card = panel(generate({}));
+  const groups = tiles(generate({}));
+  assert.deepEqual(groups.map(g => g.cam), ['Front Gate', 'Gym', 'Garden']);
+  assert.deepEqual(card.triggers_update.slice(0, 2), ['binary_sensor.front_gate_smd_human', 'binary_sensor.front_gate_smd_vehicle']);
+  assert.equal(groups[0].popup.service, 'browser_mod.popup');
+  globalThis.window = {};
+  const render = states => Function('states', card.custom_fields.list.trim().slice(3, -3))(states);
+  const html = render(hass.states);
+  assert(!html.includes('class="det open"'), 'folded by default');
+  assert(html.indexOf('Front Gate') < html.indexOf('>Gym<') && html.indexOf('>Gym<') < html.indexOf('>Garden<'));
+  // Order is live: when Gym detects later, Gym comes first.
+  const later = {...hass.states, 'binary_sensor.front_gate_smd_human': {...hass.states['binary_sensor.front_gate_smd_human'], state: 'off'},
+    'binary_sensor.gym_authorized_vehicle': {...hass.states['binary_sensor.gym_authorized_vehicle'], state: 'on', last_changed: '2026-11-24T11:00:00+00:00'}};
+  const again = render(later);
+  assert(again.indexOf('>Gym<') < again.indexOf('>Front Gate<'));
+  assert(html.includes('/media-browser/browser/'), 'link to all snapshots');
+  assert(window.__dwellDet.g0.service === 'browser_mod.popup');
 });
 
 test('with snapshots on, the popup shows each sensor snapshot and the live camera', () => {
-  const content = JSON.stringify(tiles(generate({detection_snapshots: true}))[0].tap_action.browser_mod.data.content);
+  const content = JSON.stringify(tiles(generate({detection_snapshots: true}))[0].popup.data.content);
   assert(content.includes('"image":"media-source://media_source/local/dwelldeck/snapshots/binary_sensor.front_gate_smd_human.jpg"'));
   assert(content.includes('"image":"media-source://media_source/local/dwelldeck/snapshots/binary_sensor.front_gate_smd_vehicle.jpg"'));
   assert(content.includes('"entity":"camera.front_gate_main"'));
 });
 
 test('with snapshots off, the popup shows the live camera and explains how to turn snapshots on', () => {
-  const content = JSON.stringify(tiles(generate({}))[0].tap_action.browser_mod.data.content);
+  const content = JSON.stringify(tiles(generate({}))[0].popup.data.content);
   assert(!content.includes('media-source://'));
   assert(content.includes('"entity":"camera.front_gate_main"'));
   assert(content.includes('Set up detection snapshots'));
