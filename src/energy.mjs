@@ -2,6 +2,7 @@
 // the last 30 days. Inverters are found by their sensor names (Solarman / Deye style: <inverter>_pv_power,
 // _battery_power, _grid_power, _power, _battery, _today_production ...); several inverters are added up.
 import {ROOM_COLORS} from './rooms.mjs';
+import {touchSafe} from './util.mjs';
 
 const EN_C = ROOM_COLORS;
 // Height shared by the top row (flow, today, battery), so they line up.
@@ -195,7 +196,7 @@ function dwellEnergyToday(states, cfg) {
 const panel = (field, fn, cfg, watched, height) => ({
   type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
   tap_action: {action: 'none'}, hold_action: {action: 'none'}, triggers_update: watched, variables: {dwell_static: true},
-  custom_fields: {[field]: `[[[ return (${fn.toString()})(states, ${JSON.stringify(cfg)}); ]]]`},
+  custom_fields: {[field]: touchSafe(`(${fn.toString()})(states, ${JSON.stringify(cfg)})`)},
   styles: {
     card: [{padding: '16px'}, {height: `${height}px`}, {'box-sizing': 'border-box'}, {overflow: 'hidden'}, {'border-radius': '20px'},
       {background: `linear-gradient(135deg,${EN_C.surface},${EN_C.card})`}, {border: `1px solid ${EN_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
@@ -505,7 +506,7 @@ function historyCard(setup) {
   return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
-    custom_fields: {history: `[[[ return (${dwellEnergyHistory.toString()})(this, hass, ${JSON.stringify(cfg)}); ]]]`},
+    custom_fields: {history: touchSafe(`(${dwellEnergyHistory.toString()})(this, hass, ${JSON.stringify(cfg)})`)},
     styles: {
       card: [{padding: '16px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${EN_C.surface},${EN_C.card})`}, {border: `1px solid ${EN_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"history"'}, {'grid-template-columns': '1fr'}],

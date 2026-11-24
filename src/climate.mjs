@@ -1,6 +1,7 @@
 // Climate page: what is running first (with one action to turn everything off), the heating system beside it,
 // then the air conditioners, floor heating, scenes and history.
 import {ROOM_COLORS} from './rooms.mjs';
+import {touchSafe} from './util.mjs';
 
 const CL_C = ROOM_COLORS;
 const CLIMATE_TOP = 320;
@@ -100,7 +101,7 @@ function climateStatusCard(cfg) {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
     triggers_update: [...cfg.climates, ...cfg.heating, ...(cfg.weather ? [cfg.weather] : [])],
-    custom_fields: {status: `[[[ return (${dwellClimateStatus.toString()})(states, ${JSON.stringify(cfg)}); ]]]`},
+    custom_fields: {status: touchSafe(`(${dwellClimateStatus.toString()})(states, ${JSON.stringify(cfg)})`)},
     styles: {
       card: [{padding: '20px 22px'}, {height: `${CLIMATE_TOP}px`}, {'box-sizing': 'border-box'}, {overflow: 'hidden'}, {'border-radius': '20px'},
         {background: `linear-gradient(135deg,${CL_C.surface},${CL_C.card})`}, {border: `1px solid ${CL_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
@@ -297,7 +298,7 @@ function climateHistoryCard(cfg) {
   return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
-    custom_fields: {history: `[[[ return (${dwellClimateHistory.toString()})(this, hass, ${JSON.stringify(cfg)}); ]]]`},
+    custom_fields: {history: touchSafe(`(${dwellClimateHistory.toString()})(this, hass, ${JSON.stringify(cfg)})`)},
     styles: {
       card: [{padding: '16px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${CL_C.surface},${CL_C.card})`}, {border: `1px solid ${CL_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"history"'}, {'grid-template-columns': '1fr'}],

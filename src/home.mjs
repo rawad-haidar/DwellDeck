@@ -1,5 +1,5 @@
 // Home: what needs you first, then the rooms in use, then outdoors, energy and shortcuts.
-import {clone} from './util.mjs';
+import {clone, touchSafe} from './util.mjs';
 import {tvGroup, isTv, tvSignals} from './tv.mjs';
 import {ROOM_COLORS} from './rooms.mjs';
 
@@ -69,7 +69,7 @@ function glanceCard(cfg) {
   return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, triggers_update: 'all', variables: {dwell_static: true},
-    custom_fields: {glance: `[[[ return (${dwellGlance.toString()})(states, hass, ${JSON.stringify(cfg)}); ]]]`},
+    custom_fields: {glance: touchSafe(`(${dwellGlance.toString()})(states, hass, ${JSON.stringify(cfg)})`)},
     styles: {
       card: [{padding: '22px 24px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${HOME_C.surface},${HOME_C.card})`},
         {border: `1px solid ${HOME_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
@@ -109,7 +109,7 @@ function energyCard(tiles) {
   return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, triggers_update: items.map(item => item.id), variables: {dwell_static: true},
-    custom_fields: {energy: `[[[ return (${dwellEnergy.toString()})(states, ${JSON.stringify({items, c: HOME_C})}); ]]]`},
+    custom_fields: {energy: touchSafe(`(${dwellEnergy.toString()})(states, ${JSON.stringify({items, c: HOME_C})})`)},
     styles: {
       card: [{padding: '10px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${HOME_C.surface},${HOME_C.card})`},
         {border: `1px solid ${HOME_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],

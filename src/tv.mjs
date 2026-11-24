@@ -2,7 +2,7 @@
 // Remote, Apps, Sources and Keyboard. No popups, so a TV inside a room popup keeps the room open
 // (Browser Mod shows one popup at a time).
 
-import {normalizeName, sharedCode, shareData} from './util.mjs';
+import {normalizeName, sharedCode, shareData, touchSafe} from './util.mjs';
 import {entityArea} from './discovery.mjs';
 
 // Key names per control method.
@@ -706,17 +706,17 @@ export function tvCard(requested, hass) {
   ]]]`;
   const areas = ['"i n power"', '"i l power"', '"now now now"', '"media media media"'];
   if (sliderPlayer || volumePlayer) {
-    fields.vol = `[[[ return ${sharedCode(dwellVolume)}(states, ${JSON.stringify({entity: sliderPlayer, step: sliderPlayer ? null : volumePlayer,
-      mute: playerFor(sources, hass, FEATURE.volumeMute), c: {line: C.line, text: C.text, muted: C.muted, on: C.on, onText: C.onText, card: C.card}})}); ]]]`;
+    fields.vol = touchSafe(`${sharedCode(dwellVolume)}(states, ${JSON.stringify({entity: sliderPlayer, step: sliderPlayer ? null : volumePlayer,
+      mute: playerFor(sources, hass, FEATURE.volumeMute), c: {line: C.line, text: C.text, muted: C.muted, on: C.on, onText: C.onText, card: C.card}})})`);
     areas.push('"vol vol vol"');
   }
   if (ma) {
     // Two buttons under the controls: this room's Music Assistant player, and the Music Assistant app.
-    fields.ma = `[[[ return ${sharedCode(dwellMaButtons)}(${JSON.stringify({player: ma, playerName: String(playerName(ma, hass)).replace(/["<>&]/g, ''), c: {line: C.line, text: C.text, onText: C.onText, muted: C.muted}})}); ]]]`;
+    fields.ma = touchSafe(`${sharedCode(dwellMaButtons)}(${JSON.stringify({player: ma, playerName: String(playerName(ma, hass)).replace(/["<>&]/g, ''), c: {line: C.line, text: C.text, onText: C.onText, muted: C.muted}})})`);
     areas.push('"ma ma ma"');
   }
   if (remote || canSwitch) {
-    fields.panel = `[[[ return ${sharedCode(dwellTvPanel)}(states, ${JSON.stringify(cfg)}); ]]]`;
+    fields.panel = touchSafe(`${sharedCode(dwellTvPanel)}(states, ${JSON.stringify(cfg)})`);
     areas.push('"panel panel panel"');
   }
   // Header: button-card's own icon, name and label, so it lines up on the left.

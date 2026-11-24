@@ -786,3 +786,22 @@ test('icon and label sit together, centred, in the player buttons and tabs (butt
  const vol=Function('states',card.custom_fields.vol.trim().slice(3,-3))(hass.states);
  assert(!vol.includes('<ha-icon')||vol.includes('margin:0'),'volume row');
 });
+
+test('on a phone, buttons inside cards get their touches (button-card cancels touches on the whole card)',async()=>{
+ const {tvCard}=await import('../src/tv.mjs');
+ const hass=tvHass();
+ const card=tvCard('media_player.saloon_tv',hass);
+ for(const field of ['panel','vol'])assert(Function('states',card.custom_fields[field].trim().slice(3,-3))(hass.states).startsWith('<div class="dw-touch" style="display:contents" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()"'),field);
+ // Every interactive area on every page is wrapped.
+ const d=generate({});
+ const fields=[];const walk=x=>{if(x&&typeof x==='object'){if(x.type==='custom:button-card'&&x.custom_fields)for(const v of Object.values(x.custom_fields))if(typeof v==='string')fields.push(v);Object.values(x).forEach(walk)}};walk(d);
+ const interactive=fields.filter(v=>/onclick|onchange|oninput/.test(v)||/__dwell\.(dwellTvPanel|dwellVolume|dwellMaButtons)/.test(v));
+ assert(interactive.length>5);
+ for(const v of interactive)assert(v.includes('class="dw-touch"'),v.slice(0,90));
+});
+
+test('the Music Assistant app fills the screen height on a phone too, not a box 80% of the width',()=>{
+ const view=generate({music_app:'d5369777_music_assistant'}).views.find(v=>v.path==='music-assistant');
+ const style=view.cards[0].cards[1].card_mod.style;
+ assert(style.includes('#root { padding-top: 0 !important; height: calc(100dvh - 92px) !important')&&style.includes('iframe { height: 100% !important'));
+});
