@@ -172,3 +172,36 @@ test('a TV seen through Android TV Remote, ADB and a speaker entry uses the entr
  const now=runField(tv,'now',states);
  assert(now.includes('YouTube')&&!now.includes('Paused'));
 });
+test('a TV whose integration is unknown still gets its remote, keyboard and status from what it reports',()=>{
+ const E=(entity_id,platform,device_id,area_id)=>({entity_id,platform,device_id,area_id});
+ const st=(state,attributes)=>({state,attributes});
+ const states={
+  'media_player.saloon_saloon_tv':st('on',{app_id:'com.google.android.youtube.tv',app_name:'com.google.android.youtube.tv',device_class:'tv',friendly_name:'Saloon TV'}),
+  'media_player.saloon_saloon_tv_adb':st('off',{device_class:'tv',friendly_name:'Saloon TV ADB'}),
+  'media_player.saloon_tv_2':st('paused',{media_title:'Home Assistant',friendly_name:'Saloon TV(192.168.14.187) Saloon TV(192.168.14.246)'}),
+  'remote.saloon_saloon_tv_adb':st('unknown',{friendly_name:'Saloon TV ADB'}),
+  'remote.saloon_tv':st('on',{activity_list:[],current_activity:'com.google.android.youtube.tv',friendly_name:'Saloon TV',supported_features:4})};
+ const entities={
+  'media_player.saloon_saloon_tv':E('media_player.saloon_saloon_tv','some_tv_integration','dA','saloon'),
+  'remote.saloon_tv':E('remote.saloon_tv','some_tv_integration','dA','saloon'),
+  'media_player.saloon_saloon_tv_adb':E('media_player.saloon_saloon_tv_adb','androidtv','dB','saloon'),
+  'remote.saloon_saloon_tv_adb':E('remote.saloon_saloon_tv_adb','androidtv','dB','saloon'),
+  'media_player.saloon_tv_2':E('media_player.saloon_tv_2','dlna_dmr','dC','saloon')};
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{saloon:{area_id:'saloon',name:'Saloon',labels:[]}},floors:{},labels:{},devices:{},entities};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const cards=[];const find=x=>{if(x&&typeof x==='object'){if(x.custom_fields?.media&&x.entity)cards.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ assert.equal(cards.length,1);
+ const tv=cards[0];
+ assert.equal(tv.entity,'media_player.saloon_saloon_tv');
+ assert.equal(tv.name,'Saloon TV');
+ assert.equal(Function('states',tv.label.trim().slice(3,-3))(states),'On, YouTube');
+ const p=panel(tv,states);
+ assert.deepEqual(p.tabs,['remote','apps','sources','keys']);
+ assert(p.calls.some(c=>c[1]==='send_command'&&c[2].entity_id==='remote.saloon_tv'&&c[2].command==='DPAD_UP'));
+ assert(!p.calls.some(c=>c[0]==='androidtv'));
+ assert(p.names('apps-pane').includes('Netflix'));
+ assert(p.names('sources').includes('HDMI 1'));
+ const now=runField(tv,'now',states);
+ assert(now.includes('YouTube')&&!now.includes('Paused')&&!now.includes('Home Assistant'));
+ assert(tv.custom_fields.media.card.custom_fields.up.card.tap_action.target.entity_id==='media_player.saloon_saloon_tv');
+});

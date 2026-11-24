@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.8 — TV controls by what the TV reports
+
+- A remote that reports the current app is treated as an Android TV remote, whatever integration provides it. Remote keys, Keyboard and the common apps and inputs now work for it.
+- The TV's own player leads the card (name, volume, power and status) ahead of an ADB entry; ADB is used only when nothing else can control the TV.
+- Now playing shows the TV itself, not a paused stream on another entry with the same name.
+
 ## 0.9.7 — TV status from the entry that is on
 
 - A TV's status and Now playing come from whichever of its entries is on: the TV's own player first, then anything playing. An ADB entry that has lost its connection no longer makes the TV look off.

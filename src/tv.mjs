@@ -20,19 +20,28 @@ export const TV_REMOTES = {
 // integration on the same device, or else in the same area with the same base name ("Saloon TV").
 const remoteControl = entry => ({id: entry.entity_id, platform: entry.platform, commands: TV_REMOTES[entry.platform],
   send: (command, extra = {}) => ({action: 'perform-action', perform_action: 'remote.send_command', target: {entity_id: entry.entity_id}, data: {command, ...extra}})});
+// A remote's key set: by integration, or by what it reports (a remote that reports the current app is
+// an Android TV remote, whatever integration provides it).
+const remoteKind = (entry, hass) => {
+  if (TV_REMOTES[entry.platform]) return entry.platform;
+  const attributes = hass.states?.[entry.entity_id]?.attributes || {};
+  return 'current_activity' in attributes || 'activity_list' in attributes ? 'androidtv_remote' : null;
+};
 export function tvRemote(id, hass) {
   const own = hass.entities?.[id];
   if (own?.platform === 'androidtv') {
     return {id, platform: 'androidtv', commands: TV_REMOTES.androidtv,
       send: command => ({action: 'perform-action', perform_action: 'androidtv.adb_command', target: {entity_id: id}, data: {command}})};
   }
-  const remotes = Object.values(hass.entities || {}).filter(entry => entry.entity_id?.startsWith('remote.') &&
-    TV_REMOTES[entry.platform] && entry.platform !== 'androidtv' && !entry.disabled_by);
+  const remotes = Object.keys(hass.entities || hass.states || {}).filter(other => other.startsWith('remote.'))
+    .map(other => hass.entities?.[other] || {entity_id: other})
+    .filter(entry => !entry.disabled_by && entry.platform !== 'androidtv' && remoteKind(entry, hass));
   const sameDevice = own?.device_id && remotes.find(entry => entry.device_id === own.device_id);
-  const sameName = remotes.find(entry => (!own?.platform || entry.platform === own.platform) &&
-    entityArea(entry.entity_id, hass) === entityArea(id, hass) && baseName(entry.entity_id, hass) === baseName(id, hass));
+  const sameName = remotes.find(entry => entityArea(entry.entity_id, hass) === entityArea(id, hass) && baseName(entry.entity_id, hass) === baseName(id, hass));
   const remote = sameDevice || sameName;
-  return remote ? remoteControl(remote) : null;
+  if (!remote) return null;
+  const kind = remoteKind(remote, hass);
+  return {...remoteControl(remote), platform: kind, commands: TV_REMOTES[kind]};
 }
 
 // One TV can appear through several integrations ("Saloon TV" and "Saloon TV ADB").
@@ -47,10 +56,11 @@ export const baseName = (id, hass) => {
 // The TV's own integration leads (Android TV Remote, Apple TV), then ADB, then other TVs, then speakers.
 const rank = (id, hass) => {
   const platform = hass.entities?.[id]?.platform;
+  if (platform === 'androidtv') return 2;
   const remote = tvRemote(id, hass);
-  if (['androidtv_remote', 'apple_tv'].includes(platform) || (remote && remote.platform !== 'androidtv')) return 0;
-  if (remote) return 1;
-  return hass.states?.[id]?.attributes?.device_class === 'tv' ? 2 : 3;
+  const tv = hass.states?.[id]?.attributes?.device_class === 'tv';
+  if (['androidtv_remote', 'apple_tv'].includes(platform) || (remote && tv)) return 0;
+  return remote || tv ? 1 : 3;
 };
 export function tvGroup(id, hass) {
   const base = baseName(id, hass);
@@ -273,7 +283,8 @@ export function tvCard(requested, hass) {
       const part = t.split(/[.:]/).filter(w => !/^(com|net|org|tv|android|androidtv|google|app|apps|mobile|ninja|livingroom|leanback)$/i.test(w)).pop() || t;
       return part.charAt(0).toUpperCase() + part.slice(1); };
     const all=${JSON.stringify(players)}.map(p=>states[p]).filter(Boolean); const live=all.filter(p=>!OFFS.includes(p.state));
-    const lead=states[${JSON.stringify(id)}]; const m=(lead && !OFFS.includes(lead.state)) ? lead : live.find(p=>p.state==='playing') || live[0] || lead;
+    const lead=states[${JSON.stringify(id)}]; const tvs=live.filter(p=>p.attributes?.device_class==='tv');
+    const m=(lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || live.find(p=>p.state==='playing') || lead;
     const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'};
     const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || live.map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
   const canSwitch = remote?.platform === 'androidtv_remote' || players.some(p =>
@@ -308,7 +319,7 @@ export function tvCard(requested, hass) {
   fields.now = `[[[ ${current}
     const esc = v => String(v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const off = !m || ${OFF}.includes(m.state);
-    const playing = ['playing', 'paused'].includes(m?.state) ? m : live.find(p => p.state === 'playing') || m;
+    const playing = m;
     const a = playing?.attributes || {};
     const state = !m ? 'Unavailable' : off ? 'Off' : playing.state === 'playing' ? 'Playing' : playing.state === 'paused' ? 'Paused' : playing.state === 'buffering' ? 'Loading' : 'On';
     const title = a.media_title || '';
