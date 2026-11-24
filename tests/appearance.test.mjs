@@ -565,4 +565,8 @@ test('each sound system links to its Music Assistant player by name, and to the 
  assert(card.styles.grid[0]['grid-template-areas'].includes('"ma ma ma"'));
  assert(card.styles.custom_fields.ma.some(r=>r['pointer-events']==='auto'));
  assert.equal(typeof window.__dwellTvMa.app,'function');
+ assert(html.includes('data-name="Dany"'),'the app button carries the Music Assistant player name');
+ const pushed=[];globalThis.location={pathname:'/dashboard-dwelldeck/media'};globalThis.history={pushState:(a,b,path)=>pushed.push(path)};window.dispatchEvent=()=>{};globalThis.CustomEvent=class{};
+ window.__dwellTvMa.app({dataset:{}});
+ assert.deepEqual(pushed,['/dashboard-dwelldeck/music-assistant'],'DwellDeck\'s own Music Assistant page');
 });

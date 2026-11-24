@@ -1030,19 +1030,35 @@ function dwellMaButtons(cfg) {
   window.__dwellTvMa = window.__dwellTvMa || {
     // The player's controls in Home Assistant: now playing, volume, and browse media for that room.
     player(el) { el.dispatchEvent(new CustomEvent('hass-more-info', {detail: {entityId: el.dataset.entity}, bubbles: true, composed: true})); },
-    // The Music Assistant app from the sidebar, or else the dashboard's Music Assistant page.
+    // DwellDeck's own Music Assistant page, with this room's player selected: once the app has loaded in
+    // the page, its address gets "#/home?player=<name>" and reloads, which is how Music Assistant picks a player.
     app(el) {
-      const hass = document.querySelector('home-assistant')?.hass;
-      const panel = Object.values(hass?.panels || {}).find(p => /music.?assistant/i.test(`${p.title || ''} ${p.url_path || ''}`));
-      const path = panel ? '/' + panel.url_path : location.pathname.split('/').slice(0, 2).join('/') + '/music-assistant';
-      history.pushState(null, '', path); window.dispatchEvent(new CustomEvent('location-changed'));
+      const name = el.dataset.name;
+      const base = location.pathname.split('/').slice(0, 2).join('/');
+      history.pushState(null, '', base + '/music-assistant'); window.dispatchEvent(new CustomEvent('location-changed'));
+      if (!name) return;
+      const deep = root => { for (const node of root.querySelectorAll('*')) { if (node.tagName === 'IFRAME' && /hassio_ingress|music/i.test(node.src)) return node;
+        const hit = node.shadowRoot && deep(node.shadowRoot); if (hit) return hit; } return null; };
+      clearInterval(window.__dwellTvMaTimer);
+      const started = Date.now();
+      window.__dwellTvMaTimer = setInterval(() => {
+        if (Date.now() - started > 20000) return clearInterval(window.__dwellTvMaTimer);
+        const frame = deep(document);
+        try {
+          const win = frame?.contentWindow;
+          if (!win || win.document.readyState !== 'complete' || win.location.href === 'about:blank') return;
+          clearInterval(window.__dwellTvMaTimer);
+          win.location.hash = '#/home?player=' + encodeURIComponent(name);
+          win.location.reload();
+        } catch (e) { clearInterval(window.__dwellTvMaTimer); }
+      }, 300);
     }
   };
   const style = `all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;height:40px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid ${cfg.c.line};color:${cfg.c.text};font-size:13.5px;font-weight:600`;
   const icon = (name, color) => `<ha-icon icon="${name}" style="--mdc-icon-size:18px;width:18px;height:18px;display:block;color:${color}"></ha-icon>`;
   return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%">
     <button style="${style}" data-entity="${cfg.player}" aria-label="Music Assistant player for this room" onclick="event.stopPropagation();window.__dwellTvMa.player(this)">${icon('mdi:music-box-outline', cfg.c.onText)}Music player</button>
-    <button style="${style}" aria-label="Open the Music Assistant app" onclick="event.stopPropagation();window.__dwellTvMa.app(this)">${icon('mdi:open-in-app', cfg.c.muted)}Music Assistant</button></div>`;
+    <button style="${style}" data-name="${cfg.playerName}" aria-label="Open Music Assistant with this room's player" onclick="event.stopPropagation();window.__dwellTvMa.app(this)">${icon('mdi:open-in-app', cfg.c.muted)}Music Assistant</button></div>`;
 }
 
 // The Music Assistant player for a TV or sound system: one in the same group, or else the Music Assistant
@@ -1180,7 +1196,7 @@ function tvCard(requested, hass) {
   const ma = musicAssistantPlayer(players, hass);
   if (ma) {
     // Two buttons under the controls: this room's Music Assistant player, and the Music Assistant app.
-    fields.ma = `[[[ return (${dwellMaButtons.toString()})(${JSON.stringify({player: ma, c: {line: C.line, text: C.text, onText: C.onText, muted: C.muted}})}); ]]]`;
+    fields.ma = `[[[ return (${dwellMaButtons.toString()})(${JSON.stringify({player: ma, playerName: String(playerName(ma, hass)).replace(/["<>&]/g, ''), c: {line: C.line, text: C.text, onText: C.onText, muted: C.muted}})}); ]]]`;
     areas.push('"ma ma ma"');
   }
   if (remote || canSwitch) {
