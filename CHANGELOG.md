@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.7 — TV status from the entry that is on
+
+- A TV's status and Now playing come from whichever of its entries is on: the TV's own player first, then anything playing. An ADB entry that has lost its connection no longer makes the TV look off.
+- Android package names become app names (com.google.android.youtube.tv shows as YouTube).
+- The remote prefers Android TV Remote or Apple TV and also finds a remote with the same name in the same area when it sits on another device; ADB is the fallback.
+- When an Android TV Remote TV lists no apps, **Apps** offers common apps (Netflix, YouTube, Disney+, Prime Video, Spotify, YouTube Music). Add your own in the integration's options to see the TV's list.
+- When it lists no inputs, **Sources** offers Home, HDMI 1 to 4 and Inputs, using Android input keys.
+
 ## 0.9.6 — TV tabs in place and Now playing
 
 - **Remote**, **Apps**, **Sources** and **Keyboard** open as tabs inside the TV card instead of popups. Browser Mod shows one popup at a time, so the old popups closed the room they were opened from. Tap a tab again to close it.
