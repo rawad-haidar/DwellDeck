@@ -111,8 +111,8 @@ function dwellEnergyFlow(states, cfg) {
   const gridIn = grid === null ? null : grid * cfg.gridImport; // > 0 importing
   const watts = w => w === null ? '—' : Math.abs(w) >= 1000 ? (Math.abs(w) / 1000).toFixed(Math.abs(w) >= 10000 ? 0 : 1) + ' kW' : Math.round(Math.abs(w)) + ' W';
   const IDLE = 15;
-  // Positions in a 400 × 300 drawing.
-  const P = {hub: [200, 150], solar: [200, 44], grid: [52, 150], home: [348, 150], battery: [200, 256]};
+  // Positions in a 400 × 320 drawing, with room around every circle so nothing is cut off.
+  const P = {hub: [200, 160], solar: [200, 54], grid: [64, 160], home: [336, 160], battery: [200, 266]};
   const line = (from, to, w, color, id) => {
     const [x1, y1] = P[from], [x2, y2] = P[to];
     const on = w !== null && Math.abs(w) > IDLE;
@@ -123,19 +123,24 @@ function dwellEnergyFlow(states, cfg) {
     return `<path id="${id}" d="M${x1},${y1} L${x2},${y2}" stroke="${on ? color : cfg.c.line}" stroke-width="${on ? 2.5 : 1.5}" stroke-opacity="${on ? 0.55 : 1}" fill="none" stroke-linecap="round"/>${dots}`;
   };
   const C = {solar: '#f2c14e', grid: '#8fb8d0', home: '#b9a3e3', battery: '#a8c49a'};
+  // Solar and battery sit on the vertical line, so their words go beside the circle, not across the line.
   const node = (key, icon, title, value, sub, color, active, entity) => {
     const [x, y] = P[key];
-    return `<button class="node" style="left:${x / 4}%;top:${y / 3}%;--c:${color}" ${entity ? `data-entity="${entity}" onclick="event.stopPropagation();window.__dwellEnergy.info(this)"` : 'tabindex="-1"'}>
-      <span class="ring${active ? ' on' : ''}"><ha-icon icon="${icon}"></ha-icon></span><span class="v">${value}</span><span class="t">${title}</span>${sub ? `<span class="s">${sub}</span>` : ''}</button>`;
+    const side = key === 'solar' || key === 'battery';
+    return `<button class="node${side ? ' side' : ''}" style="left:${x / 4}%;top:${y / 3.2}%;--c:${color}" ${entity ? `data-entity="${entity}" onclick="event.stopPropagation();window.__dwellEnergy.info(this)"` : 'tabindex="-1"'}>
+      <span class="ring${active ? ' on' : ''}"><ha-icon icon="${icon}"></ha-icon></span><span class="txt"><span class="v">${value}</span><span class="t">${title}</span>${sub ? `<span class="s">${sub}</span>` : ''}</span></button>`;
   };
   window.__dwellEnergy = window.__dwellEnergy || {info(el) { el.dispatchEvent(new CustomEvent('hass-more-info', {detail: {entityId: el.dataset.entity}, bubbles: true, composed: true})); }};
   const batteryText = charge === null ? (soc === null ? 'Not set up' : '') : Math.abs(charge) <= IDLE ? 'Idle' : charge > 0 ? 'Charging' : 'Discharging';
   const gridText = gridIn === null ? 'Not set up' : Math.abs(gridIn) <= IDLE ? 'Idle' : gridIn > 0 ? 'Importing' : 'Exporting';
   const batteryIcon = soc === null ? 'mdi:battery' : `mdi:battery${soc >= 95 ? '' : '-' + Math.max(10, Math.round(soc / 10) * 10)}`;
   return `<style>
-    .flow{position:relative;width:min(100%,${Math.round(cfg.height * 4 / 3)}px);aspect-ratio:4/3;margin:0 auto}
+    .flow{position:relative;width:min(100%,${Math.round(cfg.height * 1.25)}px);aspect-ratio:400/320;margin:0 auto}
     .flow > svg{position:absolute;inset:0;width:100%;height:100%}
-    .node{all:unset;position:absolute;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:2px;text-align:center;cursor:pointer;min-width:84px}
+    .node{all:unset;position:absolute;transform:translate(-50%,-26px);display:grid;justify-items:center;gap:2px;text-align:center;cursor:pointer;min-width:84px}
+    .node .txt{display:grid;justify-items:center;gap:1px}
+    .node.side{transform:translate(-26px,-50%);display:flex;align-items:center;gap:10px;text-align:left;min-width:0}
+    .node.side .txt{justify-items:start}
     .node[tabindex="-1"]{cursor:default}
     .ring{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:#101820;border:2px solid ${cfg.c.line};color:${cfg.c.muted}}
     .ring.on{border-color:var(--c);color:var(--c);box-shadow:0 0 18px color-mix(in srgb,var(--c) 35%,transparent)}
@@ -143,11 +148,11 @@ function dwellEnergyFlow(states, cfg) {
     .v{font-size:17px;font-weight:600;color:${cfg.c.text};font-variant-numeric:tabular-nums;white-space:nowrap}
     .t{font-size:12px;color:${cfg.c.muted}}
     .s{font-size:12px;color:var(--c);white-space:nowrap}
-    .hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#101820;border:1px solid ${cfg.c.line};color:${cfg.c.muted}}
+    .hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#101820;border:1px solid ${cfg.c.line};color:${cfg.c.muted}}
     .hub ha-icon{--mdc-icon-size:22px;width:22px;height:22px;display:block}
     .node:focus-visible .ring{outline:2px solid ${cfg.c.onText};outline-offset:2px}
     @media (prefers-reduced-motion:reduce){.flow circle{display:none}}
-  </style><div class="flow"><svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet">
+  </style><div class="flow"><svg viewBox="0 0 400 320" preserveAspectRatio="xMidYMid meet">
     ${line('solar', 'hub', solar, C.solar, 'f1')}
     ${line('grid', 'hub', gridIn, C.grid, 'f2')}
     ${line('hub', 'home', home, C.home, 'f3')}
