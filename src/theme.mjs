@@ -83,7 +83,7 @@ export function addLivingDesign(dashboard) {
     @media (prefers-reduced-motion:reduce) {ha-card,ha-state-icon {animation:none!important;transition:none!important;transform:none!important;}}
   `;
   visit(dashboard, card => {
-    if (card.type === 'custom:button-card') {
+    if (card.type === 'custom:button-card' && !card.variables?.dwell_static) {
       const ids = (Array.isArray(card.triggers_update) ? card.triggers_update : [card.entity]).filter(id => typeof id === 'string' && /^(light|switch|cover|climate|media_player|fan)\./.test(id));
       if (!ids.length) return;
       const active = `const ids=${JSON.stringify(ids)}; return ids.some(id=>{const e=states[id];if(!e)return false;if(id.startsWith('climate.'))return ['heating','cooling','drying','fan'].includes(e.attributes?.hvac_action);return ['on','playing','opening','closing'].includes(e.state);});`;

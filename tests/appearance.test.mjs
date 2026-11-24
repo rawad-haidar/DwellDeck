@@ -82,32 +82,43 @@ test('Home weather is the live hero card spanning two columns',()=>{
  assert(card.custom_fields.sky.includes('prefers-reduced-motion'));
 });
 const tvHass=()=>{
- const st=(id,a={})=>({entity_id:id,state:'on',attributes:{friendly_name:id,...a}});
- const ents=[['media_player.tv','androidtv_remote','d1',{source_list:['HDMI 1','Netflix']}],['remote.tv','androidtv_remote','d1',{activity_list:['Netflix','YouTube'],current_activity:'YouTube'}],['media_player.atv','apple_tv','d2',{source_list:['Netflix','Shahid']}],['remote.atv','apple_tv','d2',{}],['media_player.speaker','cast','d3',{}]];
- return {states:Object.fromEntries(ents.map(([id,,,a])=>[id,st(id,a)])),services:{browser_mod:{popup:{}}},areas:{a:{area_id:'a',name:'Living room',labels:[]}},floors:{},labels:{},
-  devices:{d1:{id:'d1',area_id:'a'},d2:{id:'d2',area_id:'a'},d3:{id:'d3',area_id:'a'}},entities:Object.fromEntries(ents.map(([id,platform,device_id])=>[id,{entity_id:id,platform,device_id,area_id:'a'}]))};
+ const st=(id,a={})=>({entity_id:id,state:'on',attributes:{...a}});
+ const ents=[
+  ['media_player.saloon_tv','androidtv_remote','d1',{friendly_name:'Saloon TV',source_list:['HDMI 2']}],
+  ['remote.saloon_tv','androidtv_remote','d1',{activity_list:['Netflix','YouTube','HDMI 1'],current_activity:'YouTube'}],
+  ['media_player.saloon_tv_adb','androidtv','d4',{friendly_name:'Saloon TV ADB',source_list:['com.android.systemui','Google TV Launcher','Netflix','com.netflix.tokenmanager','com.mbc.unknown.app','Google Cast']}],
+  ['media_player.bedroom_adb','androidtv','d5',{friendly_name:'Bedroom TV',source_list:['com.google.android.youtube.tv','com.tcl.airplay2']}],
+  ['media_player.atv','apple_tv','d2',{friendly_name:'Apple TV',source_list:['Netflix','Shahid']}],['remote.atv','apple_tv','d2',{}],
+  ['media_player.speaker','cast','d3',{friendly_name:'Kitchen speaker'}]];
+ return {states:Object.fromEntries(ents.map(([id,,,a])=>[id,st(id,a)])),services:{browser_mod:{popup:{}}},areas:{a:{area_id:'a',name:'Saloon',labels:[]},b:{area_id:'b',name:'Bedroom',labels:[]}},floors:{},labels:{},
+  devices:{d1:{id:'d1',area_id:'a'},d2:{id:'d2',area_id:'a'},d3:{id:'d3',area_id:'a'},d4:{id:'d4',area_id:'a'},d5:{id:'d5',area_id:'b'}},entities:Object.fromEntries(ents.map(([id,platform,device_id])=>[id,{entity_id:id,platform,device_id}]))};
 };
 const tvCards=()=>{
  const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},tvHass());
  const cards={};const find=x=>{if(x&&typeof x==='object'){if(x.type==='custom:button-card'&&x.entity?.startsWith('media_player.')&&x.custom_fields?.head)cards[x.entity]=x;Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
- return {cards,text:JSON.stringify(d.views.find(v=>v.path==='rooms'))};
+ return cards;
 };
-const actions=card=>{const out=[];const walk=x=>{if(x&&typeof x==='object'){if(x.tap_action?.perform_action)out.push(x.tap_action);if(x.tap_action?.browser_mod)out.push(x.tap_action);Object.values(x).forEach(walk);}};walk(card.custom_fields);return out;};
-test('each TV is one card with remote, volume, keyboard, and apps and inputs',()=>{
- const {cards,text}=tvCards();
- assert(!text.includes('"media-control"'));
- const tv=actions(cards['media_player.tv']);
- const commands=tv.map(a=>a.data?.command).filter(Boolean);
- for(const c of ['DPAD_UP','DPAD_CENTER','BACK','HOME','MENU','VOLUME_UP','MUTE','MEDIA_PLAY_PAUSE'])assert(commands.includes(c),c);
- assert(tv.some(a=>a.browser_mod?.data?.right_button_action?.service==='remote.send_command'));
- assert.deepEqual(tv.filter(a=>a.perform_action==='remote.turn_on').map(a=>a.data.activity),['Netflix','YouTube']);
- assert.deepEqual(tv.filter(a=>a.perform_action==='media_player.select_source').map(a=>a.data.source),['HDMI 1']);
- const atv=actions(cards['media_player.atv']);
- assert(atv.some(a=>a.data?.command==='select'));
- assert(!atv.some(a=>a.browser_mod));
- assert.deepEqual(atv.filter(a=>a.perform_action==='media_player.select_source').map(a=>a.data.source),['Netflix','Shahid']);
- const speaker=actions(cards['media_player.speaker']);
- assert(speaker.some(a=>a.perform_action==='media_player.volume_up'));
- assert(!speaker.some(a=>a.perform_action==='remote.send_command'));
- assert(!cards['media_player.speaker'].custom_fields.pad);
+const launch=(card,name)=>card.custom_fields.launch?.card.custom_fields[name]?.card?.tap_action;
+const popupActions=action=>{const out=[];const walk=x=>{if(x&&typeof x==='object'){if(x.tap_action?.perform_action)out.push(x.tap_action);Object.values(x).forEach(walk);}};walk(action?.browser_mod?.data?.content);return out;};
+const popupNames=action=>{const out=[];const walk=x=>{if(x&&typeof x==='object'){if(x.show_name&&x.tap_action?.perform_action)out.push(x.name);Object.values(x).forEach(walk);}};walk(action?.browser_mod?.data?.content);return out;};
+test('each TV is one compact card with Remote, Apps and Sources popups',()=>{
+ const cards=tvCards();
+ assert.deepEqual(Object.keys(cards).sort(),['media_player.atv','media_player.bedroom_adb','media_player.saloon_tv','media_player.speaker']);
+ const saloon=cards['media_player.saloon_tv'];
+ assert.deepEqual(Object.keys(saloon.custom_fields.launch.card.custom_fields),['remote','apps','sources','keys']);
+ const keys=popupActions(launch(saloon,'remote')).map(a=>a.data?.command).filter(Boolean);
+ for(const c of ['DPAD_UP','DPAD_CENTER','BACK','HOME','MENU','MUTE'])assert(keys.includes(c),c);
+ assert.deepEqual(popupNames(launch(saloon,'apps')),['Google Cast','Netflix','YouTube']);
+ assert.deepEqual(popupNames(launch(saloon,'sources')),['HDMI 1','HDMI 2','Home']);
+ assert.equal(launch(saloon,'keys').browser_mod.data.right_button_action.service,'remote.send_command');
+ const bedroom=cards['media_player.bedroom_adb'];
+ const adb=popupActions(launch(bedroom,'remote'));
+ assert(adb.every(a=>a.perform_action!=='remote.send_command'));
+ assert(adb.some(a=>a.perform_action==='androidtv.adb_command'&&a.data.command==='CENTER'));
+ assert.deepEqual(popupNames(launch(bedroom,'apps')),['YouTube']);
+ assert(!launch(bedroom,'keys'));
+ const atv=cards['media_player.atv'];
+ assert(popupActions(launch(atv,'remote')).some(a=>a.data?.command==='select'));
+ assert(!launch(atv,'keys'));
+ assert(!cards['media_player.speaker'].custom_fields.launch);
 });
