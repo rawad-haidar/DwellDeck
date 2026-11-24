@@ -2014,7 +2014,7 @@ const panel = (field, fn, cfg, watched, height) => ({
 function dwellEnergyHistory(card, hass, cfg) {
   const all = window.__dwellHist = window.__dwellHist || {};
   const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
-  const st = all[cfg.key] = all[cfg.key] || {range: store?.getItem('dwelldeck-energy-range') || '30d', from: '', to: '', data: null, loading: false, asked: ''};
+  const st = all[cfg.key] = all[cfg.key] || {hidden: {}, range: store?.getItem('dwelldeck-energy-range') || '30d', from: '', to: '', data: null, loading: false, asked: ''};
   const RANGES = [['today', 'Today'], ['yesterday', 'Yesterday'], ['2d', 'Last 2 days'], ['3d', 'Last 3 days'], ['7d', 'Last week'], ['14d', 'Last 2 weeks'],
     ['21d', 'Last 3 weeks'], ['30d', 'Last month'], ['custom', 'Custom dates']];
   const day0 = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
@@ -2039,7 +2039,7 @@ function dwellEnergyHistory(card, hass, cfg) {
     const asked = `${st.range}|${st.from}|${st.to}|${from.toDateString()}|${Math.floor(Date.now() / 300000)}`;
     if (st.loading || st.asked === asked) return;
     Object.assign(st, {loading: true, asked});
-    const ids = [...new Set([...Object.values(cfg.totals).flat(), ...cfg.power.solar, ...cfg.power.home, ...cfg.soc])];
+    const ids = [...new Set([...Object.values(cfg.totals).flat(), ...cfg.power.solar, ...cfg.power.home, ...cfg.power.battery, ...cfg.soc])];
     try {
       const stats = await hass.callWS({type: 'recorder/statistics_during_period', start_time: from.toISOString(), end_time: to.toISOString(),
         statistic_ids: ids, period, types: ['change', 'mean', 'min', 'max'], units: {energy: 'kWh', power: 'W'}});
@@ -2064,6 +2064,8 @@ function dwellEnergyHistory(card, hass, cfg) {
         charge: combine(cfg.totals.charge, 'change', m.energy, 'Charged'), discharge: combine(cfg.totals.discharge, 'change', m.energy, 'Discharged'),
         import: combine(cfg.totals.import, 'change', m.energy, 'From grid'), export: combine(cfg.totals.export, 'change', m.energy, 'To grid'),
         solarW: combine(cfg.power.solar, 'mean', m.solar, 'Solar'), homeW: combine(cfg.power.home, 'mean', m.home, 'Home'),
+        // Battery power with charging above zero and discharging below, whatever sign the inverter uses.
+        batteryW: combine(cfg.power.battery, 'mean', m.battery, 'Battery').map(item => ({...item, values: item.values.map(v => v === null ? null : v * cfg.batteryCharging)})),
         soc: combine(cfg.soc, 'mean', m.soc, 'Battery'),
         socMin: m.soc === 'each' ? [] : combine(cfg.soc, 'min', 'average', 'Battery'), socMax: m.soc === 'each' ? [] : combine(cfg.soc, 'max', 'average', 'Battery')};
     } catch (e) {
@@ -2091,6 +2093,15 @@ function dwellEnergyHistory(card, hass, cfg) {
       root.addEventListener('keydown', event => { if (event.key === 'Escape') window.__dwellHistUi.close(close); });
     },
     close(el) { el?.closest('.dwh')?.remove(); },
+    // Switches a line off or on, in the small chart and in the large view.
+    toggle(el) {
+      const ov = el.closest('.ov'), key = ov ? ov.dataset.key : el.closest('.eh').dataset.key;
+      const s = window.__dwellHist[key], chartId = el.dataset.chart, name = el.dataset.name;
+      const list = s.hidden[chartId] || [];
+      s.hidden[chartId] = list.includes(name) ? list.filter(n => n !== name) : [...list, name];
+      window.__dwellHistDraw?.[key]?.();
+      if (ov) { const root = ov.closest('.dwh'); root.innerHTML = window.__dwellHistBig[key](chartId); root.querySelector('.x')?.focus(); }
+    },
     apply(el) {
       const box = el.closest('.eh'); const s = window.__dwellHist[box.dataset.key];
       s.from = box.querySelector('.from').value; s.to = box.querySelector('.to').value || s.from;
@@ -2100,6 +2111,8 @@ function dwellEnergyHistory(card, hass, cfg) {
   };
   window.__dwellHistLoad = window.__dwellHistLoad || {};
   window.__dwellHistLoad[cfg.key] = load;
+  window.__dwellHistDraw = window.__dwellHistDraw || {};
+  window.__dwellHistDraw[cfg.key] = () => draw();
 
   const esc = v => String(v).replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
   const fmtTime = t => {
@@ -2115,14 +2128,17 @@ function dwellEnergyHistory(card, hass, cfg) {
   const paint = (list, color) => list.map(item => ({...item, color}));
   const fade = item => Math.max(0.35, 1 - (item.shade || 0) * 0.3);
   const num = (v, unit) => v === null || v === undefined ? '—' : (unit === '%' || Math.abs(v) >= 100 ? Math.round(v) : v.toFixed(1)) + ' ' + unit;
-  const legend = items => `<div class="lg">${items.map(([name, color, extra, shade]) => `<span><i style="background:${color};opacity:${Math.max(0.35, 1 - (shade || 0) * 0.3)}"></i>${esc(name)}${extra ? ` <b>${extra}</b>` : ''}</span>`).join('')}</div>`;
+  // Legend entries switch their line on and off.
+  const isOff = (chartId, name) => !!st.hidden[chartId]?.includes(name);
+  const legend = (items, chartId) => `<div class="lg">${items.map(([name, color, extra, shade]) => `<button class="lgi${isOff(chartId, name) ? ' off' : ''}" data-chart="${chartId}" data-name="${esc(name)}"
+    aria-pressed="${isOff(chartId, name) ? 'false' : 'true'}" onclick="event.stopPropagation();window.__dwellHistUi.toggle(this)"><i style="background:${color};opacity:${Math.max(0.35, 1 - (shade || 0) * 0.3)}"></i>${esc(name)}${extra ? ` <b>${extra}</b>` : ''}</button>`).join('')}</div>`;
   // The charts of the picked range, kept so a chart can be opened large.
   const specs = d => {
     const per = d.period === 'hour' ? 'per hour' : 'per day';
     return [
       {id: 'energy', kind: 'bar', unit: 'kWh', title: `Solar and home, kWh ${per}`, list: [...paint(d.solarE, '#f2c14e'), ...paint(d.homeE, '#b9a3e3')]},
       {id: 'flows', kind: 'bar', unit: 'kWh', title: `Battery and grid, kWh ${per}`, list: [...paint(d.charge, '#a8c49a'), ...paint(d.discharge, '#6f9a6a'), ...paint(d.import, '#8fb8d0'), ...paint(d.export, '#5d8aa6')]},
-      {id: 'power', kind: 'line', unit: 'W', title: `Solar and home power (W), average ${per}`, list: [...paint(d.solarW, '#f2c14e'), ...paint(d.homeW, '#b9a3e3')]},
+      {id: 'power', kind: 'line', unit: 'W', title: `Solar, home and battery power (W), average ${per}`, note: 'Battery: above zero charging, below zero discharging', list: [...paint(d.solarW, '#f2c14e'), ...paint(d.homeW, '#b9a3e3'), ...paint(d.batteryW || [], '#a8c49a')]},
       {id: 'soc', kind: 'line', unit: '%', title: 'Battery level, %', fixed: [0, 100],
         list: [...(d.socMax[0] ? [{name: 'Low to high', color: '#a8c49a', values: d.socMax[0].values, band: d.socMin[0].values}] : []), ...paint(d.soc, '#a8c49a')]}
     ].map(spec => ({...spec, list: spec.list.filter(item => item.values.some(v => v !== null && (spec.kind === 'line' || v)))})).filter(spec => spec.list.some(item => !item.band));
@@ -2130,7 +2146,9 @@ function dwellEnergyHistory(card, hass, cfg) {
   // Draws one chart. Negative values (export, discharge) go below a zero line; the scale covers all of it.
   // Hovering a time shows every value at that time.
   const chart = (spec, W, H) => {
+    spec = {...spec, list: spec.list.filter(item => !isOff(spec.id, item.band ? 'Low to high' : item.name))};
     const L = 44, B = 22, T = 10, R = 6;
+    if (!spec.list.length) return `<svg viewBox="0 0 ${W} ${H}"><text x="${W / 2}" y="${H / 2}" text-anchor="middle">All lines are switched off. Tap a name above to show it.</text></svg>`;
     const starts = st.data.starts, n = starts.length;
     const values = spec.list.flatMap(item => [...item.values, ...(item.band || [])]).filter(v => v !== null);
     let lo = spec.fixed ? spec.fixed[0] : Math.min(0, ...values), hi = spec.fixed ? spec.fixed[1] : Math.max(0, ...values);
@@ -2168,7 +2186,7 @@ function dwellEnergyHistory(card, hass, cfg) {
     return `<svg viewBox="0 0 ${W} ${H}">${grid}${marks}${xl}${hover}</svg>`;
   };
   const small = spec => `<div class="ch" role="button" tabindex="0" data-chart="${spec.id}" onclick="event.stopPropagation();window.__dwellHistUi.open(this)" onkeydown="if(event.key==='Enter')window.__dwellHistUi.open(this)">
-    <div class="tt">${spec.title}<span class="zoom">Open</span></div>${legend(spec.list.filter(item => !item.band).map(item => [item.name, item.color, spec.unit === 'kWh' ? num(total(item.values), 'kWh') : '', item.shade]))}${chart(spec, 600, 180)}</div>`;
+    <div class="tt">${spec.title}<span class="zoom">Open</span></div>${legend(spec.list.map(item => [item.band ? 'Low to high' : item.name, item.color, spec.unit === 'kWh' && !item.band ? num(total(item.values), 'kWh') : '', item.band ? 2 : item.shade]), spec.id)}${spec.note ? `<div class="nt">${spec.note}</div>` : ''}${chart(spec, 600, 180)}</div>`;
   // The large view: the chart, a summary per line, every value in a table, and a CSV download.
   const big = id => {
     const spec = specs(st.data).find(item => item.id === id);
@@ -2181,11 +2199,11 @@ function dwellEnergyHistory(card, hass, cfg) {
     }).join('');
     const rows = st.data.starts.map((t, i) => `<tr><td>${fmtFull(t)}</td>${shown.map(item => `<td>${num(item.values[i], spec.unit)}</td>`).join('')}</tr>`).reverse().join('');
     const csv = ['Time,' + shown.map(item => `"${item.name}"`).join(','), ...st.data.starts.map((t, i) => [new Date(t).toISOString(), ...shown.map(item => item.values[i] ?? '')].join(','))].join('\n');
-    return `${bigStyle}<div class="ov" onclick="if(event.target===this)window.__dwellHistUi.close(this)"><div class="pn" role="dialog" aria-modal="true" aria-label="${esc(spec.title)}">
+    return `${bigStyle}<div class="ov" data-key="${cfg.key}" data-chart="${spec.id}" onclick="if(event.target===this)window.__dwellHistUi.close(this)"><div class="pn" role="dialog" aria-modal="true" aria-label="${esc(spec.title)}">
       <div class="ph"><div class="pt">${spec.title}<div class="ps">${esc(RANGES.find(r => r[0] === st.range)?.[1] || '')}</div></div>
         <a class="dl" download="dwelldeck-${spec.id}.csv" href="data:text/csv;charset=utf-8,${encodeURIComponent(csv)}">Download CSV</a>
         <button class="x" aria-label="Close" onclick="event.stopPropagation();window.__dwellHistUi.close(this)">✕</button></div>
-      ${legend(shown.map(item => [item.name, item.color, '', item.shade]))}
+      ${legend(spec.list.map(item => [item.band ? 'Low to high' : item.name, item.color, '', item.band ? 2 : item.shade]), spec.id)}${spec.note ? `<div class="nt">${spec.note}</div>` : ''}
       <div class="bigc">${chart(spec, 1000, 340)}</div>
       <table class="sum"><tr><th></th>${spec.unit === 'kWh' ? '<th>Total</th>' : ''}<th>Average</th><th>Lowest</th><th>Highest</th></tr>${stats}</table>
       <div class="tw"><table class="dt"><tr><th>Time</th>${shown.map(item => `<th>${esc(item.name)}</th>`).join('')}</tr>${rows}</table></div>
@@ -2217,6 +2235,11 @@ function dwellEnergyHistory(card, hass, cfg) {
     .dwh svg .tv{font-size:12.5px;fill:${cfg.c.text}}
     .dwh .lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:${cfg.c.muted}}
     .dwh .lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+    .dwh .lgi{all:unset;cursor:pointer;border-radius:8px;padding:4px 8px;margin:-4px -2px}
+    .dwh .lgi:hover{background:rgba(255,255,255,.06)}
+    .dwh .lgi.off{opacity:.45;text-decoration:line-through}
+    .dwh .lgi.off i{background:transparent!important;outline:1.5px solid ${cfg.c.muted};outline-offset:-1.5px}
+    .dwh .nt{font-size:13px;color:${cfg.c.muted}}
   </style>`;
   window.__dwellHistBig = window.__dwellHistBig || {};
   window.__dwellHistBig[cfg.key] = big;
@@ -2246,6 +2269,12 @@ function dwellEnergyHistory(card, hass, cfg) {
     .lg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0 4px;font-size:12.5px;color:${cfg.c.muted}}
     .lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
     .lg b{color:${cfg.c.text};font-weight:600}
+    .lgi{all:unset;cursor:pointer;border-radius:8px;padding:3px 6px;margin:-3px -6px}
+    .lgi:hover{background:rgba(255,255,255,.06)}
+    .lgi.off{opacity:.45;text-decoration:line-through}
+    .lgi.off i{background:transparent!important;outline:1.5px solid ${cfg.c.muted};outline-offset:-1.5px}
+    .lgi:focus-visible{outline:2px solid ${cfg.c.onText}}
+    .nt{font-size:12px;color:${cfg.c.muted};margin:-2px 0 4px}
     .ch svg{display:block;width:100%;height:auto}
     .ch text{font-size:11px;fill:${cfg.c.muted};font-family:inherit}
     .msg{padding:24px;text-align:center;color:${cfg.c.muted};font-size:14px;grid-column:1/-1}
@@ -2266,7 +2295,7 @@ function dwellEnergyHistory(card, hass, cfg) {
 }
 
 function historyCard(setup) {
-  const cfg = {key: 'energy', totals: setup.total, power: {solar: setup.solar, home: setup.home}, soc: setup.soc, modes: setup.modes, names: setup.names,
+  const cfg = {key: 'energy', totals: setup.total, power: {solar: setup.solar, home: setup.home, battery: setup.battery}, batteryCharging: setup.batteryCharging, soc: setup.soc, modes: setup.modes, names: setup.names,
     c: {text: EN_C.text, muted: EN_C.muted, line: EN_C.line, on: EN_C.on, onText: EN_C.onText}};
   return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,

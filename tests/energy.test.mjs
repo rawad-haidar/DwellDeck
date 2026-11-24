@@ -154,3 +154,29 @@ test('charts show negative values below zero, a readout on hover, and open large
   assert(big.includes('Download CSV') && big.includes('<th>Average</th>') && big.includes('To grid'));
   assert(big.includes('-18.0 kWh'), 'two inverters, three days of -3 kWh exported');
 });
+
+test('the power chart includes the battery, and tapping a legend name switches its line off and on', async () => {
+  const view = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x'}, hass));
+  const body = view.sections[2].cards[1].custom_fields.history.trim().slice(3, -3);
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const fakeHass = {callWS: async msg => Object.fromEntries(msg.statistic_ids.map(id => [id, [0, 1].map(i => ({start: start.getTime() - (1 - i) * 3600000,
+    change: 1, mean: id.includes('battery_power') ? 900 : 400, min: 30, max: 90}))]))};
+  globalThis.window = {};
+  const shadow = {querySelector: () => null};
+  Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const before = Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+  assert(before.includes('Solar, home and battery power'));
+  assert(before.includes('data-name="Battery"'));
+  // Deye reports discharge as positive: drawn below zero.
+  assert(/text-anchor="end">-\d/.test(before.slice(before.indexOf('Solar, home and battery power'))), 'discharging goes below zero');
+  const lines = html => (html.slice(html.indexOf('Solar, home and battery power')).split('Battery level')[0].match(/<polyline/g) || []).length;
+  assert.equal(lines(before), 3);
+  const button = {dataset: {chart: 'power', name: 'Battery'}, closest: sel => sel === '.eh' ? {dataset: {key: 'energy'}} : null};
+  window.__dwellHistUi.toggle(button);
+  const after = Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+  assert.equal(lines(after), 2, 'battery line switched off');
+  assert(after.includes('lgi off" data-chart="power" data-name="Battery"'));
+  window.__dwellHistUi.toggle(button);
+  assert.equal(lines(Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass)), 3, 'and back on');
+});
