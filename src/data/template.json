@@ -9200,12 +9200,12 @@
             },
             {
               "type": "button",
-              "name": "Music library",
-              "icon": "mdi:music-note",
+              "name": "Media browser",
+              "icon": "mdi:play-box-multiple-outline",
               "icon_height": "30px",
               "tap_action": {
                 "action": "navigate",
-                "navigation_path": "/__DWELLDECK_MUSIC_APP__"
+                "navigation_path": "/media-browser/browser"
               },
               "grid_options": {
                 "columns": 6,

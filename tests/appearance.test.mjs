@@ -607,3 +607,11 @@ test('player cards: previous, play and next buttons, and a volume slider on the 
  assert.deepEqual(calls[0],['media_player','volume_set',{entity_id:'media_player.rest_living_sound_system',volume_level:0.6}]);
  assert(card.styles.custom_fields.vol.some(r=>r['pointer-events']==='auto'));
 });
+
+test('the Media page buttons each do their own job: Music Assistant page, Home Assistant media browser, pause all',()=>{
+ const cards=generate({music_app:'d5369777_music_assistant'}).views.find(v=>v.path==='media').sections[0].cards;
+ const nav=name=>cards.find(c=>c.name===name)?.tap_action?.navigation_path;
+ assert.equal(nav('Music Assistant'),'/dashboard-test/music-assistant');
+ assert.equal(nav('Media browser'),'/media-browser/browser');
+ assert(!cards.some(c=>c.tap_action?.navigation_path==='/d5369777_music_assistant'));
+});
