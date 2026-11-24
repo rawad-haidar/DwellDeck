@@ -1072,6 +1072,7 @@ function musicAssistantPlayer(players, hass) {
   if (inGroup) return inGroup;
   const clean = text => normalizeName(String(text || '').replace(/sound\s*system|speakers?|audio|amplifier|\bamp\b/gi, ' ')).replace(/\s+/g, ' ').trim();
   const device = hass.devices?.[hass.entities?.[lead]?.device_id]?.name;
+  const tvLead = players.some(id => hass.states?.[id]?.attributes?.device_class === 'tv' || TV_PLATFORMS.includes(hass.entities?.[id]?.platform));
   const wanted = [clean(playerName(lead, hass)), clean(device)].filter(name => name.length >= 3);
   const area = entityArea(lead, hass);
   const all = Object.keys(hass.states || {}).filter(id => id.startsWith('media_player.') && isMusicAssistant(id, hass) && !hass.entities?.[id]?.disabled_by);
@@ -1084,7 +1085,8 @@ function musicAssistantPlayer(players, hass) {
     const sameArea = entityArea(id, hass) && entityArea(id, hass) === area ? 1 : 0;
     // An exact name beats a partial one even in the same room ("kitchen" over "Kitchen TV").
     if (wanted.includes(name)) return 4 + sameArea;
-    if (wanted.some(w => w.startsWith(name) || name.startsWith(w))) return 2 + sameArea;
+    // Partial names ("M.kitch" for "M.Kitchen") only for sound systems: "Kitchen" is not the Kitchen TV.
+    if (!tvLead && wanted.some(w => w.startsWith(name) || name.startsWith(w))) return 2 + sameArea;
     return 0;
   };
   const pick = candidates => {
@@ -1092,7 +1094,7 @@ function musicAssistantPlayer(players, hass) {
     // Only a clear winner: two equally good matches link nothing rather than the wrong room.
     return best.length && (best.length === 1 || best[0][1] > best[1][1]) ? best[0][0] : null;
   };
-  return pick(streamers) || players.find(id => isMusicAssistant(id, hass)) || pick(all);
+  return pick(streamers) || players.find(id => isMusicAssistant(id, hass)) || (tvLead ? null : pick(all));
 }
 
 function tvCard(requested, hass) {
@@ -1110,19 +1112,25 @@ function tvCard(requested, hass) {
     : remote ? remote.send('POWER') : player('toggle');
   const volumePlayer = playerFor(players, hass, FEATURE.volumeStep | FEATURE.volumeSet) || id;
   const playPlayer = playerFor(players, hass, FEATURE.play | FEATURE.pause) || id;
-  const watched = [...new Set([...players, ...(remote ? [remote.id] : [])])];
+  const ma = musicAssistantPlayer(players, hass);
+  // What plays on a sound system comes from its Music Assistant player: watch it for the title and artwork.
+  const sources = ma && !players.includes(ma) ? [...players, ma] : players;
+  const watched = [...new Set([...sources, ...(remote ? [remote.id] : [])])];
   // Status comes from whichever entry is on: the TV's own player first, then anything playing.
   const current = `const OFFS=${OFF}; const known=${JSON.stringify(KNOWN_PACKAGES)};
     const nice = v => { if (!v) return ''; const t = String(v).trim(); if (known[t]) return known[t]; if (/launcher/i.test(t)) return 'Home';
       if (!/^[a-z][\\w]*(\\.[\\w:]+)+$/i.test(t)) return t;
       const part = t.split(/[.:]/).filter(w => !/^(com|net|org|tv|android|androidtv|google|app|apps|mobile|ninja|livingroom|leanback)$/i.test(w)).pop() || t;
       return part.charAt(0).toUpperCase() + part.slice(1); };
-    const all=${JSON.stringify(players)}.map(p=>states[p]).filter(Boolean); const live=all.filter(p=>!OFFS.includes(p.state));
+    const all=${JSON.stringify(sources)}.map(p=>states[p]).filter(Boolean); const live=all.filter(p=>!OFFS.includes(p.state));
     const lead=states[${JSON.stringify(id)}]; const tvs=live.filter(p=>p.attributes?.device_class==='tv');
     // When the card has real TV entries, they decide on or off: a cast or speaker entry that keeps "playing"
     // while the TV is off doesn't make the TV look on.
     const hasTv=all.some(p=>p.attributes?.device_class==='tv');
-    const m=(lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || (hasTv ? lead : live.find(p=>p.state==='playing') || lead);
+    // A sound system shows whichever of its players is playing something with a title or picture
+    // (its Music Assistant player), so the music and artwork appear on the card.
+    const withMedia=live.find(p=>['playing','paused'].includes(p.state)&&(p.attributes?.media_title||p.attributes?.entity_picture));
+    const m=!hasTv && withMedia ? withMedia : (lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || (hasTv ? lead : live.find(p=>p.state==='playing') || lead);
     const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'};
     const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || live.map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
   // One on/off rule for the status, the TV icon and the power button: the entry the status uses is on.
@@ -1193,7 +1201,6 @@ function tvCard(requested, hass) {
       + '</div></div>';
   ]]]`;
   const areas = ['"i n power"', '"i l power"', '"now now now"', '"media media media"'];
-  const ma = musicAssistantPlayer(players, hass);
   if (ma) {
     // Two buttons under the controls: this room's Music Assistant player, and the Music Assistant app.
     fields.ma = `[[[ return (${dwellMaButtons.toString()})(${JSON.stringify({player: ma, playerName: String(playerName(ma, hass)).replace(/["<>&]/g, ''), c: {line: C.line, text: C.text, onText: C.onText, muted: C.muted}})}); ]]]`;
@@ -1218,7 +1225,8 @@ function tvCard(requested, hass) {
     styles: {
       // Cards in one row stretch to the same height.
       card: [{padding: '16px'}, {height: '100%'}, {'box-sizing': 'border-box'}, {'align-content': 'start'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
-        {background: `[[[ const p = entity?.attributes?.entity_picture; return entity?.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
+        // The artwork of whatever plays fills the card behind a dark veil.
+        {background: `[[[ ${current} const p = m?.attributes?.entity_picture; return m && m.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
       grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '40px minmax(0,1fr) 46px'}, {gap: '2px 12px'}, {'align-items': 'center'}],
       img_cell: [{'justify-content': 'flex-start'}, {width: '40px'}, {height: '40px'}],
       icon: [{width: '28px'}, {color: `[[[ ${isOn} return on ? '${C.onText}' : '${C.muted}'; ]]]`}],
