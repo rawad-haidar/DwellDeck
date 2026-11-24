@@ -9,6 +9,13 @@ const slot = n => SLOTS.find(s => s.placeholder.endsWith(`dwelldeck_slot_${n}`))
 const entities = {[slot(143)]: 'climate.master_ac', [slot(138)]: 'climate.danis_ac', [slot(144)]: 'climate.kitchen_nature', [slot(292)]: 'switch.boiler', [slot(289)]: 'switch.valve_1', [slot(295)]: 'weather.home'};
 const view = () => generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x', entities}, {}).views.find(v => v.path === 'climate');
 
+
+// Pins the clock to midday today, so "Today" and "Last month" ranges do not depend on the hour the tests run.
+const RealDate = Date;
+const atMidday = () => { const noon = new RealDate(); noon.setHours(12, 0, 0, 0); const at = noon.getTime();
+  globalThis.Date = class extends RealDate { constructor(...a) { a.length ? super(...a) : super(at); } static now() { return at; } };
+  return () => { globalThis.Date = RealDate; }; };
+
 test('climate opens with what runs now, heating beside it, then the rest', () => {
   const v = view();
   assert.deepEqual(v.sections.map(s => s.cards[0].heading), ['Climate now', 'Heating', 'AC scenes', 'Air conditioners', 'Thermostats', 'History']);
@@ -56,6 +63,8 @@ test('status shows the average temperature, what is on, and turns everything off
 });
 
 test('history: room temperatures as lines and an activity row per device, for a picked range', async () => {
+  const restore = atMidday();
+  try {
   const v = view();
   const card = v.sections.at(-1).cards[1];
   assert.equal(v.sections.at(-1).column_span, 3, 'full width');
@@ -78,4 +87,5 @@ test('history: room temperatures as lines and an activity row per device, for a 
   assert(html.includes('class="hv"'), 'hover readout');
   window.__dwellClimHistUi.toggle({dataset: {id: 'climate.master_ac'}});
   assert(Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass).includes('lgi off'), 'line switched off');
+  } finally { restore(); }
 });

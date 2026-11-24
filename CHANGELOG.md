@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.29 — Sound system power goes straight to the amplifier
+
+- **Sound system cards**: power, volume and playback go to the zone itself (the DSPPA zone), not to its Music Assistant copy. On cards whose Music Assistant copy sorted first by name (M.Kitchen, Living, Pergola, Bar) the power button went through Music Assistant, which turned the zone on and off slowly or not at all. The **Music player** and **Music Assistant** buttons and the artwork still use the Music Assistant player.
+- Tests no longer fail when run just after midnight.
+
 ## 0.9.28 — Curtain and media fixes
 
 - **Media**: sound systems show only a **Sources** tab, and only when they list sources (no Apps tab on a speaker). Player cards side by side end on the same line. **Pause all villa audio** has an icon again (the old one no longer exists in the icon set).

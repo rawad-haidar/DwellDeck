@@ -24,6 +24,13 @@ const states = Object.fromEntries([
 ]);
 const hass = {states, entities: {}, areas: {}, devices: {}};
 
+
+// Pins the clock to midday today, so "Today" and "Last month" ranges do not depend on the hour the tests run.
+const RealDate = Date;
+const atMidday = () => { const noon = new RealDate(); noon.setHours(12, 0, 0, 0); const at = noon.getTime();
+  globalThis.Date = class extends RealDate { constructor(...a) { a.length ? super(...a) : super(at); } static now() { return at; } };
+  return () => { globalThis.Date = RealDate; }; };
+
 test('finds both inverters by name and skips a group that only adds up PV', () => {
   const inverters = discoverInverters(hass);
   assert.deepEqual(inverters.map(inv => inv.pv), ['sensor.electric_room_inverter_master_pv_power', 'sensor.electric_room_inverter_slave_pv_power']);
@@ -56,6 +63,8 @@ test('today adds up both inverters', () => {
 });
 
 test('history has a date dropdown and reads statistics for the picked range', async () => {
+  const restore = atMidday();
+  try {
   const view = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x'}, hass));
   const card = view.sections[2].cards[1];
   const body = card.custom_fields.history.trim().slice(3, -3);
@@ -82,6 +91,7 @@ test('history has a date dropdown and reads statistics for the picked range', as
   await window.__dwellHistLoad.energy();
   assert.equal(calls.at(-1).period, 'hour');
   assert(card.styles.custom_fields.history.some(r => r['pointer-events'] === 'auto'));
+  } finally { restore(); }
 });
 
 test('sign conventions can be flipped in setup', () => {

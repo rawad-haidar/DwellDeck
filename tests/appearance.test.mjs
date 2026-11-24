@@ -591,7 +591,7 @@ test('a sound system card shows what its Music Assistant player plays, with artw
 test('player cards: previous, play and next buttons, and a volume slider on the player that sets the volume',async()=>{
  const {tvCard}=await import('../src/tv.mjs');
  const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
- const states=Object.fromEntries([st('media_player.rest_living_sound_system','on',{friendly_name:'Living Sound System',supported_features:4+8+1024}),
+ const states=Object.fromEntries([st('media_player.rest_living_sound_system','on',{friendly_name:'Living Sound System',supported_features:4+8+1024,volume_level:0.42}),
   st('media_player.living_sound_system_2','playing',{friendly_name:'Living Sound System',mass_player_type:'player',supported_features:1+4+8+16+32+16384,volume_level:0.42})]);
  const entities={'media_player.rest_living_sound_system':{platform:'dsppa_am8328',device_id:'z'},'media_player.living_sound_system_2':{platform:'music_assistant',device_id:'z'}};
  const hass={states,entities,devices:{z:{manufacturer:'DSPPA'}},areas:{}};

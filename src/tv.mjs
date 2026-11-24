@@ -63,6 +63,9 @@ const rank = (id, hass) => {
   if (platform === 'androidtv') return 3;
   const tv = hass.states?.[id]?.attributes?.device_class === 'tv';
   if (['androidtv_remote', 'apple_tv'].includes(platform) || tv) return tvRemote(id, hass) ? 0 : 1;
+  // A Music Assistant copy of a zone comes after the zone itself, so power, volume and playback go
+  // straight to the device rather than through Music Assistant.
+  if (['music_assistant', 'mass'].includes(platform) || 'mass_player_type' in (hass.states?.[id]?.attributes || {})) return 5;
   return tvRemote(id, hass) ? 2 : 4;
 };
 
