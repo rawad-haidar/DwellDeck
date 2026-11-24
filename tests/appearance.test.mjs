@@ -774,8 +774,6 @@ test('page colours and no theme blur go on the dashboard root and the browser pa
  const strategy=fs.readFileSync(new URL('../src/strategy.mjs',import.meta.url),'utf8');
  assert(strategy.includes("put(root, 'dwelldeck-root', wanted?.root)")&&strategy.includes("put(document.head, 'dwelldeck-page', wanted?.page)"));
 });
- for(const view of d.views)assert(String(view.card_mod?.style||'').includes('--ha-card-backdrop-filter:none'),view.path);
-});
 
 test('icon and label sit together, centred, in the player buttons and tabs (button-card centres icons with automatic margins)',async()=>{
  const {tvCard}=await import('../src/tv.mjs');
