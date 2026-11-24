@@ -11,7 +11,7 @@ const view = () => generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {d
 
 test('climate opens with what runs now, heating beside it, then the rest', () => {
   const v = view();
-  assert.deepEqual(v.sections.map(s => s.cards[0].heading), ['Climate now', 'Heating', 'AC scenes', 'Air conditioners', 'Thermostats', 'Last 24 hours']);
+  assert.deepEqual(v.sections.map(s => s.cards[0].heading), ['Climate now', 'Heating', 'AC scenes', 'Air conditioners', 'Thermostats', 'History']);
   assert.equal(v.sections[0].column_span, 2);
   assert(!JSON.stringify(v).includes('"name":"AC live status"'), 'the old list is replaced');
   const heatTile = v.sections[1].cards.find(c => c.entity === 'switch.boiler');
@@ -51,4 +51,29 @@ test('status shows the average temperature, what is on, and turns everything off
   // Nothing on.
   const quiet = Function('states', card.custom_fields.status.trim().slice(3, -3))({...states, 'climate.master_ac': st('off', {current_temperature: 25}), 'switch.boiler': st('off')});
   assert(quiet.includes('Nothing is heating or cooling') && !quiet.includes('Turn everything off'));
+});
+
+test('history: room temperatures as lines and an activity row per device, for a picked range', async () => {
+  const v = view();
+  const card = v.sections.at(-1).cards[1];
+  assert.equal(v.sections.at(-1).column_span, 3, 'full width');
+  const body = card.custom_fields.history.trim().slice(3, -3);
+  const now = Date.now() / 1000, calls = [];
+  const fakeHass = {states: {}, callWS: async msg => { calls.push(msg); return {
+    'climate.master_ac': [{s: 'cool', a: {current_temperature: 26, hvac_action: 'cooling'}, lu: now - 7200}, {s: 'cool', a: {current_temperature: 23, hvac_action: 'cooling'}, lu: now - 3600}, {s: 'off', lu: now - 1800}],
+    'switch.boiler': [{s: 'on', lu: now - 5000}, {s: 'off', lu: now - 1000}]
+  }; }};
+  globalThis.window = {};
+  const shadow = {querySelector: () => null};
+  const first = Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+  for (const label of ['Today', 'Yesterday', 'Last 24 hours', 'Last week', 'Pick a day']) assert(first.includes(`>${label}</option>`));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(calls[0].type, 'history/history_during_period');
+  assert(calls[0].entity_ids.includes('climate.master_ac') && calls[0].entity_ids.includes('switch.boiler'));
+  const html = Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+  assert(html.includes('Room temperature') && html.includes('<path d="M'), 'temperature line');
+  assert(html.includes('Activity') && html.includes('· Cooling ·') && html.includes('· On ·'), 'timeline rows');
+  assert(html.includes('class="hv"'), 'hover readout');
+  window.__dwellClimHistUi.toggle({dataset: {id: 'climate.master_ac'}});
+  assert(Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass).includes('lgi off'), 'line switched off');
 });
