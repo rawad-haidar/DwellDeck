@@ -4,36 +4,8 @@ export const SLOTS = [{"key":"entity_001","placeholder":"alarm_control_panel.dwe
 export const ROOM_TEMPLATES = [{"key":"room_01","name":"Saloon","section":1,"card":1,"placeholders":["light.dwelldeck_slot_255","light.dwelldeck_slot_256","light.dwelldeck_slot_257","light.dwelldeck_slot_258","light.dwelldeck_slot_259","light.dwelldeck_slot_260","light.dwelldeck_slot_261","light.dwelldeck_slot_262","light.dwelldeck_slot_263"]},{"key":"room_02","name":"Dining","section":1,"card":2,"placeholders":["light.dwelldeck_slot_172","light.dwelldeck_slot_173","light.dwelldeck_slot_174","light.dwelldeck_slot_175","light.dwelldeck_slot_176"]},{"key":"room_03","name":"Kitchen","section":1,"card":3,"placeholders":["light.dwelldeck_slot_196","light.dwelldeck_slot_197","light.dwelldeck_slot_198","light.dwelldeck_slot_199","light.dwelldeck_slot_200","light.dwelldeck_slot_201"]},{"key":"room_04","name":"Dirty Kitchen","section":1,"card":4,"placeholders":["light.dwelldeck_slot_177","light.dwelldeck_slot_178","light.dwelldeck_slot_179","light.dwelldeck_slot_180","light.dwelldeck_slot_181"]},{"key":"room_05","name":"Entrance","section":1,"card":5,"placeholders":["light.dwelldeck_slot_184","light.dwelldeck_slot_185","light.dwelldeck_slot_186","light.dwelldeck_slot_187","light.dwelldeck_slot_188"]},{"key":"room_06","name":"Rest Area","section":1,"card":6,"placeholders":["light.dwelldeck_slot_236","light.dwelldeck_slot_237","light.dwelldeck_slot_238","light.dwelldeck_slot_239","light.dwelldeck_slot_240","light.dwelldeck_slot_241","light.dwelldeck_slot_242","light.dwelldeck_slot_243","light.dwelldeck_slot_244","light.dwelldeck_slot_245","light.dwelldeck_slot_246"]},{"key":"room_07","name":"Mini Kitchen","section":1,"card":7,"placeholders":["light.dwelldeck_slot_228","light.dwelldeck_slot_229"]},{"key":"room_08","name":"Master Bedroom","section":2,"card":1,"placeholders":["light.dwelldeck_slot_211","light.dwelldeck_slot_212","light.dwelldeck_slot_213","light.dwelldeck_slot_214","light.dwelldeck_slot_215","light.dwelldeck_slot_216","light.dwelldeck_slot_217","light.dwelldeck_slot_218","light.dwelldeck_slot_219","light.dwelldeck_slot_220","light.dwelldeck_slot_221","light.dwelldeck_slot_222","light.dwelldeck_slot_223","light.dwelldeck_slot_224","light.dwelldeck_slot_225","light.dwelldeck_slot_226"]},{"key":"room_09","name":"Bedroom 1","section":2,"card":2,"placeholders":["light.dwelldeck_slot_164","light.dwelldeck_slot_165","light.dwelldeck_slot_166","light.dwelldeck_slot_167","light.dwelldeck_slot_168","light.dwelldeck_slot_169","light.dwelldeck_slot_170","light.dwelldeck_slot_171"]},{"key":"room_10","name":"Bedroom 2","section":2,"card":3,"placeholders":["light.dwelldeck_slot_206","light.dwelldeck_slot_207","light.dwelldeck_slot_208","light.dwelldeck_slot_209","light.dwelldeck_slot_210"]},{"key":"room_11","name":"Guest Bathroom","section":2,"card":4,"placeholders":["light.dwelldeck_slot_189","light.dwelldeck_slot_190","light.dwelldeck_slot_191","light.dwelldeck_slot_192"]},{"key":"room_12","name":"Pool Area","section":3,"card":1,"placeholders":["light.dwelldeck_slot_230","light.dwelldeck_slot_231","light.dwelldeck_slot_232","light.dwelldeck_slot_233","light.dwelldeck_slot_234","light.dwelldeck_slot_235"]},{"key":"room_13","name":"Landscape","section":3,"card":2,"placeholders":["light.dwelldeck_slot_202","light.dwelldeck_slot_203","light.dwelldeck_slot_204","light.dwelldeck_slot_205","light.dwelldeck_slot_265","light.dwelldeck_slot_264","light.dwelldeck_slot_266"]},{"key":"room_14","name":"Gym","section":3,"card":3,"placeholders":["light.dwelldeck_slot_193","light.dwelldeck_slot_194","light.dwelldeck_slot_195"]},{"key":"room_15","name":"Roof Apartment","section":4,"card":1,"placeholders":["light.dwelldeck_slot_247","light.dwelldeck_slot_248","light.dwelldeck_slot_249","light.dwelldeck_slot_250","light.dwelldeck_slot_251","light.dwelldeck_slot_252","light.dwelldeck_slot_253","light.dwelldeck_slot_254"]},{"key":"room_16","name":"Electric Room","section":4,"card":2,"placeholders":["light.dwelldeck_slot_182","light.dwelldeck_slot_183"]}];
 export const LABELS = [{"token":"__DWELLDECK_LABEL_01__","default":"Bedroom 1"},{"token":"__DWELLDECK_LABEL_02__","default":"Bedroom 2"},{"token":"__DWELLDECK_LABEL_03__","default":"Bedroom 1"},{"token":"__DWELLDECK_LABEL_04__","default":"Bedroom 2"},{"token":"__DWELLDECK_LABEL_05__","default":"Bedroom 1"},{"token":"__DWELLDECK_LABEL_06__","default":"Bedroom 2"}];
 export const BUILTIN_THEME = {"primary-color":"#29d5ee","accent-color":"#39e2bc","primary-background-color":"#080e18","secondary-background-color":"#111d2b","card-background-color":"#162536","ha-card-background":"#162536","primary-text-color":"#edf5ff","secondary-text-color":"#91a8bd","disabled-text-color":"#62798e","divider-color":"rgba(156,199,225,0.12)","ha-card-border-color":"rgba(156,199,225,0.12)","ha-card-border-width":"1px","ha-card-border-radius":"16px","ha-card-box-shadow":"0 8px 24px rgba(0,0,0,0.16)","app-header-background-color":"#0c1521","app-header-text-color":"#edf5ff","sidebar-background-color":"#0c1521","sidebar-text-color":"#91a8bd","sidebar-selected-text-color":"#29d5ee","sidebar-selected-icon-color":"#29d5ee","paper-item-icon-color":"#91b4ce","state-icon-color":"#91b4ce","state-active-color":"#39e2bc","state-inactive-color":"#758da3","state-light-active-color":"#efc875","state-climate-heat-color":"#f5af7d","label-badge-background-color":"#162536","label-badge-text-color":"#edf5ff","lovelace-background":"#080e18","history-unavailable-color":"#586a80","graph-color-1":"#29d5ee","graph-color-2":"#39e2bc","graph-color-3":"#c28af4","modes":{"dark":{"primary-background-color":"#080e18","primary-text-color":"#edf5ff"},"light":{"primary-background-color":"#080e18","primary-text-color":"#edf5ff"}},"ha-dialog-surface-background":"#101c2b","ha-dialog-border-radius":"20px","mdc-theme-surface":"#101c2b","mdc-theme-on-surface":"#edf5ff","mdc-dialog-scrim-color":"rgba(3,8,16,0.76)","mdc-theme-primary":"#29d5ee","ha-color-surface-default":"#101c2b","ha-color-surface-raised":"#162536","ha-color-surface-lowered":"#080e18","ha-color-on-neutral-normal":"#edf5ff"};
-// Original layout generator: one entity binding updates every reference.
+// Shared helpers: cloning, tree walking and entity-ID list rewriting.
 const clone = value => JSON.parse(JSON.stringify(value));
-export const DEPENDENCIES = [
-  {name:'Button Card',tag:'button-card',owner:'custom-cards',repository:'button-card',category:'plugin'},
-  {name:'card-mod',tag:'card-mod',owner:'thomasloven',repository:'lovelace-card-mod',category:'plugin'},
-  {name:'Mini Graph Card',tag:'mini-graph-card',owner:'kalkih',repository:'mini-graph-card',category:'plugin'},
-  {name:'Browser Mod',service:'browser_mod',owner:'thomasloven',repository:'hass-browser_mod',category:'integration'}
-];
-export function dependencyStatus(hass, elementRegistry) {
-  return DEPENDENCIES.map(item=>({...item,ready:!!(item.service ? hass?.services?.[item.service]?.popup : elementRegistry?.get(item.tag)),
-    url:`https://my.home-assistant.io/redirect/hacs_repository/?owner=${item.owner}&repository=${item.repository}&category=${item.category}`}));
-}
-export function inferDashboardPath(config, pathname = '') {
-  if (config.dashboard_path) return config.dashboard_path.replace(/\/$/,'');
-  const prefix = pathname.split('/')[1];
-  return prefix && !['config','profile','hacs','marketplace','lovelace'].includes(prefix) && /^[a-z0-9_-]+$/.test(prefix) ? `/${prefix}` : '/dashboard-dwelldeck';
-}
-function addBuiltinColors(dashboard) {
-  const variables=Object.entries(BUILTIN_THEME).filter(([key,value])=>key!=='modes'&&typeof value==='string').map(([key,value])=>`--${key}:${value};`).join('');
-  const css=`:host {${variables}} ha-card {color:var(--primary-text-color);background:var(--ha-card-background);border-radius:var(--ha-card-border-radius);}`;
-  for(const view of dashboard.views){delete view.theme;view.card_mod={...view.card_mod,style:`:host{${variables}}`};}
-  visit(dashboard,item=>{
-    const nativeCards=['markdown','tile','button','entities','history-graph','thermostat','picture-entity','alarm-panel','weather-forecast','media-control'];
-    if(!nativeCards.includes(item.type)&&!item.type?.startsWith('custom:'))return;
-    if(!item.card_mod)item.card_mod={style:css};
-    else if(typeof item.card_mod.style==='string')item.card_mod.style=css+'\n'+item.card_mod.style;
-    else if(item.card_mod.style&&typeof item.card_mod.style==='object')item.card_mod.style={...item.card_mod.style,'.':css+'\n'+(item.card_mod.style['.']||'')};
-    else item.card_mod.style=css;
-  });
-}
 const entityPattern = /\b[a-z_]+\.[a-z0-9_]+\b/g;
 const listPattern = /(?<![\w$])\[\s*['"][a-z_]+\.[a-z0-9_]+['"](?:\s*,\s*['"][a-z_]+\.[a-z0-9_]+['"])*\s*,?\s*\]/g;
 const walk = (value, fn) => {
@@ -56,9 +28,21 @@ function changeLists(value, before, after) {
   });
   return value;
 }
-const ROOM_CONTROL_DOMAINS = ['cover', 'climate', 'scene', 'sensor', 'binary_sensor', 'media_player'];
 const normalizeName = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+// Custom cards and integrations the original design needs, and their install status.
+export const DEPENDENCIES = [
+  {name:'Button Card',tag:'button-card',owner:'custom-cards',repository:'button-card',category:'plugin'},
+  {name:'card-mod',tag:'card-mod',owner:'thomasloven',repository:'lovelace-card-mod',category:'plugin'},
+  {name:'Mini Graph Card',tag:'mini-graph-card',owner:'kalkih',repository:'mini-graph-card',category:'plugin'},
+  {name:'Browser Mod',service:'browser_mod',owner:'thomasloven',repository:'hass-browser_mod',category:'integration'}
+];
+export function dependencyStatus(hass, elementRegistry) {
+  return DEPENDENCIES.map(item=>({...item,ready:!!(item.service ? hass?.services?.[item.service]?.popup : elementRegistry?.get(item.tag)),
+    url:`https://my.home-assistant.io/redirect/hacs_repository/?owner=${item.owner}&repository=${item.repository}&category=${item.category}`}));
+}
+// Home Assistant registry discovery: areas, devices, rooms and entity selection.
 
+const ROOM_CONTROL_DOMAINS = ['cover', 'climate', 'scene', 'sensor', 'binary_sensor', 'media_player'];
 export async function discoveryContext(hass) {
   if (!hass.callWS) return hass;
   const [areas, entities, devices, floors, labels] = await Promise.all([
@@ -155,34 +139,6 @@ export function roomControlEntities(room, hass) {
     !cameraEntity(id, hass) && !(room.exclude || []).includes(id));
 }
 
-function addRoomControls(card, room, hass) {
-  const content = card.tap_action?.browser_mod?.data?.content;
-  if (!Array.isArray(content?.cards)) return;
-  const ids = roomControlEntities(room, hass);
-  if (!ids.length) return;
-  const originalGrid = content.cards.find(item => item.type === 'grid' && item.cards?.some(tile => tile.type === 'tile'));
-  const originalTile = originalGrid?.cards.find(tile => tile.type === 'tile');
-  const tiles = ids.map(id => {
-    const domain = id.split('.')[0];
-    const tile = {type: 'tile', entity: id, vertical: true,
-      tap_action: {action: 'more-info'}, icon_tap_action: {action: 'more-info'},
-      hold_action: {action: 'more-info'}};
-    if (originalTile?.card_mod) {
-      tile.card_mod = walk(clone(originalTile.card_mod), value => value.replaceAll(originalTile.entity, id));
-    }
-    if (domain === 'light' || domain === 'switch') tile.card_mod = {style: stateCardStyle(id)};
-  if (domain === 'cover') tile.features = [{type: 'cover-open-close'}];
-    if (domain === 'climate') tile.features = [{type: 'target-temperature'}];
-    if (domain === 'scene') {
-      tile.tap_action = {action: 'perform-action', perform_action: 'scene.turn_on', target: {entity_id: id}};
-      tile.icon_tap_action = clone(tile.tap_action);
-    }
-    return tile;
-  });
-  content.cards.push({type: 'heading', heading: 'Room controls', icon: 'mdi:home-automation'},
-    {type: 'grid', columns: originalGrid?.columns || 3, square: false, cards: tiles});
-}
-
 export function roomEntities(room, hass, domains = ['light']) {
   const devices = hass?.devices || {}, entities = hass?.entities || {};
   const areaIds = Object.values(entities).filter(e => room.area && usableRegistryEntity(e, hass) &&
@@ -191,27 +147,6 @@ export function roomEntities(room, hass, domains = ['light']) {
   const excluded = new Set(room.exclude || []);
   return [...new Set([...areaIds,...(room.entities || [])])].filter(id => !excluded.has(id) && domains.includes(id.split('.')[0]) &&
     (!room.discover_lighting || domains.length !== 1 || domains[0] !== 'light' || lightingCandidate(id, hass)));
-}
-function makeLightPopup(card, ids) {
-  const data = card.tap_action?.browser_mod?.data;
-  if (!data?.content) return;
-  visit(data.content, item => {
-    if (item.type === 'grid' && Array.isArray(item.cards) && item.cards.length && item.cards.every(c => c.type === 'tile' && /^(light|switch)\./.test(c.entity || ''))) {
-      const existing = new Map(item.cards.map(c => [c.entity,c])); const template = item.cards[0];
-      item.cards = ids.map(id => {
-        if (existing.has(id)) return existing.get(id);
-        const tile = walk(template,text => text.replace(entityPattern,ref => ref === template.entity ? id : ref));
-        tile.entity = id; delete tile.name; return tile;
-      });
-    }
-    if (item.type === 'markdown') item.content = item.content.replace(/\b\d+ lights\b/g, `${ids.length} lights`);
-    const action = item.tap_action;
-    if (action?.target?.entity_id && ['light.turn_on','light.turn_off'].includes(action.perform_action)) {
-      action.target.entity_id = ids;
-      if (ids.some(id => id.startsWith('switch.'))) action.perform_action = action.perform_action.replace('light.','homeassistant.');
-      if (!ids.length) item.tap_action = {action:'none'};
-    }
-  });
 }
 function entityArea(id, hass) {
   const entry = hass.entities?.[id];
@@ -247,7 +182,145 @@ function roomSensorCandidate(id, hass) {
   return ['temperature', 'humidity', 'illuminance', 'battery', 'voltage', 'carbon_dioxide', 'pm25', 'pm10', 'power', 'energy'].includes(deviceClass) ||
     /gas.*raw_status/.test(id);
 }
+function availableAreaEntities(hass, domains) {
+  return Object.values(hass.entities || {}).filter(entry =>
+    domains.includes(entry.entity_id.split('.')[0]) && usableRegistryEntity(entry, hass))
+    .map(entry => entry.entity_id);
+}
+function sceneName(id, hass) {
+  return normalizeName(`${id} ${hass.entities?.[id]?.name || ''} ${hass.entities?.[id]?.original_name || ''} ${hass.states?.[id]?.attributes?.friendly_name || ''}`);
+}
+// Built-in colours, selectable palettes and the animated "living" design layer.
 
+function addBuiltinColors(dashboard) {
+  const variables=Object.entries(BUILTIN_THEME).filter(([key,value])=>key!=='modes'&&typeof value==='string').map(([key,value])=>`--${key}:${value};`).join('');
+  const css=`:host {${variables}} ha-card {color:var(--primary-text-color);background:var(--ha-card-background);border-radius:var(--ha-card-border-radius);}`;
+  for(const view of dashboard.views){delete view.theme;view.card_mod={...view.card_mod,style:`:host{${variables}}`};}
+  visit(dashboard,item=>{
+    const nativeCards=['markdown','tile','button','entities','history-graph','thermostat','picture-entity','alarm-panel','weather-forecast','media-control'];
+    if(!nativeCards.includes(item.type)&&!item.type?.startsWith('custom:'))return;
+    if(!item.card_mod)item.card_mod={style:css};
+    else if(typeof item.card_mod.style==='string')item.card_mod.style=css+'\n'+item.card_mod.style;
+    else if(item.card_mod.style&&typeof item.card_mod.style==='object')item.card_mod.style={...item.card_mod.style,'.':css+'\n'+(item.card_mod.style['.']||'')};
+    else item.card_mod.style=css;
+  });
+}
+const DWELL_PALETTES = {
+  ocean: {name:'Ocean blue', colors:['#1b2d40','#101c2b','#172638','#4b9aee'], page:'#080f1b'},
+  emerald: {name:'Emerald', colors:['#183d38','#102823','#15342e','#4cc9a6'], page:'#081712'},
+  violet: {name:'Amethyst', colors:['#332547','#1d152e','#2b203c','#b294ef'], page:'#100b1b'},
+  rose: {name:'Rosewood', colors:['#432b38','#291a25','#36222f','#e49db9'], page:'#190e16'},
+  slate: {name:'Graphite', colors:['#303944','#1c222b','#28313c','#a4bfd8'], page:'#10141b'}
+};
+function applyDwellPalette(dashboard, key) {
+  const palette=DWELL_PALETTES[key] || DWELL_PALETTES.ocean;
+  if(key==='ocean' || !DWELL_PALETTES[key])return dashboard;
+  const originals=['#1b2d40','#101c2b','#172638','#4b9aee'];
+  const replacements=new Map(originals.map((color,index)=>[color,palette.colors[index]]));
+  const themed=walk(dashboard,text=>text.replace(/#1b2d40|#101c2b|#172638|#4b9aee/gi,color=>replacements.get(color.toLowerCase())));
+  for(const view of themed.views){
+    view.card_mod ||= {};
+    view.card_mod.style=(view.card_mod.style || '')+`
+:host {--primary-color:${palette.colors[3]};--accent-color:${palette.colors[3]};--lovelace-background:linear-gradient(135deg,${palette.page},${palette.colors[1]});--primary-background-color:${palette.page};--ha-card-background:${palette.colors[0]};--card-background-color:${palette.colors[0]};background:linear-gradient(135deg,${palette.page},${palette.colors[1]})!important;}`;
+  }
+  return themed;
+}
+
+// Motion follows actual entity activity; reduced-motion preferences remain respected.
+function addLivingDesign(dashboard) {
+  const motion = `
+    @keyframes dwell-breathe { 0%,100% {filter: brightness(1);} 50% {filter: brightness(1.14);} }
+    @keyframes dwell-arrive {from {opacity:.65; transform:translateY(6px);} to {opacity:1;transform:none;} }
+    ha-card {transition:background .7s ease,border-color .7s ease,box-shadow .7s ease,transform .25s ease;
+      animation:dwell-arrive .45s ease both;}
+    @media (hover:hover) {ha-card:hover {transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.22);}}
+    @media (prefers-reduced-motion:reduce) {ha-card,ha-state-icon {animation:none!important;transition:none!important;transform:none!important;}}
+  `;
+  visit(dashboard, card => {
+    if (card.type === 'custom:button-card') {
+      const ids = (Array.isArray(card.triggers_update) ? card.triggers_update : [card.entity]).filter(id => typeof id === 'string' && /^(light|switch|cover|climate|media_player|fan)\./.test(id));
+      if (!ids.length) return;
+      const active = `const ids=${JSON.stringify(ids)}; return ids.some(id=>{const e=states[id];if(!e)return false;if(id.startsWith('climate.'))return ['heating','cooling','drying','fan'].includes(e.attributes?.hvac_action);return ['on','playing','opening','closing'].includes(e.state);});`;
+      card.styles ||= {};
+      card.styles.card ||= [];
+      card.styles.card.push({transition:'background .7s ease, border-color .7s ease, box-shadow .7s ease, transform .25s ease'},
+        {'box-shadow':`[[[ return (()=>{${active}})() ? '0 0 22px rgba(255,196,90,.16), inset 0 1px 0 rgba(255,223,163,.12)' : '0 5px 18px rgba(0,0,0,.12)'; ]]]`});
+      card.styles.icon ||= [];
+      card.styles.icon.push({animation:`[[[ return (()=>{${active}})() ? 'dwell-breathe 3.6s ease-in-out infinite' : 'none'; ]]]`});
+      card.extra_styles = (card.extra_styles || '') + motion;
+    } else if (['tile','thermostat','media-control','picture-entity','markdown','history-graph','logbook'].includes(card.type)) {
+      let style = motion;
+      if (card.entity && /^(light|switch|cover|climate|media_player|fan)\./.test(card.entity)) {
+        const id=JSON.stringify(card.entity);
+        style += `{% set e = states[${id}] %}
+          {% set active = e is not none and (e.state in ['on','playing','opening','closing'] or e.attributes.get('hvac_action') in ['heating','cooling','drying','fan']) %}
+          ha-card {box-shadow:{% if active %}0 0 24px rgba(255,196,90,.18), inset 0 1px 0 rgba(255,223,163,.12){% else %}0 5px 18px rgba(0,0,0,.12){% endif %};}
+          ha-state-icon {animation:{% if active %}dwell-breathe 3.6s ease-in-out infinite{% else %}none{% endif %};}`;
+      }
+      if (!card.card_mod) card.card_mod={style};
+      else if(typeof card.card_mod.style==='string') card.card_mod.style += '\n'+style;
+      else if(card.card_mod.style && typeof card.card_mod.style==='object') card.card_mod.style['.']=(card.card_mod.style['.']||'')+'\n'+style;
+    }
+  });
+  const home=dashboard.views.find(view=>view.path==='home');
+  let greeted=false;
+  visit(home, card=>{
+    if(!greeted && card.type==='markdown' && card.content?.includes('now().strftime')) {
+      card.content = `{% set hour = now().hour %}\n### {% if hour < 12 %}Good morning ☀️{% elif hour < 18 %}Good afternoon 🌤️{% else %}Good evening ✨{% endif %}\n` + card.content;
+      greeted=true;
+    }
+  });
+}
+// Card builders: room tiles, light popups, area room cards and entity sections.
+
+function addRoomControls(card, room, hass) {
+  const content = card.tap_action?.browser_mod?.data?.content;
+  if (!Array.isArray(content?.cards)) return;
+  const ids = roomControlEntities(room, hass);
+  if (!ids.length) return;
+  const originalGrid = content.cards.find(item => item.type === 'grid' && item.cards?.some(tile => tile.type === 'tile'));
+  const originalTile = originalGrid?.cards.find(tile => tile.type === 'tile');
+  const tiles = ids.map(id => {
+    const domain = id.split('.')[0];
+    const tile = {type: 'tile', entity: id, vertical: true,
+      tap_action: {action: 'more-info'}, icon_tap_action: {action: 'more-info'},
+      hold_action: {action: 'more-info'}};
+    if (originalTile?.card_mod) {
+      tile.card_mod = walk(clone(originalTile.card_mod), value => value.replaceAll(originalTile.entity, id));
+    }
+    if (domain === 'light' || domain === 'switch') tile.card_mod = {style: stateCardStyle(id)};
+  if (domain === 'cover') tile.features = [{type: 'cover-open-close'}];
+    if (domain === 'climate') tile.features = [{type: 'target-temperature'}];
+    if (domain === 'scene') {
+      tile.tap_action = {action: 'perform-action', perform_action: 'scene.turn_on', target: {entity_id: id}};
+      tile.icon_tap_action = clone(tile.tap_action);
+    }
+    return tile;
+  });
+  content.cards.push({type: 'heading', heading: 'Room controls', icon: 'mdi:home-automation'},
+    {type: 'grid', columns: originalGrid?.columns || 3, square: false, cards: tiles});
+}
+function makeLightPopup(card, ids) {
+  const data = card.tap_action?.browser_mod?.data;
+  if (!data?.content) return;
+  visit(data.content, item => {
+    if (item.type === 'grid' && Array.isArray(item.cards) && item.cards.length && item.cards.every(c => c.type === 'tile' && /^(light|switch)\./.test(c.entity || ''))) {
+      const existing = new Map(item.cards.map(c => [c.entity,c])); const template = item.cards[0];
+      item.cards = ids.map(id => {
+        if (existing.has(id)) return existing.get(id);
+        const tile = walk(template,text => text.replace(entityPattern,ref => ref === template.entity ? id : ref));
+        tile.entity = id; delete tile.name; return tile;
+      });
+    }
+    if (item.type === 'markdown') item.content = item.content.replace(/\b\d+ lights\b/g, `${ids.length} lights`);
+    const action = item.tap_action;
+    if (action?.target?.entity_id && ['light.turn_on','light.turn_off'].includes(action.perform_action)) {
+      action.target.entity_id = ids;
+      if (ids.some(id => id.startsWith('switch.'))) action.perform_action = action.perform_action.replace('light.','homeassistant.');
+      if (!ids.length) item.tap_action = {action:'none'};
+    }
+  });
+}
 function roomTile(id, prototype, hass) {
   const domain = id.split('.')[0];
   const rich = richEntityCard(id, hass);
@@ -447,13 +520,6 @@ ha-card { min-height: 180px; overflow: hidden; }
   }
   return null;
 }
-
-function availableAreaEntities(hass, domains) {
-  return Object.values(hass.entities || {}).filter(entry =>
-    domains.includes(entry.entity_id.split('.')[0]) && usableRegistryEntity(entry, hass))
-    .map(entry => entry.entity_id);
-}
-
 function floorEntitySections(ids, hass, prototype, icon) {
   const floors = Object.values(hass.floors || {}).sort((a, b) =>
     (a.level ?? -1) - (b.level ?? -1) || a.name.localeCompare(b.name));
@@ -534,10 +600,7 @@ function organizedEntitySections(ids, hass, prototype, icon, domain) {
   }
   return sections;
 }
-
-function sceneName(id, hass) {
-  return normalizeName(`${id} ${hass.entities?.[id]?.name || ''} ${hass.entities?.[id]?.original_name || ''} ${hass.states?.[id]?.attributes?.friendly_name || ''}`);
-}
+// Reorganises generated views (rooms, lights, curtains, media, cameras, climate).
 
 function organizeDashboardViews(output, config, hass, prototype) {
   const lighting = output.views.find(view => view.path === 'lighting');
@@ -744,7 +807,13 @@ function rebuildRichAreaViews(output, config, hass, prototype, lightIds) {
   ]});
   output.views[output.views.findIndex(view => view.path === 'climate')] = restoredClimate;
 }
+// Original layout generator: one entity binding updates every reference.
 
+export function inferDashboardPath(config, pathname = '') {
+  if (config.dashboard_path) return config.dashboard_path.replace(/\/$/,'');
+  const prefix = pathname.split('/')[1];
+  return prefix && !['config','profile','hacs','marketplace','lovelace'].includes(prefix) && /^[a-z0-9_-]+$/.test(prefix) ? `/${prefix}` : '/dashboard-dwelldeck';
+}
 export function generateOriginal(template, slots, roomTemplates, config, hass = {}) {
   if (config.auto_discover) config = discoverConfiguration(config, hass, roomTemplates, slots);
   const bindings = config.entities || {};
@@ -849,75 +918,7 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
   addLivingDesign(output);
   return applyDwellPalette(output, config.color_palette || 'ocean');
 }
-
-
-
-const DWELL_PALETTES = {
-  ocean: {name:'Ocean blue', colors:['#1b2d40','#101c2b','#172638','#4b9aee'], page:'#080f1b'},
-  emerald: {name:'Emerald', colors:['#183d38','#102823','#15342e','#4cc9a6'], page:'#081712'},
-  violet: {name:'Amethyst', colors:['#332547','#1d152e','#2b203c','#b294ef'], page:'#100b1b'},
-  rose: {name:'Rosewood', colors:['#432b38','#291a25','#36222f','#e49db9'], page:'#190e16'},
-  slate: {name:'Graphite', colors:['#303944','#1c222b','#28313c','#a4bfd8'], page:'#10141b'}
-};
-function applyDwellPalette(dashboard, key) {
-  const palette=DWELL_PALETTES[key] || DWELL_PALETTES.ocean;
-  if(key==='ocean' || !DWELL_PALETTES[key])return dashboard;
-  const originals=['#1b2d40','#101c2b','#172638','#4b9aee'];
-  const replacements=new Map(originals.map((color,index)=>[color,palette.colors[index]]));
-  const themed=walk(dashboard,text=>text.replace(/#1b2d40|#101c2b|#172638|#4b9aee/gi,color=>replacements.get(color.toLowerCase())));
-  for(const view of themed.views){
-    view.card_mod ||= {};
-    view.card_mod.style=(view.card_mod.style || '')+`
-:host {--primary-color:${palette.colors[3]};--accent-color:${palette.colors[3]};--lovelace-background:linear-gradient(135deg,${palette.page},${palette.colors[1]});--primary-background-color:${palette.page};--ha-card-background:${palette.colors[0]};--card-background-color:${palette.colors[0]};background:linear-gradient(135deg,${palette.page},${palette.colors[1]})!important;}`;
-  }
-  return themed;
-}
-
-// Motion follows actual entity activity; reduced-motion preferences remain respected.
-function addLivingDesign(dashboard) {
-  const motion = `
-    @keyframes dwell-breathe { 0%,100% {filter: brightness(1);} 50% {filter: brightness(1.14);} }
-    @keyframes dwell-arrive {from {opacity:.65; transform:translateY(6px);} to {opacity:1;transform:none;} }
-    ha-card {transition:background .7s ease,border-color .7s ease,box-shadow .7s ease,transform .25s ease;
-      animation:dwell-arrive .45s ease both;}
-    @media (hover:hover) {ha-card:hover {transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.22);}}
-    @media (prefers-reduced-motion:reduce) {ha-card,ha-state-icon {animation:none!important;transition:none!important;transform:none!important;}}
-  `;
-  visit(dashboard, card => {
-    if (card.type === 'custom:button-card') {
-      const ids = (Array.isArray(card.triggers_update) ? card.triggers_update : [card.entity]).filter(id => typeof id === 'string' && /^(light|switch|cover|climate|media_player|fan)\./.test(id));
-      if (!ids.length) return;
-      const active = `const ids=${JSON.stringify(ids)}; return ids.some(id=>{const e=states[id];if(!e)return false;if(id.startsWith('climate.'))return ['heating','cooling','drying','fan'].includes(e.attributes?.hvac_action);return ['on','playing','opening','closing'].includes(e.state);});`;
-      card.styles ||= {};
-      card.styles.card ||= [];
-      card.styles.card.push({transition:'background .7s ease, border-color .7s ease, box-shadow .7s ease, transform .25s ease'},
-        {'box-shadow':`[[[ return (()=>{${active}})() ? '0 0 22px rgba(255,196,90,.16), inset 0 1px 0 rgba(255,223,163,.12)' : '0 5px 18px rgba(0,0,0,.12)'; ]]]`});
-      card.styles.icon ||= [];
-      card.styles.icon.push({animation:`[[[ return (()=>{${active}})() ? 'dwell-breathe 3.6s ease-in-out infinite' : 'none'; ]]]`});
-      card.extra_styles = (card.extra_styles || '') + motion;
-    } else if (['tile','thermostat','media-control','picture-entity','markdown','history-graph','logbook'].includes(card.type)) {
-      let style = motion;
-      if (card.entity && /^(light|switch|cover|climate|media_player|fan)\./.test(card.entity)) {
-        const id=JSON.stringify(card.entity);
-        style += `{% set e = states[${id}] %}
-          {% set active = e is not none and (e.state in ['on','playing','opening','closing'] or e.attributes.get('hvac_action') in ['heating','cooling','drying','fan']) %}
-          ha-card {box-shadow:{% if active %}0 0 24px rgba(255,196,90,.18), inset 0 1px 0 rgba(255,223,163,.12){% else %}0 5px 18px rgba(0,0,0,.12){% endif %};}
-          ha-state-icon {animation:{% if active %}dwell-breathe 3.6s ease-in-out infinite{% else %}none{% endif %};}`;
-      }
-      if (!card.card_mod) card.card_mod={style};
-      else if(typeof card.card_mod.style==='string') card.card_mod.style += '\n'+style;
-      else if(card.card_mod.style && typeof card.card_mod.style==='object') card.card_mod.style['.']=(card.card_mod.style['.']||'')+'\n'+style;
-    }
-  });
-  const home=dashboard.views.find(view=>view.path==='home');
-  let greeted=false;
-  visit(home, card=>{
-    if(!greeted && card.type==='markdown' && card.content?.includes('now().strftime')) {
-      card.content = `{% set hour = now().hour %}\n### {% if hour < 12 %}Good morning ☀️{% elif hour < 18 %}Good afternoon 🌤️{% else %}Good evening ✨{% endif %}\n` + card.content;
-      greeted=true;
-    }
-  });
-}
+// Visual setup editor shown under Edit dashboard.
 
 class DwellDeckOriginalEditor extends HTMLElement {
   constructor(){super();this.attachShadow({mode:'open'});}
@@ -1036,6 +1037,8 @@ class DwellDeckOriginalEditor extends HTMLElement {
     const style=document.createElement('style');style.textContent=':host{display:block}p{line-height:1.6;color:var(--secondary-text-color)}section,details{padding:18px;margin:12px 0;border:1px solid rgba(139,185,216,.2);border-radius:18px;background:linear-gradient(135deg,rgba(71,119,157,.12),rgba(27,45,64,.06))}summary{cursor:pointer;font-weight:600;padding:4px}ha-form{display:block;margin-top:14px}button{font:inherit;font-weight:600;color:#edf5ff;padding:12px 20px;margin:6px 8px 6px 0;border:1px solid rgba(137,194,232,.45);border-radius:13px;background:linear-gradient(120deg,#244b67,#375b82,#496d84);background-size:220% 100%;box-shadow:0 5px 16px rgba(0,0,0,.14);cursor:pointer;transition:background-position .6s ease,box-shadow .3s ease,transform .2s ease}button:hover{background-position:100% 50%;border-color:#ffd16b;box-shadow:0 0 20px rgba(255,209,107,.18);transform:translateY(-1px)}button:active{transform:scale(.98);background:linear-gradient(120deg,#8b6932,#b18a46);color:#fff4d9}button:focus-visible,summary:focus-visible{outline:2px solid #ffd16b;outline-offset:4px}button:disabled{opacity:.55;cursor:wait;transform:none}a{color:#87cef1;text-underline-offset:3px}@media(prefers-reduced-motion:reduce){button{transition:none;transform:none!important}}';this.shadowRoot.append(style);
   }
 }
+// Dashboard strategy and custom element registration.
+
 class DwellDeckOriginalStrategy extends HTMLElement {
   static configRequired=true;
   static getConfigElement(){return document.createElement('dwelldeck-original-editor');}

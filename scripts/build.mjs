@@ -1,27 +1,37 @@
 // Builds the single-file HACS distributable dwelldeck.js from src/.
 // Usage: node scripts/build.mjs          write dwelldeck.js
 //        node scripts/build.mjs --check  fail if dwelldeck.js is out of date
+//
+// The src/ modules share one scope once bundled, so top-level names must be
+// unique across modules. Only names re-exported by src/index.mjs stay exported.
 import fs from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
 const read = path => fs.readFile(new URL(path, root), 'utf8');
 
+// Dependency order: each module only uses modules listed before it.
+const MODULES = ['util', 'dependencies', 'discovery', 'theme', 'cards', 'views', 'generator', 'editor', 'strategy'];
 const DATA = {
-  ORIGINAL_TEMPLATE: 'src/data/template.json',
-  SLOTS: 'src/data/slots.json',
-  ROOM_TEMPLATES: 'src/data/room-templates.json',
-  LABELS: 'src/data/labels.json',
-  BUILTIN_THEME: 'src/data/builtin-theme.json'
+  ORIGINAL_TEMPLATE: 'template', SLOTS: 'slots', ROOM_TEMPLATES: 'room-templates',
+  LABELS: 'labels', BUILTIN_THEME: 'builtin-theme'
 };
+const localImport = /^import \{[^}]*\} from '\.\/[\w-]+\.mjs';\n/gm;
 
 export async function build() {
   const {version} = JSON.parse(await read('package.json'));
+  const index = await read('src/index.mjs');
+  const publicNames = new Set([...index.matchAll(/^export \{([^}]*)\}/gm)].flatMap(m => m[1].split(',').map(s => s.trim())));
   const parts = [`// DwellDeck ${version} — original design edition. MIT License.`];
-  for (const [name, path] of Object.entries(DATA)) {
-    parts.push(`export const ${name} = ${JSON.stringify(JSON.parse(await read(path)))};`);
+  for (const [name, file] of Object.entries(DATA)) {
+    parts.push(`export const ${name} = ${JSON.stringify(JSON.parse(await read(`src/data/${file}.json`)))};`);
   }
-  parts.push(await read('original-layout-core.mjs'));
-  return parts.join('\n');
+  for (const module of MODULES) {
+    const source = (await read(`src/${module}.mjs`)).replace(localImport, '').replace(/^\n+/, '\n');
+    if (/^import /m.test(source)) throw Error(`src/${module}.mjs: only single-line local imports can be bundled`);
+    parts.push(source.replace(/^export ((?:async )?(?:function|const|let|class) ([\w$]+))/gm,
+      (match, declaration, name) => publicNames.has(name) ? match : declaration).trimEnd());
+  }
+  return parts.join('\n') + '\n';
 }
 
 const output = await build();
