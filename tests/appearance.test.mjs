@@ -56,12 +56,15 @@ test('air conditioning counts configured units and uses sentence case',()=>{
  assert(text.includes('${ids.filter(id=>states[id]).length} on'));
  assert(!text.includes("text:'COOLING'"));
 });
-test('Home opens with the live sky and information cards are not boxed',()=>{
+const outside=d=>d.views[0].sections.find(s=>s.cards[0].heading==='Outside');
+test('Home opens with the house at a glance, the sky has its own section, information cards are not boxed',()=>{
  const d=generate({});
  const first=d.views[0].sections[0].cards;
- assert(first[0].custom_fields?.sky||first[0].content==='Select an entity in DwellDeck setup.');
+ assert(first[0].custom_fields?.glance);
+ const sky=outside(d).cards[1];
+ assert(sky.custom_fields?.sky||sky.content==='Select an entity in DwellDeck setup.');
  const bound=generate({entities:Object.fromEntries(SLOTS.filter(s=>s.domain==='weather').map(s=>[s.key,'weather.home']))});
- assert(bound.views[0].sections[0].cards[0].custom_fields?.sky);
+ assert(outside(bound).cards[1].custom_fields?.sky);
  assert(!first.some(c=>c.type==='heading'&&c.heading==='Welcome home'));
  assert(!JSON.stringify(first).includes('☀️'));
  const markdown=[];const find=x=>{if(x&&typeof x==='object'){if(x.type==='markdown')markdown.push(x);Object.values(x).forEach(find);}};find(d);
@@ -71,11 +74,11 @@ test('the readable font can be switched off',()=>{
  assert(JSON.stringify(generate({})).includes('Atkinson Hyperlegible Next'));
  assert(!JSON.stringify(generate({font:'system'})).includes('Atkinson Hyperlegible Next'));
 });
-test('Home weather is the live hero card spanning two columns',()=>{
+test('Home weather is the live hero card in the Outside section',()=>{
  const key=SLOTS.find(s=>s.placeholder==='weather.dwelldeck_slot_295').key;
  const d=generate({entities:{[key]:'weather.home'}});
- const section=d.views[0].sections[0];const card=section.cards[0];
- assert.equal(section.column_span,2);
+ assert.equal(d.views[0].sections[0].column_span,2);
+ const card=outside(d).cards[1];
  assert(card.custom_fields.sky.includes('weather/subscribe_forecast'));
  assert(card.custom_fields.sky.includes('"weather":"weather.home"'));
  assert(!card.custom_fields.sky.slice(3,-3).includes(']]]'));
@@ -406,4 +409,21 @@ test('a TV that is off shows Off even when a cast entry of it keeps playing',()=
  assert(runField(tv,'now',states).includes('The TV is off.'));
  const bg=tv.custom_fields.power.card.styles.card.find(o=>'background' in o).background;
  assert.equal(Function('states','entity',bg.trim().slice(3,-3))(states,states[tv.entity]),'transparent');
+});
+test('home is ordered by importance and shows rooms only while something in them is on',()=>{
+ const st=(state,attributes={})=>({state,attributes});
+ const states={'light.den_a':st('on'),'media_player.den_tv':st('off',{device_class:'tv'}),'climate.den_ac':st('off'),'weather.home':st('sunny',{temperature:20})};
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{den:{area_id:'den',name:'Den',labels:[]}},floors:{},labels:{},devices:{},
+  entities:Object.fromEntries(Object.keys(states).map(id=>[id,{entity_id:id,area_id:'den'}]))};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const home=d.views.find(v=>v.path==='home');
+ assert.deepEqual(home.sections.map(s=>s.cards[0].heading||s.cards[0].custom_fields&&Object.keys(s.cards[0].custom_fields)[0]),['glance','Safety','Outside','Climate and energy','Shortcuts']);
+ assert.equal(home.sections[0].column_span,2);
+ const den=home.sections[0].cards.find(c=>c.name==='Den');
+ assert(den.visibility[0].conditions.some(c=>c.entity==='light.den_a'&&c.state==='on'));
+ const quiet=home.sections[0].cards.find(c=>c.name==='Everything is off');
+ assert(quiet.visibility[0].conditions.some(c=>c.entity==='light.den_a'&&c.state_not==='on'));
+ const shortcuts=home.sections[4].cards.slice(1);
+ assert(shortcuts.length>=6&&shortcuts.every(c=>c.styles.card.some(r=>r.height==='120px')));
+ assert(!JSON.stringify(home).includes("now().strftime('%H:%M')"));
 });

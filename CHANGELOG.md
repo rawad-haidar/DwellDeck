@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.26 — Home in order of importance
+
+- **At a glance** replaces the clock card: greeting, time and date, and status pills for lights, TVs, air conditioning, curtains, open doors and windows, and the alarm. Each pill opens its page; an open door or a triggered alarm shows in red.
+- **Rooms in use** shows the room cards only while something in the room is on (lights, a TV, air conditioning, a switch). When nothing is, one card says everything is off.
+- **Safety** groups alerts, the outdoor alarm and the latest activity. **Outside** holds the weather hero. **Climate and energy** shows air conditioning and solar, consumption and battery side by side.
+- **Shortcuts**: the page buttons share one size and layout.
+- A room no longer counts as in use because a cast or DLNA entry of its TV keeps playing.
+
 ## 0.9.25 — TV off means off
 
 - When a TV card has real TV entries (`device_class: tv`), they decide whether it is on. A cast or speaker entry that keeps playing while the TV is off no longer makes the status, power button or Now playing show the TV as on.

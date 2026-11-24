@@ -1,7 +1,8 @@
 // Rooms page design: each room card is a glanceable summary with one quick action, and each room
 // opens with a compact status strip instead of rows of sensor tiles.
 
-const ROOM_COLORS = {
+import {tvGroup} from './tv.mjs';
+export const ROOM_COLORS = {
   surface: '#1b2d40', surfaceEnd: '#172638', card: '#101c2b', text: '#edf5ff', muted: '#91a8bd',
   line: 'rgba(156,199,225,.12)', onBg: '#493b24', on: '#d5a74c', onText: '#efc875', active: '#39e2bc', alert: '#ff7885'
 };
@@ -107,12 +108,15 @@ export function designRoomCard(card, {lights, controls, hass, room = {}}) {
   const total = lights.length;
   // Active means something in the room is switched on: lights, a TV or player, air conditioning running, a switch.
   // Sensors, doors and open curtains are shown as chips, not as activity.
-  const ids = [...new Set([...lights, ...controls.filter(id => /^(media_player|climate|switch|fan)\./.test(id) && !hass.entities?.[id]?.entity_category)])];
+  // A TV counts once, by its main entry: a cast or DLNA entry that keeps playing does not light up the room.
+  const ids = [...new Set([...lights, ...controls.filter(id => /^(media_player|climate|switch|fan)\./.test(id) && !hass.entities?.[id]?.entity_category)
+    .map(id => id.startsWith('media_player.') ? tvGroup(id, hass)[0] : id)])];
   const active = `(()=>{const ids=${JSON.stringify(ids)}; return ids.some(id=>{const e=states[id]; if(!e) return false;
     if(id.startsWith('climate.')) return ['heating','cooling','drying','fan'].includes(e.attributes?.hvac_action);
     if(id.startsWith('media_player.')) return !['off','standby','idle','unavailable','unknown'].includes(e.state);
     return e.state==='on';});})()`;
   card.show_label = true;
+  card.variables = {...(card.variables || {}), dwell_active: ids};
   card.label = total
     ? `[[[ const ids=${JSON.stringify(lights)}; const on=ids.filter(id=>states[id]?.state==='on').length; return on ? on + ' of ' + ids.length + (ids.length === 1 ? ' light on' : ' lights on') : 'All lights off'; ]]]`
     : (controls.length ? 'No lights' : 'Nothing assigned');
