@@ -12,7 +12,10 @@ class DwellDeckOriginalStrategy extends HTMLElement {
     const needsDiscovery = config.auto_discover || config.room_controls ||
       Object.values(config.rooms || {}).some(room => room.area) ||
       (config.extra_rooms || []).some(room => room.area);
-    const context = needsDiscovery ? await discoveryContext(hass) : hass;
+    // Camera detection only uses the registries to link sensors to cameras on the same device.
+    // If any registry cannot be read (older Home Assistant has no floors or labels), match camera names instead.
+    const context = needsDiscovery ? await discoveryContext(hass)
+      : config.camera_detection !== false ? await discoveryContext(hass).catch(() => hass) : hass;
     return generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, config, context);
   }
 }

@@ -3,6 +3,7 @@ import {clone} from './util.mjs';
 import {dependencyStatus} from './dependencies.mjs';
 import {ROOM_CONTROL_DOMAINS, discoveryContext, discoverConfiguration} from './discovery.mjs';
 import {DWELL_PALETTES} from './theme.mjs';
+import {detectionSensors, snapshotAutomation, SNAPSHOT_DIR} from './detection.mjs';
 import {SLOTS, ROOM_TEMPLATES} from './data.mjs';
 
 export class DwellDeckOriginalEditor extends HTMLElement {
@@ -82,6 +83,51 @@ export class DwellDeckOriginalEditor extends HTMLElement {
       }
     };
     this.shadowRoot.append(discover, discoveryStatus);
+    // Detection snapshots: create or update one automation that saves a picture at each detection.
+    const snapshots = document.createElement('button');
+    snapshots.textContent = this.config.detection_snapshots ? 'Update detection snapshots' : 'Set up detection snapshots';
+    const snapshotStatus = document.createElement('p');
+    snapshotStatus.setAttribute('role', 'status');
+    snapshotStatus.textContent = this.config.detection_snapshots
+      ? 'Detection snapshots are on. Press again after adding cameras or detection sensors.'
+      : `Saves the latest picture of each human or vehicle detection to ${SNAPSHOT_DIR} (login required to view), using an automation named “DwellDeck · Detection snapshots”.`;
+    snapshots.onclick = async () => {
+      snapshots.disabled = true;
+      snapshotStatus.textContent = 'Finding detection sensors and their cameras…';
+      try {
+        const sensors = detectionSensors(await discoveryContext(this._hass));
+        const automation = snapshotAutomation(sensors);
+        const linked = sensors.filter(sensor => sensor.camera);
+        if (!automation.triggers.length) {
+          snapshotStatus.textContent = sensors.length
+            ? `Found ${sensors.length} detection sensors, but none is linked to a camera. Put each sensor on its camera’s device, or name the camera like the sensors.`
+            : 'No human or vehicle detection sensors found. Their names need to contain person, human, vehicle or car detection.';
+          snapshots.disabled = false;
+          return;
+        }
+        await this._hass.callApi('POST', 'config/automation/config/dwelldeck_detection_snapshots', automation);
+        // Home Assistant only loads UI automations when configuration.yaml includes automations.yaml.
+        let loaded = false;
+        for (let i = 0; i < 20 && !loaded; i++) {
+          loaded = Object.values(this._hass.states).some(state => state.entity_id.startsWith('automation.') && state.attributes.id === 'dwelldeck_detection_snapshots');
+          if (!loaded) await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        if (!loaded) {
+          snapshotStatus.textContent = 'The snapshot automation was saved, but Home Assistant did not load it. Make sure configuration.yaml contains “automation: !include automations.yaml”, restart, then press this button again.';
+          snapshots.disabled = false;
+          return;
+        }
+        this.change({...this.config, detection_snapshots: true});
+        const unlinked = sensors.filter(sensor => !sensor.camera).map(sensor => sensor.cam);
+        snapshotStatus.textContent = `Snapshots set up for ${linked.length} sensors on ${automation.triggers.length} cameras.` +
+          (unlinked.length ? ` No camera found for: ${[...new Set(unlinked)].join(', ')}.` : '') + ' Save the dashboard to show them.';
+        snapshots.textContent = 'Update detection snapshots';
+      } catch (error) {
+        snapshotStatus.textContent = `Could not set up snapshots: ${error.message || error.body?.message || 'administrator access is required'}`;
+      }
+      snapshots.disabled = false;
+    };
+    this.shadowRoot.append(snapshots, snapshotStatus);
     const discoverySummary = document.createElement('p');
     discoverySummary.textContent = `${Object.values(this.config.rooms || {}).filter(room => room.area).length + (this.config.extra_rooms || []).length} rooms configured · ${Object.keys(this.config.entities || {}).length} entity bindings. Save the dashboard configuration to apply changes.`;
     this.shadowRoot.append(discoverySummary);

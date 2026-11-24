@@ -99,7 +99,7 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
     output = replaceAggregates(output);
   }
   if (config.area_rooms) rebuildRichAreaViews(output, config, hass, lightPrototype, [...new Set(allLights)]);
-  if (config.camera_detection !== false) output.views.find(view => view.path === 'security').sections.push(cameraDetectionSection(prefix));
+  if (config.camera_detection !== false) output.views.find(view => view.path === 'security').sections.push(cameraDetectionSection(prefix, config, hass));
   // Rows in entity lists (history graphs, mini graphs, entities cards) are not cards:
   // drop unselected rows, and hint only when a card has no selected rows left.
   const unselected = row => (typeof row === 'string' ? row : row?.entity)?.includes?.('.dwelldeck_slot_');
