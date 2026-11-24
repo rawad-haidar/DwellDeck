@@ -52,8 +52,10 @@ test('the snapshot automation saves one picture per sensor from its camera', () 
     {trigger: 'state', entity_id: ['binary_sensor.front_gate_smd_human', 'binary_sensor.front_gate_smd_vehicle'], to: 'on', id: 'camera.front_gate_main'},
     {trigger: 'state', entity_id: ['binary_sensor.gym_authorized_vehicle'], to: 'on', id: 'camera.gym'}
   ]);
-  assert.deepEqual(automation.actions, [{action: 'camera.snapshot', target: {entity_id: '{{ trigger.id }}'},
-    data: {filename: `${SNAPSHOT_DIR}/{{ trigger.entity_id }}.jpg`}}]);
+  assert.deepEqual(automation.actions, [
+    {action: 'camera.snapshot', target: {entity_id: '{{ trigger.id }}'}, data: {filename: `${SNAPSHOT_DIR}/{{ trigger.entity_id }}.jpg`}},
+    {action: 'camera.snapshot', target: {entity_id: '{{ trigger.id }}'},
+      data: {filename: `${SNAPSHOT_DIR}/{{ trigger.id.split('.')[1] }}/{{ now().strftime('%Y%m%d_%H%M%S') }}_{{ trigger.entity_id.split('.')[1] }}.jpg`}}]);
   assert(SNAPSHOT_DIR.startsWith('/media/'), 'snapshots must stay in the login-protected media folder');
 });
 
@@ -85,8 +87,10 @@ test('each camera is listed with its detection popup, newest detection first, fo
 
 test('with snapshots on, the popup shows each sensor snapshot and the live camera', () => {
   const content = JSON.stringify(tiles(generate({detection_snapshots: true}))[0].popup.data.content);
-  assert(content.includes('"image":"media-source://media_source/local/dwelldeck/snapshots/binary_sensor.front_gate_smd_human.jpg"'));
-  assert(content.includes('"image":"media-source://media_source/local/dwelldeck/snapshots/binary_sensor.front_gate_smd_vehicle.jpg"'));
+  assert(content.includes('media-source://media_source/local/dwelldeck/snapshots/front_gate_main'), 'the camera folder');
+  assert(content.includes('media-source://media_source/local/dwelldeck/snapshots/binary_sensor.front_gate_smd_human.jpg'), 'latest per sensor until dated ones exist');
+  assert(content.includes('media-source://media_source/local/dwelldeck/snapshots/binary_sensor.front_gate_smd_vehicle.jpg'));
+  assert(content.includes('pointer-events'));
   assert(content.includes('"entity":"camera.front_gate_main"'));
 });
 
@@ -105,4 +109,23 @@ test('without detection sensors the recent activity table remains', () => {
 test('the snapshots link opens the snapshot folder in the Media browser', async () => {
   const {SNAPSHOT_BROWSER} = await import('../src/detection.mjs');
   assert.equal(SNAPSHOT_BROWSER, '/media-browser/browser/app%2Cmedia-source%3A%2F%2Fmedia_source/%2Cmedia-source%3A%2F%2Fmedia_source%2Flocal%2Fdwelldeck%2Fsnapshots');
+});
+
+test('the snapshot viewer lists the camera folder newest first and switches the large picture', async () => {
+  const content = tiles(generate({detection_snapshots: true}))[0].popup.data.content;
+  const viewer = content.cards[0];
+  const body = viewer.custom_fields.viewer.trim().slice(3, -3);
+  const files = ['20261124_101500_front_gate_smd_vehicle.jpg', '20261124_203724_front_gate_smd_human.jpg', '20261123_090000_front_gate_smd_human.jpg'];
+  const hass = {callWS: async msg => msg.type === 'media_source/browse_media'
+    ? {children: files.map(title => ({title, media_content_id: msg.media_content_id + '/' + title, can_expand: false}))}
+    : {url: '/media/' + msg.media_content_id.split('/').pop()}};
+  globalThis.window = {};
+  const run = card => Function('states', 'hass', body).call(card, {}, hass);
+  assert.match(run(null), /Loading snapshots/);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const html = run(null);
+  const order = [...html.matchAll(/<img src="\/media\/([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(order, ['20261124_203724_front_gate_smd_human.jpg', '20261124_101500_front_gate_smd_vehicle.jpg', '20261123_090000_front_gate_smd_human.jpg']);
+  assert(html.includes('class="big" src="/media/20261124_203724_front_gate_smd_human.jpg"'));
+  assert(html.includes('__dwellSnapUi.pick'));
 });

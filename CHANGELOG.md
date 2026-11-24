@@ -4,6 +4,7 @@
 
 - **Security** opens with one status card: the alarm state in large type, pills for safety alerts, open doors and windows, motion, gates and cameras, and a **Needs attention** list (alarm triggered, safety alerts, unlocked gates, open doors and windows, offline cameras, most serious first; each opens its entity). When nothing needs you, it says all clear.
 - **Camera detection** is one folding card instead of a tile per camera: folded, it shows how many cameras have detection and what was detected now or last; open, it lists every camera newest detection first (live, not only when the page loads), and each row opens that camera's detection popup. It remembers being open on each device.
+- **Snapshot history per camera**: each detection now also saves a dated snapshot in a folder per camera (`media/dwelldeck/snapshots/<camera>/`). The detection popup shows the newest one large with a strip of earlier ones under it, newest first; tap one to see it large. Press **Update detection snapshots** in the dashboard editor once to update the automation.
 - **Detection snapshots**: a row in the detection card and a shortcut open the snapshot folder (`media/dwelldeck/snapshots`) in the Media browser.
 - Then the alarm panel top right, **Gates** with each gate's status and its **Unlock** button on one row (the confirmation stays), **Entrance cameras** two across, **Camera detection**, and **Shortcuts** (sensor activity, recent history, all cameras, detection history) in the same style as Home.
 

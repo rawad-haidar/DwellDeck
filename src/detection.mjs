@@ -109,11 +109,16 @@ export function snapshotAutomation(sensors) {
   for (const sensor of sensors) if (sensor.camera) byCamera.set(sensor.camera, [...(byCamera.get(sensor.camera) || []), sensor.entity_id]);
   return {
     alias: 'DwellDeck · Detection snapshots',
-    description: 'Created by DwellDeck. When a human or vehicle detection sensor turns on, saves a snapshot from its camera, replacing the previous one.',
+    description: 'Created by DwellDeck. When a human or vehicle detection sensor turns on, saves a snapshot from its camera: the latest one per sensor, and a dated copy in a folder per camera.',
     mode: 'parallel', max: 25,
     triggers: [...byCamera].map(([camera, ids]) => ({trigger: 'state', entity_id: ids, to: 'on', id: camera})),
     conditions: [],
-    actions: [{action: 'camera.snapshot', target: {entity_id: '{{ trigger.id }}'}, data: {filename: `${SNAPSHOT_DIR}/{{ trigger.entity_id }}.jpg`}}]
+    actions: [
+      {action: 'camera.snapshot', target: {entity_id: '{{ trigger.id }}'}, data: {filename: `${SNAPSHOT_DIR}/{{ trigger.entity_id }}.jpg`}},
+      // Newest-first by name: the time comes first, then the sensor ("20261124_203724_kitchen_21_smd_human.jpg").
+      {action: 'camera.snapshot', target: {entity_id: '{{ trigger.id }}'},
+        data: {filename: `${SNAPSHOT_DIR}/{{ trigger.id.split('.')[1] }}/{{ now().strftime('%Y%m%d_%H%M%S') }}_{{ trigger.entity_id.split('.')[1] }}.jpg`}}
+    ]
   };
 }
 
@@ -147,17 +152,107 @@ const tileLabel = rows => `[[[
 
 const activeTest = ids => `${JSON.stringify(ids)}.some(id => states[id]?.state === 'on')`;
 
+// Runs inside a button-card template (\`card\` is the button-card element): a large snapshot with a strip of
+// this camera's earlier snapshots under it; tapping one shows it large. Snapshots are listed from the
+// camera's folder through the Media browser. Self-contained: serialised with toString.
+function dwellSnapViewer(card, hass, cfg) {
+  const cache = window.__dwellSnaps = window.__dwellSnaps || {};
+  window.__dwellSnapUi = window.__dwellSnapUi || {
+    pick(el) {
+      const box = el.closest('.sv');
+      const item = (window.__dwellSnaps[box.dataset.key]?.items || [])[Number(el.dataset.i)];
+      if (!item) return;
+      window.__dwellSnaps[box.dataset.key].sel = Number(el.dataset.i);
+      box.querySelector('.big').src = item.url;
+      box.querySelector('.cap').textContent = item.caption;
+      box.querySelectorAll('.th').forEach(th => th.classList.toggle('sel', th === el));
+    }
+  };
+  const entry = cache[cfg.key] = cache[cfg.key] || {items: [], sel: 0, at: 0, loading: false};
+  const label = name => {
+    const m = /^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})_(.*)\.jpg$/i.exec(name);
+    if (!m) return {when: 0, caption: name.replace(/\.jpg$/i, '').replaceAll('_', ' ')};
+    const date = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+    const kind = /vehicle|car/i.test(m[7]) ? 'Vehicle' : /human|person/i.test(m[7]) ? 'Human' : 'Detection';
+    const today = date.toDateString() === new Date().toDateString();
+    const time = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    return {when: date.getTime(), caption: kind + ' · ' + (today ? time : date.toLocaleDateString([], {day: 'numeric', month: 'short'}) + ', ' + time)};
+  };
+  const render = () => {
+    const items = entry.items;
+    if (!items.length) return `<div class="sv" data-key="${cfg.key}"><div class="empty">${entry.loading ? 'Loading snapshots…' : 'No snapshots yet. The next detection saves one here.'}</div></div>`;
+    const sel = items[entry.sel] || items[0];
+    return `<div class="sv" data-key="${cfg.key}"><img class="big" src="${sel.url}" alt="Snapshot"><div class="cap">${sel.caption}</div>
+      <div class="strip">${items.map((item, i) => `<button class="th${item === sel ? ' sel' : ''}" data-i="${i}" onclick="event.stopPropagation();window.__dwellSnapUi.pick(this)" title="${item.caption}">
+        <img src="${item.url}" loading="lazy" alt=""><span>${item.caption.split(' · ')[1] || ''}</span></button>`).join('')}</div></div>`;
+  };
+  const style = `<style>
+    .sv{display:grid;gap:8px;text-align:left}
+    .big{display:block;width:100%;max-height:52vh;object-fit:contain;border-radius:14px;background:#0b141f}
+    .cap{font-size:13px;color:${cfg.c.muted}}
+    .strip{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x proximity}
+    .th{all:unset;flex:none;width:120px;cursor:pointer;scroll-snap-align:start;display:grid;gap:4px;font-size:12px;color:${cfg.c.muted}}
+    .th img{width:120px;height:68px;object-fit:cover;border-radius:10px;border:2px solid transparent;background:#0b141f}
+    .th.sel img{border-color:${cfg.c.on}}
+    .th.sel{color:${cfg.c.onText}}
+    .th:focus-visible img{outline:2px solid ${cfg.c.onText};outline-offset:2px}
+    .empty{padding:24px;text-align:center;color:${cfg.c.muted};font-size:14px;background:#0b141f;border-radius:14px}
+  </style>`;
+  // Load (again after a minute, so new detections show up when the popup is opened again).
+  if (!entry.loading && Date.now() - entry.at > 60000 && hass?.callWS) {
+    entry.loading = true;
+    (async () => {
+      const resolve = async id => {
+        try { return (await hass.callWS({type: 'media_source/resolve_media', media_content_id: id, expires: 86400})).url; } catch (e) { return null; }
+      };
+      let files = [];
+      try {
+        const folder = await hass.callWS({type: 'media_source/browse_media', media_content_id: cfg.folder});
+        files = (folder.children || []).filter(child => !child.can_expand && /\.jpe?g$/i.test(child.title || ''))
+          .map(child => ({id: child.media_content_id, ...label(child.title)})).sort((a, b) => b.when - a.when).slice(0, cfg.max);
+      } catch (e) { /* no folder yet */ }
+      // Before the first dated snapshot: the latest snapshot of each sensor.
+      if (!files.length) files = cfg.latest.map(item => ({id: item.id, when: 0, caption: item.caption}));
+      const items = (await Promise.all(files.map(async file => ({...file, url: await resolve(file.id)})))).filter(item => item.url);
+      Object.assign(entry, {items, sel: 0, at: Date.now(), loading: false});
+      // Draw into the card that asked; the popup may have been closed meanwhile.
+      const deep = root => { const hit = root.querySelector?.(`.sv[data-key="${cfg.key}"]`); if (hit) return hit;
+        for (const el of root.querySelectorAll?.('*') || []) { const found = el.shadowRoot && deep(el.shadowRoot); if (found) return found; } return null; };
+      const target = card?.shadowRoot?.querySelector(`.sv[data-key="${cfg.key}"]`) || (typeof document !== 'undefined' ? deep(document) : null);
+      if (target) target.outerHTML = render();
+    })();
+  }
+  return style + render();
+}
+
+function snapshotViewer(group) {
+  const folderName = group.camera.split('.')[1];
+  const cfg = {
+    key: folderName, max: 40,
+    folder: `media-source://media_source/local/${SNAPSHOT_DIR.replace(/^\/media\//, '')}/${folderName}`,
+    latest: group.sensors.map(sensor => ({id: snapshotImage(sensor.entity_id), caption: `${sensor.kinds.map(kind => kind === 'vehicle' ? 'Vehicle' : 'Human').join(' and ')} · latest`})),
+    c: {muted: '#91a8bd', on: '#d5a74c', onText: '#efc875'}
+  };
+  return {
+    type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
+    tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
+    custom_fields: {viewer: `[[[ return (${dwellSnapViewer.toString()})(this, hass, ${JSON.stringify(cfg)}); ]]]`},
+    styles: {card: [{padding: '0'}, {background: 'transparent'}, {border: 'none'}, {'box-shadow': 'none'}, {cursor: 'default'}],
+      grid: [{'grid-template-areas': '"viewer"'}, {'grid-template-columns': '1fr'}],
+      custom_fields: {viewer: [{width: '100%'}, {'min-width': '0'}, {'pointer-events': 'auto'}]}}
+  };
+}
+
 function detectionTile(group, snapshots) {
   const ids = group.sensors.map(sensor => sensor.entity_id);
   const rows = group.sensors.flatMap(sensor => sensor.kinds.map(kind => ({id: sensor.entity_id, kind})));
   const cards = [];
   for (const kind of ['human', 'vehicle']) for (const sensor of group.sensors.filter(s => s.kinds.includes(kind))) {
     const header = `{% set s = states.${sensor.entity_id} %}#### ${KIND_LABEL[kind]} · {% if not s %}not found{% elif s.state == 'on' %}detected now{% elif s.state in ['unavailable', 'unknown'] %}unavailable{% else %}clear since {{ as_timestamp(s.last_changed) | timestamp_custom('%d %b, %H:%M') }}{% endif %}`;
-    cards.push({type: 'markdown', content: snapshots
-      ? `${header}\n\nLatest snapshot from *{{ state_attr('${sensor.entity_id}', 'friendly_name') }}*.`
-      : header});
-    if (snapshots && sensor.camera) cards.push({type: 'picture', image: snapshotImage(sensor.entity_id), tap_action: {action: 'none'}, hold_action: {action: 'none'}, card_mod: SNAPSHOT_STYLE});
+    cards.push({type: 'markdown', content: header});
   }
+  // One viewer per camera, above the sensor lines: the newest snapshot large, earlier ones in a strip.
+  if (snapshots && group.camera) cards.unshift(snapshotViewer(group));
   if (!snapshots) cards.push({type: 'markdown', content: 'To see a picture of each detection, open **Edit dashboard** and press **Set up detection snapshots**.'});
   if (group.camera) cards.push({type: 'markdown', content: '#### 📹 Live view'},
     {type: 'picture-entity', entity: group.camera, camera_view: 'auto', show_name: false, show_state: false, tap_action: {action: 'more-info'}});
