@@ -2,7 +2,7 @@
 import {clone, entityPattern, walk, visit, changeLists} from './util.mjs';
 import {usableRegistryEntity, roomControlEntities, roomEntities, entityArea, entityLabels, cameraEntity} from './discovery.mjs';
 import {ORIGINAL_TEMPLATE} from './data.mjs';
-import {tvCard} from './tv.mjs';
+import {tvCard, withoutDuplicatePlayers} from './tv.mjs';
 
 export function addRoomControls(card, room, hass) {
   const content = card.tap_action?.browser_mod?.data?.content;
@@ -91,7 +91,7 @@ function groupedRoomTiles(ids, title, icon, prototype, hass) {
   for (const [label, entities] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
     cards.push({type: 'heading', heading: label ? `${title} · ${label}` : title, icon});
     cards.push({type: 'grid', columns: entities.some(id => /^(cover|climate|media_player)\./.test(id)) ? 1 : 3, square: false,
-      cards: entities.map(id => roomTile(id, prototype, hass))});
+      cards: withoutDuplicatePlayers(entities, hass).map(id => roomTile(id, prototype, hass))});
   }
   return cards;
 }
@@ -245,7 +245,7 @@ export function floorEntitySections(ids, hass, prototype, icon) {
   for (const floor of groups) {
     const cards = [{type: 'heading', heading: floor.name, icon: floor.icon || icon}];
     for (const area of floor.areas.sort((a, b) => a.name.localeCompare(b.name))) {
-      const selected = ids.filter(id => entityArea(id, hass) === area.area_id);
+      const selected = withoutDuplicatePlayers(ids.filter(id => entityArea(id, hass) === area.area_id), hass);
       if (!selected.length) continue;
       cards.push({type: 'heading', heading: area.name, icon: area.icon || icon});
       for (const id of selected) {
@@ -305,7 +305,7 @@ export function organizedEntitySections(ids, hass, prototype, icon, domain) {
   const sections = [];
   const tile = prototype.tap_action.browser_mod.data.content.cards.find(card => card.type === 'grid')?.cards?.[0];
   for (const area of [...areas, {area_id: '', name: 'No area assigned'}]) {
-    const selected = ids.filter(id => (entityArea(id, hass) || '') === area.area_id);
+    const selected = withoutDuplicatePlayers(ids.filter(id => (entityArea(id, hass) || '') === area.area_id), hass);
     if (!selected.length) continue;
     const floor = hass.floors?.[area.floor_id];
     const cards = [{type: 'heading', heading: floor ? `${floor.name} · ${area.name}` : area.name, icon: area.icon || icon}];
