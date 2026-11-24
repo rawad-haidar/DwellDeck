@@ -1,0 +1,1772 @@
+[
+  {
+    "key": "entity_001",
+    "placeholder": "alarm_control_panel.dwelldeck_slot_001",
+    "domain": "alarm_control_panel",
+    "label": "Outdoor"
+  },
+  {
+    "key": "entity_002",
+    "placeholder": "binary_sensor.dwelldeck_slot_002",
+    "domain": "binary_sensor",
+    "label": "Back Gate Playgrnd Field Authorized Vehicle"
+  },
+  {
+    "key": "entity_003",
+    "placeholder": "binary_sensor.dwelldeck_slot_003",
+    "domain": "binary_sensor",
+    "label": "Back Gate Playgrnd Field Rule 25"
+  },
+  {
+    "key": "entity_004",
+    "placeholder": "binary_sensor.dwelldeck_slot_004",
+    "domain": "binary_sensor",
+    "label": "Back Gate Smart Motion Human"
+  },
+  {
+    "key": "entity_005",
+    "placeholder": "binary_sensor.dwelldeck_slot_005",
+    "domain": "binary_sensor",
+    "label": "Back Gate Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_006",
+    "placeholder": "binary_sensor.dwelldeck_slot_006",
+    "domain": "binary_sensor",
+    "label": "Back Gate Vila Road Disk Dev Sda"
+  },
+  {
+    "key": "entity_007",
+    "placeholder": "binary_sensor.dwelldeck_slot_007",
+    "domain": "binary_sensor",
+    "label": "Back Gate Vila Road Disk Dev Sdb"
+  },
+  {
+    "key": "entity_008",
+    "placeholder": "binary_sensor.dwelldeck_slot_008",
+    "domain": "binary_sensor",
+    "label": "Back Gate Vila Road Rule24"
+  },
+  {
+    "key": "entity_009",
+    "placeholder": "binary_sensor.dwelldeck_slot_009",
+    "domain": "binary_sensor",
+    "label": "Back Gate Vila Road Villa Road Authorized Vehicle"
+  },
+  {
+    "key": "entity_010",
+    "placeholder": "binary_sensor.dwelldeck_slot_010",
+    "domain": "binary_sensor",
+    "label": "Back Villa Smart Motion Human"
+  },
+  {
+    "key": "entity_011",
+    "placeholder": "binary_sensor.dwelldeck_slot_011",
+    "domain": "binary_sensor",
+    "label": "Back Villa Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_012",
+    "placeholder": "binary_sensor.dwelldeck_slot_012",
+    "domain": "binary_sensor",
+    "label": "Basket Field Smart Motion Human"
+  },
+  {
+    "key": "entity_013",
+    "placeholder": "binary_sensor.dwelldeck_slot_013",
+    "domain": "binary_sensor",
+    "label": "Basket Field Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_014",
+    "placeholder": "binary_sensor.dwelldeck_slot_014",
+    "domain": "binary_sensor",
+    "label": "Dirty Kitchen Pool Defed Door A 2"
+  },
+  {
+    "key": "entity_015",
+    "placeholder": "binary_sensor.dwelldeck_slot_015",
+    "domain": "binary_sensor",
+    "label": "Dirty Kitchen Pool Defed Door Tr"
+  },
+  {
+    "key": "entity_016",
+    "placeholder": "binary_sensor.dwelldeck_slot_016",
+    "domain": "binary_sensor",
+    "label": "Dirtykitchen Smoke Detector Smoke"
+  },
+  {
+    "key": "entity_017",
+    "placeholder": "binary_sensor.dwelldeck_slot_017",
+    "domain": "binary_sensor",
+    "label": "Electric Room Inverter Master Battery Alarm"
+  },
+  {
+    "key": "entity_018",
+    "placeholder": "binary_sensor.dwelldeck_slot_018",
+    "domain": "binary_sensor",
+    "label": "Electric Room Inverter Master Battery Fault"
+  },
+  {
+    "key": "entity_019",
+    "placeholder": "binary_sensor.dwelldeck_slot_019",
+    "domain": "binary_sensor",
+    "label": "Electric Room Inverter Slave Battery Alarm"
+  },
+  {
+    "key": "entity_020",
+    "placeholder": "binary_sensor.dwelldeck_slot_020",
+    "domain": "binary_sensor",
+    "label": "Electric Room Inverter Slave Battery Fault"
+  },
+  {
+    "key": "entity_021",
+    "placeholder": "binary_sensor.dwelldeck_slot_021",
+    "domain": "binary_sensor",
+    "label": "Entrance Main Defed Door A"
+  },
+  {
+    "key": "entity_022",
+    "placeholder": "binary_sensor.dwelldeck_slot_022",
+    "domain": "binary_sensor",
+    "label": "Entrance Main Defed Door Tr"
+  },
+  {
+    "key": "entity_023",
+    "placeholder": "binary_sensor.dwelldeck_slot_023",
+    "domain": "binary_sensor",
+    "label": "Entrance Main Door Alarm"
+  },
+  {
+    "key": "entity_024",
+    "placeholder": "binary_sensor.dwelldeck_slot_024",
+    "domain": "binary_sensor",
+    "label": "Entrance Main Door Doorbell"
+  },
+  {
+    "key": "entity_025",
+    "placeholder": "binary_sensor.dwelldeck_slot_025",
+    "domain": "binary_sensor",
+    "label": "Entrance Main Door Status"
+  },
+  {
+    "key": "entity_026",
+    "placeholder": "binary_sensor.dwelldeck_slot_026",
+    "domain": "binary_sensor",
+    "label": "Entrance Main Entrance Gym Smart Motion Human"
+  },
+  {
+    "key": "entity_027",
+    "placeholder": "binary_sensor.dwelldeck_slot_027",
+    "domain": "binary_sensor",
+    "label": "Entrance Main Entrance Gym Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_028",
+    "placeholder": "binary_sensor.dwelldeck_slot_028",
+    "domain": "binary_sensor",
+    "label": "Entrance Main Entrance Main Entranne Authorized Vehicle"
+  },
+  {
+    "key": "entity_029",
+    "placeholder": "binary_sensor.dwelldeck_slot_029",
+    "domain": "binary_sensor",
+    "label": "Entrance Main Entrance Rule1"
+  },
+  {
+    "key": "entity_030",
+    "placeholder": "binary_sensor.dwelldeck_slot_030",
+    "domain": "binary_sensor",
+    "label": "Entrance Natour Stairs Authorized Vehicle"
+  },
+  {
+    "key": "entity_031",
+    "placeholder": "binary_sensor.dwelldeck_slot_031",
+    "domain": "binary_sensor",
+    "label": "Entrance Saloon Motion Sensor M"
+  },
+  {
+    "key": "entity_032",
+    "placeholder": "binary_sensor.dwelldeck_slot_032",
+    "domain": "binary_sensor",
+    "label": "Entrance Saloon Motion Sensor Tr"
+  },
+  {
+    "key": "entity_033",
+    "placeholder": "binary_sensor.dwelldeck_slot_033",
+    "domain": "binary_sensor",
+    "label": "Fire Spot Smart Motion Human"
+  },
+  {
+    "key": "entity_034",
+    "placeholder": "binary_sensor.dwelldeck_slot_034",
+    "domain": "binary_sensor",
+    "label": "Fire Spot Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_035",
+    "placeholder": "binary_sensor.dwelldeck_slot_035",
+    "domain": "binary_sensor",
+    "label": "Front Door Front Door Authorized Vehicle"
+  },
+  {
+    "key": "entity_036",
+    "placeholder": "binary_sensor.dwelldeck_slot_036",
+    "domain": "binary_sensor",
+    "label": "Front Door Front Door Rule1"
+  },
+  {
+    "key": "entity_037",
+    "placeholder": "binary_sensor.dwelldeck_slot_037",
+    "domain": "binary_sensor",
+    "label": "Front Door Front Door Smart Motion Human"
+  },
+  {
+    "key": "entity_038",
+    "placeholder": "binary_sensor.dwelldeck_slot_038",
+    "domain": "binary_sensor",
+    "label": "Front Door Front Door Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_039",
+    "placeholder": "binary_sensor.dwelldeck_slot_039",
+    "domain": "binary_sensor",
+    "label": "Front Door Vila Front Villa Gate Vto Authorized Vehicle"
+  },
+  {
+    "key": "entity_040",
+    "placeholder": "binary_sensor.dwelldeck_slot_040",
+    "domain": "binary_sensor",
+    "label": "Front Door Front Door Rule1"
+  },
+  {
+    "key": "entity_041",
+    "placeholder": "binary_sensor.dwelldeck_slot_041",
+    "domain": "binary_sensor",
+    "label": "Front Door Front Door Smart Motion Human"
+  },
+  {
+    "key": "entity_042",
+    "placeholder": "binary_sensor.dwelldeck_slot_042",
+    "domain": "binary_sensor",
+    "label": "Front Door Front Door Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_043",
+    "placeholder": "binary_sensor.dwelldeck_slot_043",
+    "domain": "binary_sensor",
+    "label": "Garden Master Garden Door Authorized Vehicle"
+  },
+  {
+    "key": "entity_044",
+    "placeholder": "binary_sensor.dwelldeck_slot_044",
+    "domain": "binary_sensor",
+    "label": "Garden Play Ground Authorized Vehicle"
+  },
+  {
+    "key": "entity_045",
+    "placeholder": "binary_sensor.dwelldeck_slot_045",
+    "domain": "binary_sensor",
+    "label": "Garden Play Ground Kitchen Smart Motion Human"
+  },
+  {
+    "key": "entity_046",
+    "placeholder": "binary_sensor.dwelldeck_slot_046",
+    "domain": "binary_sensor",
+    "label": "Garden Play Ground Kitchen Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_047",
+    "placeholder": "binary_sensor.dwelldeck_slot_047",
+    "domain": "binary_sensor",
+    "label": "Garden Front Door Authorized Vehicle"
+  },
+  {
+    "key": "entity_048",
+    "placeholder": "binary_sensor.dwelldeck_slot_048",
+    "domain": "binary_sensor",
+    "label": "Garden Villa Pool Authorized Vehicle"
+  },
+  {
+    "key": "entity_049",
+    "placeholder": "binary_sensor.dwelldeck_slot_049",
+    "domain": "binary_sensor",
+    "label": "Gym Gym Authorized Vehicle"
+  },
+  {
+    "key": "entity_050",
+    "placeholder": "binary_sensor.dwelldeck_slot_050",
+    "domain": "binary_sensor",
+    "label": "Gym Gym Front Gate Smart Motion Human"
+  },
+  {
+    "key": "entity_051",
+    "placeholder": "binary_sensor.dwelldeck_slot_051",
+    "domain": "binary_sensor",
+    "label": "Gym Gym Front Gate Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_052",
+    "placeholder": "binary_sensor.dwelldeck_slot_052",
+    "domain": "binary_sensor",
+    "label": "Gym Roof Motion Sensor M"
+  },
+  {
+    "key": "entity_053",
+    "placeholder": "binary_sensor.dwelldeck_slot_053",
+    "domain": "binary_sensor",
+    "label": "Gym Roof Motion Sensor Tr"
+  },
+  {
+    "key": "entity_054",
+    "placeholder": "binary_sensor.dwelldeck_slot_054",
+    "domain": "binary_sensor",
+    "label": "Landscape Backyard Authorized Vehicle"
+  },
+  {
+    "key": "entity_055",
+    "placeholder": "binary_sensor.dwelldeck_slot_055",
+    "domain": "binary_sensor",
+    "label": "Landscape Backyard Gate Authorized Vehicle"
+  },
+  {
+    "key": "entity_056",
+    "placeholder": "binary_sensor.dwelldeck_slot_056",
+    "domain": "binary_sensor",
+    "label": "Landscape Natour Stairs Ivs 1"
+  },
+  {
+    "key": "entity_057",
+    "placeholder": "binary_sensor.dwelldeck_slot_057",
+    "domain": "binary_sensor",
+    "label": "Landscape Rest Terrace Rule1"
+  },
+  {
+    "key": "entity_058",
+    "placeholder": "binary_sensor.dwelldeck_slot_058",
+    "domain": "binary_sensor",
+    "label": "Landscape Rest Terrace Saloon Smart Motion Human"
+  },
+  {
+    "key": "entity_059",
+    "placeholder": "binary_sensor.dwelldeck_slot_059",
+    "domain": "binary_sensor",
+    "label": "Landscape Rest Terrace Saloon Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_060",
+    "placeholder": "binary_sensor.dwelldeck_slot_060",
+    "domain": "binary_sensor",
+    "label": "Main Door Smart Motion Human"
+  },
+  {
+    "key": "entity_061",
+    "placeholder": "binary_sensor.dwelldeck_slot_061",
+    "domain": "binary_sensor",
+    "label": "Main Door Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_062",
+    "placeholder": "binary_sensor.dwelldeck_slot_062",
+    "domain": "binary_sensor",
+    "label": "Main Vto 2 Authorized Vehicle"
+  },
+  {
+    "key": "entity_063",
+    "placeholder": "binary_sensor.dwelldeck_slot_063",
+    "domain": "binary_sensor",
+    "label": "Main Vto 2 Smart Motion Human"
+  },
+  {
+    "key": "entity_064",
+    "placeholder": "binary_sensor.dwelldeck_slot_064",
+    "domain": "binary_sensor",
+    "label": "Main Vto 2 Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_065",
+    "placeholder": "binary_sensor.dwelldeck_slot_065",
+    "domain": "binary_sensor",
+    "label": "Master Bedroom Left Dimmer Motion Motion"
+  },
+  {
+    "key": "entity_066",
+    "placeholder": "binary_sensor.dwelldeck_slot_066",
+    "domain": "binary_sensor",
+    "label": "Master Bedroom Master Defed Door A 2"
+  },
+  {
+    "key": "entity_067",
+    "placeholder": "binary_sensor.dwelldeck_slot_067",
+    "domain": "binary_sensor",
+    "label": "Master Bedroom Master Defed Door Tr"
+  },
+  {
+    "key": "entity_068",
+    "placeholder": "binary_sensor.dwelldeck_slot_068",
+    "domain": "binary_sensor",
+    "label": "Master Bedroom Master Motion Sensor M"
+  },
+  {
+    "key": "entity_069",
+    "placeholder": "binary_sensor.dwelldeck_slot_069",
+    "domain": "binary_sensor",
+    "label": "Master Bedroom Master Motion Sensor Tr"
+  },
+  {
+    "key": "entity_070",
+    "placeholder": "binary_sensor.dwelldeck_slot_070",
+    "domain": "binary_sensor",
+    "label": "Master Bedroom Right Dimmer Motion Motion"
+  },
+  {
+    "key": "entity_071",
+    "placeholder": "binary_sensor.dwelldeck_slot_071",
+    "domain": "binary_sensor",
+    "label": "Master Entrance Smart Motion Human"
+  },
+  {
+    "key": "entity_072",
+    "placeholder": "binary_sensor.dwelldeck_slot_072",
+    "domain": "binary_sensor",
+    "label": "Master Entrance Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_073",
+    "placeholder": "binary_sensor.dwelldeck_slot_073",
+    "domain": "binary_sensor",
+    "label": "Mini Kitchen Smoke Detector Smoke"
+  },
+  {
+    "key": "entity_074",
+    "placeholder": "binary_sensor.dwelldeck_slot_074",
+    "domain": "binary_sensor",
+    "label": "Parking Vto 7 Authorized Vehicle"
+  },
+  {
+    "key": "entity_075",
+    "placeholder": "binary_sensor.dwelldeck_slot_075",
+    "domain": "binary_sensor",
+    "label": "Parking Vto 7 Smart Motion Human"
+  },
+  {
+    "key": "entity_076",
+    "placeholder": "binary_sensor.dwelldeck_slot_076",
+    "domain": "binary_sensor",
+    "label": "Parking Vto 7 Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_077",
+    "placeholder": "binary_sensor.dwelldeck_slot_077",
+    "domain": "binary_sensor",
+    "label": "Pergula 11 Authorized Vehicle"
+  },
+  {
+    "key": "entity_078",
+    "placeholder": "binary_sensor.dwelldeck_slot_078",
+    "domain": "binary_sensor",
+    "label": "Pergula 11 Rule1"
+  },
+  {
+    "key": "entity_079",
+    "placeholder": "binary_sensor.dwelldeck_slot_079",
+    "domain": "binary_sensor",
+    "label": "Pergula 11 Smart Motion Human"
+  },
+  {
+    "key": "entity_080",
+    "placeholder": "binary_sensor.dwelldeck_slot_080",
+    "domain": "binary_sensor",
+    "label": "Pergula 11 Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_081",
+    "placeholder": "binary_sensor.dwelldeck_slot_081",
+    "domain": "binary_sensor",
+    "label": "Pool Area Backvilla Gas Sensor Gas"
+  },
+  {
+    "key": "entity_082",
+    "placeholder": "binary_sensor.dwelldeck_slot_082",
+    "domain": "binary_sensor",
+    "label": "Pool Area Backvilla Gas Sensor P3"
+  },
+  {
+    "key": "entity_083",
+    "placeholder": "binary_sensor.dwelldeck_slot_083",
+    "domain": "binary_sensor",
+    "label": "Pool Area Villa Garden Authorized Vehicle"
+  },
+  {
+    "key": "entity_084",
+    "placeholder": "binary_sensor.dwelldeck_slot_084",
+    "domain": "binary_sensor",
+    "label": "Pool Colomn Smart Motion Human"
+  },
+  {
+    "key": "entity_085",
+    "placeholder": "binary_sensor.dwelldeck_slot_085",
+    "domain": "binary_sensor",
+    "label": "Pool Colomn Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_086",
+    "placeholder": "binary_sensor.dwelldeck_slot_086",
+    "domain": "binary_sensor",
+    "label": "Pool Terrace Smart Motion Human"
+  },
+  {
+    "key": "entity_087",
+    "placeholder": "binary_sensor.dwelldeck_slot_087",
+    "domain": "binary_sensor",
+    "label": "Pool Terrace Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_088",
+    "placeholder": "binary_sensor.dwelldeck_slot_088",
+    "domain": "binary_sensor",
+    "label": "Rest Area Kitchen Authorized Vehicle"
+  },
+  {
+    "key": "entity_089",
+    "placeholder": "binary_sensor.dwelldeck_slot_089",
+    "domain": "binary_sensor",
+    "label": "Rest Area Master Indoor Siren Sr"
+  },
+  {
+    "key": "entity_090",
+    "placeholder": "binary_sensor.dwelldeck_slot_090",
+    "domain": "binary_sensor",
+    "label": "Rest Area Master Indoor Siren Tr"
+  },
+  {
+    "key": "entity_091",
+    "placeholder": "binary_sensor.dwelldeck_slot_091",
+    "domain": "binary_sensor",
+    "label": "Rest Area Rest Area Motion Sensor M"
+  },
+  {
+    "key": "entity_092",
+    "placeholder": "binary_sensor.dwelldeck_slot_092",
+    "domain": "binary_sensor",
+    "label": "Rest Area Rest Area Motion Sensor Tr"
+  },
+  {
+    "key": "entity_093",
+    "placeholder": "binary_sensor.dwelldeck_slot_093",
+    "domain": "binary_sensor",
+    "label": "Rest Area Rest Authorized Vehicle"
+  },
+  {
+    "key": "entity_094",
+    "placeholder": "binary_sensor.dwelldeck_slot_094",
+    "domain": "binary_sensor",
+    "label": "Rest Area Rest Football Field Smart Motion Human"
+  },
+  {
+    "key": "entity_095",
+    "placeholder": "binary_sensor.dwelldeck_slot_095",
+    "domain": "binary_sensor",
+    "label": "Rest Area Rest Football Field Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_096",
+    "placeholder": "binary_sensor.dwelldeck_slot_096",
+    "domain": "binary_sensor",
+    "label": "Rest Area Villa Fire Place Authorized Vehicle"
+  },
+  {
+    "key": "entity_097",
+    "placeholder": "binary_sensor.dwelldeck_slot_097",
+    "domain": "binary_sensor",
+    "label": "Rest Area Villa Stairs Authorized Vehicle"
+  },
+  {
+    "key": "entity_098",
+    "placeholder": "binary_sensor.dwelldeck_slot_098",
+    "domain": "binary_sensor",
+    "label": "Rest Area Villa Stairs Pergola Smart Motion Human"
+  },
+  {
+    "key": "entity_099",
+    "placeholder": "binary_sensor.dwelldeck_slot_099",
+    "domain": "binary_sensor",
+    "label": "Rest Area Villa Stairs Pergola Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_100",
+    "placeholder": "binary_sensor.dwelldeck_slot_100",
+    "domain": "binary_sensor",
+    "label": "Roof Apartment Roof Apart Defed Door A 2"
+  },
+  {
+    "key": "entity_101",
+    "placeholder": "binary_sensor.dwelldeck_slot_101",
+    "domain": "binary_sensor",
+    "label": "Roof Apartment Roof Apart Defed Door Tr"
+  },
+  {
+    "key": "entity_102",
+    "placeholder": "binary_sensor.dwelldeck_slot_102",
+    "domain": "binary_sensor",
+    "label": "Roof Entrance Smart Motion Human"
+  },
+  {
+    "key": "entity_103",
+    "placeholder": "binary_sensor.dwelldeck_slot_103",
+    "domain": "binary_sensor",
+    "label": "Roof Entrance Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_104",
+    "placeholder": "binary_sensor.dwelldeck_slot_104",
+    "domain": "binary_sensor",
+    "label": "Saloon Saloon Authorized Vehicle"
+  },
+  {
+    "key": "entity_105",
+    "placeholder": "binary_sensor.dwelldeck_slot_105",
+    "domain": "binary_sensor",
+    "label": "Saloon Saloon Garden Smart Motion Human"
+  },
+  {
+    "key": "entity_106",
+    "placeholder": "binary_sensor.dwelldeck_slot_106",
+    "domain": "binary_sensor",
+    "label": "Saloon Saloon Garden Smart Motion Vehicle"
+  },
+  {
+    "key": "entity_107",
+    "placeholder": "binary_sensor.dwelldeck_slot_107",
+    "domain": "binary_sensor",
+    "label": "Villa Alarm In Port1"
+  },
+  {
+    "key": "entity_108",
+    "placeholder": "binary_sensor.dwelldeck_slot_108",
+    "domain": "binary_sensor",
+    "label": "Villa Alarm In Port2"
+  },
+  {
+    "key": "entity_109",
+    "placeholder": "binary_sensor.dwelldeck_slot_109",
+    "domain": "binary_sensor",
+    "label": "Villa Alarm In Port3"
+  },
+  {
+    "key": "entity_110",
+    "placeholder": "binary_sensor.dwelldeck_slot_110",
+    "domain": "binary_sensor",
+    "label": "Villa Alarm In Port4"
+  },
+  {
+    "key": "entity_111",
+    "placeholder": "binary_sensor.dwelldeck_slot_111",
+    "domain": "binary_sensor",
+    "label": "Villa Smart Motion Human 2"
+  },
+  {
+    "key": "entity_112",
+    "placeholder": "binary_sensor.dwelldeck_slot_112",
+    "domain": "binary_sensor",
+    "label": "Villa Smart Motion Human 3"
+  },
+  {
+    "key": "entity_113",
+    "placeholder": "binary_sensor.dwelldeck_slot_113",
+    "domain": "binary_sensor",
+    "label": "Villa Smart Motion Vehicle 2"
+  },
+  {
+    "key": "entity_114",
+    "placeholder": "binary_sensor.dwelldeck_slot_114",
+    "domain": "binary_sensor",
+    "label": "Villa Smart Motion Vehicle 3"
+  },
+  {
+    "key": "entity_115",
+    "placeholder": "camera.dwelldeck_slot_115",
+    "domain": "camera",
+    "label": "Back Gate Main"
+  },
+  {
+    "key": "entity_116",
+    "placeholder": "camera.dwelldeck_slot_116",
+    "domain": "camera",
+    "label": "Back Villa Main"
+  },
+  {
+    "key": "entity_117",
+    "placeholder": "camera.dwelldeck_slot_117",
+    "domain": "camera",
+    "label": "Basket Field Main"
+  },
+  {
+    "key": "entity_118",
+    "placeholder": "camera.dwelldeck_slot_118",
+    "domain": "camera",
+    "label": "Entrance Main Entrance Gym Main"
+  },
+  {
+    "key": "entity_119",
+    "placeholder": "camera.dwelldeck_slot_119",
+    "domain": "camera",
+    "label": "Fire Spot Main"
+  },
+  {
+    "key": "entity_120",
+    "placeholder": "camera.dwelldeck_slot_120",
+    "domain": "camera",
+    "label": "Front Door Front Door"
+  },
+  {
+    "key": "entity_121",
+    "placeholder": "camera.dwelldeck_slot_121",
+    "domain": "camera",
+    "label": "Front Door Vila Front"
+  },
+  {
+    "key": "entity_122",
+    "placeholder": "camera.dwelldeck_slot_122",
+    "domain": "camera",
+    "label": "Front Door Front Door Main"
+  },
+  {
+    "key": "entity_123",
+    "placeholder": "camera.dwelldeck_slot_123",
+    "domain": "camera",
+    "label": "Garden Play Ground Kitchen Main"
+  },
+  {
+    "key": "entity_124",
+    "placeholder": "camera.dwelldeck_slot_124",
+    "domain": "camera",
+    "label": "Gym Gym Front Gate"
+  },
+  {
+    "key": "entity_125",
+    "placeholder": "camera.dwelldeck_slot_125",
+    "domain": "camera",
+    "label": "Landscape Backyard Gate Saloon Main"
+  },
+  {
+    "key": "entity_126",
+    "placeholder": "camera.dwelldeck_slot_126",
+    "domain": "camera",
+    "label": "Main Door Main"
+  },
+  {
+    "key": "entity_127",
+    "placeholder": "camera.dwelldeck_slot_127",
+    "domain": "camera",
+    "label": "Main Vto 2 Main"
+  },
+  {
+    "key": "entity_128",
+    "placeholder": "camera.dwelldeck_slot_128",
+    "domain": "camera",
+    "label": "Master Entrance Main"
+  },
+  {
+    "key": "entity_129",
+    "placeholder": "camera.dwelldeck_slot_129",
+    "domain": "camera",
+    "label": "Parking Vto 7 Main"
+  },
+  {
+    "key": "entity_130",
+    "placeholder": "camera.dwelldeck_slot_130",
+    "domain": "camera",
+    "label": "Pergula 11 Main"
+  },
+  {
+    "key": "entity_131",
+    "placeholder": "camera.dwelldeck_slot_131",
+    "domain": "camera",
+    "label": "Pool Colomn Main"
+  },
+  {
+    "key": "entity_132",
+    "placeholder": "camera.dwelldeck_slot_132",
+    "domain": "camera",
+    "label": "Pool Terrace Main"
+  },
+  {
+    "key": "entity_133",
+    "placeholder": "camera.dwelldeck_slot_133",
+    "domain": "camera",
+    "label": "Rest Area Rest Football Field Main"
+  },
+  {
+    "key": "entity_134",
+    "placeholder": "camera.dwelldeck_slot_134",
+    "domain": "camera",
+    "label": "Rest Area Villa Stairs Pergola Main"
+  },
+  {
+    "key": "entity_135",
+    "placeholder": "camera.dwelldeck_slot_135",
+    "domain": "camera",
+    "label": "Roof Entrance Main"
+  },
+  {
+    "key": "entity_136",
+    "placeholder": "camera.dwelldeck_slot_136",
+    "domain": "camera",
+    "label": "Saloon Saloon Garden Main"
+  },
+  {
+    "key": "entity_137",
+    "placeholder": "camera.dwelldeck_slot_137",
+    "domain": "camera",
+    "label": "Villa Main 2"
+  },
+  {
+    "key": "entity_138",
+    "placeholder": "climate.dwelldeck_slot_138",
+    "domain": "climate",
+    "label": "Bedroom 1 Air Conditioner"
+  },
+  {
+    "key": "entity_139",
+    "placeholder": "climate.dwelldeck_slot_139",
+    "domain": "climate",
+    "label": "Electric Room Air Conditioner"
+  },
+  {
+    "key": "entity_140",
+    "placeholder": "climate.dwelldeck_slot_140",
+    "domain": "climate",
+    "label": "Bedroom 2 Air Conditioner"
+  },
+  {
+    "key": "entity_141",
+    "placeholder": "climate.dwelldeck_slot_141",
+    "domain": "climate",
+    "label": "Master Air Conditioner"
+  },
+  {
+    "key": "entity_142",
+    "placeholder": "climate.dwelldeck_slot_142",
+    "domain": "climate",
+    "label": "Master Dressing Air Conditioner"
+  },
+  {
+    "key": "entity_143",
+    "placeholder": "climate.dwelldeck_slot_143",
+    "domain": "climate",
+    "label": "Nature Mini Pro"
+  },
+  {
+    "key": "entity_144",
+    "placeholder": "climate.dwelldeck_slot_144",
+    "domain": "climate",
+    "label": "Nature Mini Pro 2"
+  },
+  {
+    "key": "entity_145",
+    "placeholder": "climate.dwelldeck_slot_145",
+    "domain": "climate",
+    "label": "Office Office Nature"
+  },
+  {
+    "key": "entity_146",
+    "placeholder": "climate.dwelldeck_slot_146",
+    "domain": "climate",
+    "label": "Rest Area Living Nature"
+  },
+  {
+    "key": "entity_147",
+    "placeholder": "cover.dwelldeck_slot_147",
+    "domain": "cover",
+    "label": "Close Cover"
+  },
+  {
+    "key": "entity_148",
+    "placeholder": "cover.dwelldeck_slot_148",
+    "domain": "cover",
+    "label": "Bedroom 1 Bedroom Bedroom 1 Curtain Motor"
+  },
+  {
+    "key": "entity_149",
+    "placeholder": "cover.dwelldeck_slot_149",
+    "domain": "cover",
+    "label": "Door Curtain"
+  },
+  {
+    "key": "entity_150",
+    "placeholder": "cover.dwelldeck_slot_150",
+    "domain": "cover",
+    "label": "Dressing Curtain Motor"
+  },
+  {
+    "key": "entity_151",
+    "placeholder": "cover.dwelldeck_slot_151",
+    "domain": "cover",
+    "label": "Kitchen Dish Washer Curtain"
+  },
+  {
+    "key": "entity_152",
+    "placeholder": "cover.dwelldeck_slot_152",
+    "domain": "cover",
+    "label": "Kitchen Kitchen Curtain Motor"
+  },
+  {
+    "key": "entity_153",
+    "placeholder": "cover.dwelldeck_slot_153",
+    "domain": "cover",
+    "label": "Kitchen Kitchen Gaz Curtain"
+  },
+  {
+    "key": "entity_154",
+    "placeholder": "cover.dwelldeck_slot_154",
+    "domain": "cover",
+    "label": "Bedroom 2 Bedroom Bedroom 2 Curtain Motor"
+  },
+  {
+    "key": "entity_155",
+    "placeholder": "cover.dwelldeck_slot_155",
+    "domain": "cover",
+    "label": "Open Cover"
+  },
+  {
+    "key": "entity_156",
+    "placeholder": "cover.dwelldeck_slot_156",
+    "domain": "cover",
+    "label": "Panoramic Window Curtain"
+  },
+  {
+    "key": "entity_157",
+    "placeholder": "cover.dwelldeck_slot_157",
+    "domain": "cover",
+    "label": "Rest Area Garden Curtain Motor"
+  },
+  {
+    "key": "entity_158",
+    "placeholder": "cover.dwelldeck_slot_158",
+    "domain": "cover",
+    "label": "Rest Area Pool Curtain Motor"
+  },
+  {
+    "key": "entity_159",
+    "placeholder": "cover.dwelldeck_slot_159",
+    "domain": "cover",
+    "label": "Saloon Saloon Curtain"
+  },
+  {
+    "key": "entity_160",
+    "placeholder": "cover.dwelldeck_slot_160",
+    "domain": "cover",
+    "label": "Saloon Saloon Panoramic Curtain"
+  },
+  {
+    "key": "entity_161",
+    "placeholder": "cover.dwelldeck_slot_161",
+    "domain": "cover",
+    "label": "Stop Cover"
+  },
+  {
+    "key": "entity_162",
+    "placeholder": "cover.dwelldeck_slot_162",
+    "domain": "cover",
+    "label": "Window Curtain"
+  },
+  {
+    "key": "entity_163",
+    "placeholder": "input_boolean.dwelldeck_slot_163",
+    "domain": "input_boolean",
+    "label": "Water Tank Reheat"
+  },
+  {
+    "key": "entity_164",
+    "placeholder": "light.dwelldeck_slot_164",
+    "domain": "light",
+    "label": "Bedroom 1 Bedroom Bedroom 1 Dressing Switch P1"
+  },
+  {
+    "key": "entity_165",
+    "placeholder": "light.dwelldeck_slot_165",
+    "domain": "light",
+    "label": "Bedroom 1 Bedroom Bedroom 1 Switch P1"
+  },
+  {
+    "key": "entity_166",
+    "placeholder": "light.dwelldeck_slot_166",
+    "domain": "light",
+    "label": "Bedroom 1 Bedroom Bedroom 1 Switch P2"
+  },
+  {
+    "key": "entity_167",
+    "placeholder": "light.dwelldeck_slot_167",
+    "domain": "light",
+    "label": "Bedroom 1 Bedroom Bedroom 1 Switch P3"
+  },
+  {
+    "key": "entity_168",
+    "placeholder": "light.dwelldeck_slot_168",
+    "domain": "light",
+    "label": "Bedroom 1 Bedroom Bedroom 1 Wc Switch P1"
+  },
+  {
+    "key": "entity_169",
+    "placeholder": "light.dwelldeck_slot_169",
+    "domain": "light",
+    "label": "Bedroom 1 Bedroom Bedroom 1 Wc Switch P2"
+  },
+  {
+    "key": "entity_170",
+    "placeholder": "light.dwelldeck_slot_170",
+    "domain": "light",
+    "label": "Bedroom 1 Bedroom Mc Bedroom 1Witch Bed Switch"
+  },
+  {
+    "key": "entity_171",
+    "placeholder": "light.dwelldeck_slot_171",
+    "domain": "light",
+    "label": "Bedroom 1 Bedroom Mc Bedroom 1Witch Scene Switch"
+  },
+  {
+    "key": "entity_172",
+    "placeholder": "light.dwelldeck_slot_172",
+    "domain": "light",
+    "label": "Dining Dining Switch Chandelier Light"
+  },
+  {
+    "key": "entity_173",
+    "placeholder": "light.dwelldeck_slot_173",
+    "domain": "light",
+    "label": "Dining Dining Switch Indirect Light"
+  },
+  {
+    "key": "entity_174",
+    "placeholder": "light.dwelldeck_slot_174",
+    "domain": "light",
+    "label": "Dining Dining Switch Spot Light"
+  },
+  {
+    "key": "entity_175",
+    "placeholder": "light.dwelldeck_slot_175",
+    "domain": "light",
+    "label": "Dining Washroom Door Switch Cave Light"
+  },
+  {
+    "key": "entity_176",
+    "placeholder": "light.dwelldeck_slot_176",
+    "domain": "light",
+    "label": "Dining Washroom Door Switch Door Spot Light"
+  },
+  {
+    "key": "entity_177",
+    "placeholder": "light.dwelldeck_slot_177",
+    "domain": "light",
+    "label": "Dirty Kitchen Dirty Kitchen Switch P1"
+  },
+  {
+    "key": "entity_178",
+    "placeholder": "light.dwelldeck_slot_178",
+    "domain": "light",
+    "label": "Dirty Kitchen Dirty Kitchen Switch P2"
+  },
+  {
+    "key": "entity_179",
+    "placeholder": "light.dwelldeck_slot_179",
+    "domain": "light",
+    "label": "Dirty Kitchen Washroom Switch Coloumn Light"
+  },
+  {
+    "key": "entity_180",
+    "placeholder": "light.dwelldeck_slot_180",
+    "domain": "light",
+    "label": "Dirty Kitchen Washroom Switch Sink Light"
+  },
+  {
+    "key": "entity_181",
+    "placeholder": "light.dwelldeck_slot_181",
+    "domain": "light",
+    "label": "Dirty Kitchen Washroom Switch Wallwasher Light"
+  },
+  {
+    "key": "entity_182",
+    "placeholder": "light.dwelldeck_slot_182",
+    "domain": "light",
+    "label": "Electric Room Electric Room Switch Balcony"
+  },
+  {
+    "key": "entity_183",
+    "placeholder": "light.dwelldeck_slot_183",
+    "domain": "light",
+    "label": "Electric Room Electric Room Switch Electric Room"
+  },
+  {
+    "key": "entity_184",
+    "placeholder": "light.dwelldeck_slot_184",
+    "domain": "light",
+    "label": "Entrance Entrance Switch Hwad"
+  },
+  {
+    "key": "entity_185",
+    "placeholder": "light.dwelldeck_slot_185",
+    "domain": "light",
+    "label": "Entrance Entrance Switch Main Door Light"
+  },
+  {
+    "key": "entity_186",
+    "placeholder": "light.dwelldeck_slot_186",
+    "domain": "light",
+    "label": "Entrance Entrance Switch Wallwasher"
+  },
+  {
+    "key": "entity_187",
+    "placeholder": "light.dwelldeck_slot_187",
+    "domain": "light",
+    "label": "Entrance Kitchen Door Switch Spot Light"
+  },
+  {
+    "key": "entity_188",
+    "placeholder": "light.dwelldeck_slot_188",
+    "domain": "light",
+    "label": "Entrance Kitchen Door Switch Tack Light"
+  },
+  {
+    "key": "entity_189",
+    "placeholder": "light.dwelldeck_slot_189",
+    "domain": "light",
+    "label": "Guset Bathroom Bathroom Switch P1"
+  },
+  {
+    "key": "entity_190",
+    "placeholder": "light.dwelldeck_slot_190",
+    "domain": "light",
+    "label": "Guset Bathroom Bathroom Switch P2"
+  },
+  {
+    "key": "entity_191",
+    "placeholder": "light.dwelldeck_slot_191",
+    "domain": "light",
+    "label": "Guset Bathroom Washroom Switch P1"
+  },
+  {
+    "key": "entity_192",
+    "placeholder": "light.dwelldeck_slot_192",
+    "domain": "light",
+    "label": "Guset Bathroom Washroom Switch P2"
+  },
+  {
+    "key": "entity_193",
+    "placeholder": "light.dwelldeck_slot_193",
+    "domain": "light",
+    "label": "Gym Gym Switch Coloumn Light"
+  },
+  {
+    "key": "entity_194",
+    "placeholder": "light.dwelldeck_slot_194",
+    "domain": "light",
+    "label": "Gym Gym Switch Living Light"
+  },
+  {
+    "key": "entity_195",
+    "placeholder": "light.dwelldeck_slot_195",
+    "domain": "light",
+    "label": "Gym Gym Switch Wall Washer Light"
+  },
+  {
+    "key": "entity_196",
+    "placeholder": "light.dwelldeck_slot_196",
+    "domain": "light",
+    "label": "Kitchen Kitchen Switch P1"
+  },
+  {
+    "key": "entity_197",
+    "placeholder": "light.dwelldeck_slot_197",
+    "domain": "light",
+    "label": "Kitchen Kitchen Switch P2"
+  },
+  {
+    "key": "entity_198",
+    "placeholder": "light.dwelldeck_slot_198",
+    "domain": "light",
+    "label": "Kitchen Kitchen Switch P2 2"
+  },
+  {
+    "key": "entity_199",
+    "placeholder": "light.dwelldeck_slot_199",
+    "domain": "light",
+    "label": "Kitchen Kitchen Switch P3"
+  },
+  {
+    "key": "entity_200",
+    "placeholder": "light.dwelldeck_slot_200",
+    "domain": "light",
+    "label": "Kitchen Kitchen Switch P3 2"
+  },
+  {
+    "key": "entity_201",
+    "placeholder": "light.dwelldeck_slot_201",
+    "domain": "light",
+    "label": "Kitchen Kitchen Switch Spot Light"
+  },
+  {
+    "key": "entity_202",
+    "placeholder": "light.dwelldeck_slot_202",
+    "domain": "light",
+    "label": "Landscape Projectors Switch Cave Light"
+  },
+  {
+    "key": "entity_203",
+    "placeholder": "light.dwelldeck_slot_203",
+    "domain": "light",
+    "label": "Landscape Projectors Switch Pool Area Light"
+  },
+  {
+    "key": "entity_204",
+    "placeholder": "light.dwelldeck_slot_204",
+    "domain": "light",
+    "label": "Landscape Projekters Switch Backyard Light"
+  },
+  {
+    "key": "entity_205",
+    "placeholder": "light.dwelldeck_slot_205",
+    "domain": "light",
+    "label": "Landscape Projekters Switch Front Vila Light"
+  },
+  {
+    "key": "entity_206",
+    "placeholder": "light.dwelldeck_slot_206",
+    "domain": "light",
+    "label": "Bedroom 2 Bedroom Bedroom 2 Dresseing Switch P1"
+  },
+  {
+    "key": "entity_207",
+    "placeholder": "light.dwelldeck_slot_207",
+    "domain": "light",
+    "label": "Bedroom 2 Bedroom Bedroom 2 Switch P1"
+  },
+  {
+    "key": "entity_208",
+    "placeholder": "light.dwelldeck_slot_208",
+    "domain": "light",
+    "label": "Bedroom 2 Bedroom Bedroom 2 Switch P2"
+  },
+  {
+    "key": "entity_209",
+    "placeholder": "light.dwelldeck_slot_209",
+    "domain": "light",
+    "label": "Bedroom 2 Bedroom Bedroom 2 Switch P3"
+  },
+  {
+    "key": "entity_210",
+    "placeholder": "light.dwelldeck_slot_210",
+    "domain": "light",
+    "label": "Bedroom 2 Bedroom Bedroom 2 Wc P1"
+  },
+  {
+    "key": "entity_211",
+    "placeholder": "light.dwelldeck_slot_211",
+    "domain": "light",
+    "label": "Master Bedroom Dressing Switch Dressing Light"
+  },
+  {
+    "key": "entity_212",
+    "placeholder": "light.dwelldeck_slot_212",
+    "domain": "light",
+    "label": "Master Bedroom Dressing Switch Dressing Light 2"
+  },
+  {
+    "key": "entity_213",
+    "placeholder": "light.dwelldeck_slot_213",
+    "domain": "light",
+    "label": "Master Bedroom Dressing Switch Indirect Light"
+  },
+  {
+    "key": "entity_214",
+    "placeholder": "light.dwelldeck_slot_214",
+    "domain": "light",
+    "label": "Master Bedroom Dressing Switch Track Light"
+  },
+  {
+    "key": "entity_215",
+    "placeholder": "light.dwelldeck_slot_215",
+    "domain": "light",
+    "label": "Master Bedroom Garden Door Switch Garden"
+  },
+  {
+    "key": "entity_216",
+    "placeholder": "light.dwelldeck_slot_216",
+    "domain": "light",
+    "label": "Master Bedroom Garden Door Switch Garden Door Light"
+  },
+  {
+    "key": "entity_217",
+    "placeholder": "light.dwelldeck_slot_217",
+    "domain": "light",
+    "label": "Master Bedroom Garden Door Switch Mirror Lights"
+  },
+  {
+    "key": "entity_218",
+    "placeholder": "light.dwelldeck_slot_218",
+    "domain": "light",
+    "label": "Master Bedroom Left Dimmer Motion"
+  },
+  {
+    "key": "entity_219",
+    "placeholder": "light.dwelldeck_slot_219",
+    "domain": "light",
+    "label": "Master Bedroom M Bathroom Switch Bathroom"
+  },
+  {
+    "key": "entity_220",
+    "placeholder": "light.dwelldeck_slot_220",
+    "domain": "light",
+    "label": "Master Bedroom M Bathroom Switch Jaccuzi"
+  },
+  {
+    "key": "entity_221",
+    "placeholder": "light.dwelldeck_slot_221",
+    "domain": "light",
+    "label": "Master Bedroom Master Ent Switch Door Spot Light"
+  },
+  {
+    "key": "entity_222",
+    "placeholder": "light.dwelldeck_slot_222",
+    "domain": "light",
+    "label": "Master Bedroom Master Ent Switch Indirect Light"
+  },
+  {
+    "key": "entity_223",
+    "placeholder": "light.dwelldeck_slot_223",
+    "domain": "light",
+    "label": "Master Bedroom Master Ent Switch Track Light"
+  },
+  {
+    "key": "entity_224",
+    "placeholder": "light.dwelldeck_slot_224",
+    "domain": "light",
+    "label": "Master Bedroom Right Dimmer Motion"
+  },
+  {
+    "key": "entity_225",
+    "placeholder": "light.dwelldeck_slot_225",
+    "domain": "light",
+    "label": "Master Bedroom Side Bed Switch Switch Left Bed Light"
+  },
+  {
+    "key": "entity_226",
+    "placeholder": "light.dwelldeck_slot_226",
+    "domain": "light",
+    "label": "Master Bedroom Side Bed Switch Switch Right Bed Light"
+  },
+  {
+    "key": "entity_227",
+    "placeholder": "light.dwelldeck_slot_227",
+    "domain": "light",
+    "label": "Mechanical Room Fire Switch Chedeur Fire"
+  },
+  {
+    "key": "entity_228",
+    "placeholder": "light.dwelldeck_slot_228",
+    "domain": "light",
+    "label": "Mini Kitchen Mkitchen Switch P1"
+  },
+  {
+    "key": "entity_229",
+    "placeholder": "light.dwelldeck_slot_229",
+    "domain": "light",
+    "label": "Mini Kitchen Mkitchen Switch P2"
+  },
+  {
+    "key": "entity_230",
+    "placeholder": "light.dwelldeck_slot_230",
+    "domain": "light",
+    "label": "Pool Area Pergula Switch P1"
+  },
+  {
+    "key": "entity_231",
+    "placeholder": "light.dwelldeck_slot_231",
+    "domain": "light",
+    "label": "Pool Area Pergula Switch P2"
+  },
+  {
+    "key": "entity_232",
+    "placeholder": "light.dwelldeck_slot_232",
+    "domain": "light",
+    "label": "Pool Area Pergula Switch P3"
+  },
+  {
+    "key": "entity_233",
+    "placeholder": "light.dwelldeck_slot_233",
+    "domain": "light",
+    "label": "Pool Area Pool Balcony Switch Garage Light"
+  },
+  {
+    "key": "entity_234",
+    "placeholder": "light.dwelldeck_slot_234",
+    "domain": "light",
+    "label": "Pool Area Pool Balcony Switch Wall Washer Light"
+  },
+  {
+    "key": "entity_235",
+    "placeholder": "light.dwelldeck_slot_235",
+    "domain": "light",
+    "label": "Pool Area Pool Bathroom P1"
+  },
+  {
+    "key": "entity_236",
+    "placeholder": "light.dwelldeck_slot_236",
+    "domain": "light",
+    "label": "Rest Area Balconies Switch P1"
+  },
+  {
+    "key": "entity_237",
+    "placeholder": "light.dwelldeck_slot_237",
+    "domain": "light",
+    "label": "Rest Area Balconies Switch P2"
+  },
+  {
+    "key": "entity_238",
+    "placeholder": "light.dwelldeck_slot_238",
+    "domain": "light",
+    "label": "Rest Area Kids Hall Switch Kids Hall Light"
+  },
+  {
+    "key": "entity_239",
+    "placeholder": "light.dwelldeck_slot_239",
+    "domain": "light",
+    "label": "Rest Area Master Hall Switch Kids Hall Light"
+  },
+  {
+    "key": "entity_240",
+    "placeholder": "light.dwelldeck_slot_240",
+    "domain": "light",
+    "label": "Rest Area Master Hall Switch Track Light"
+  },
+  {
+    "key": "entity_241",
+    "placeholder": "light.dwelldeck_slot_241",
+    "domain": "light",
+    "label": "Rest Area Mc Rest 1Switch Indirect Light"
+  },
+  {
+    "key": "entity_242",
+    "placeholder": "light.dwelldeck_slot_242",
+    "domain": "light",
+    "label": "Rest Area Mc Rest 1Switch Kids Hall Light"
+  },
+  {
+    "key": "entity_243",
+    "placeholder": "light.dwelldeck_slot_243",
+    "domain": "light",
+    "label": "Rest Area Mc Rest 1Switch Spot Light"
+  },
+  {
+    "key": "entity_244",
+    "placeholder": "light.dwelldeck_slot_244",
+    "domain": "light",
+    "label": "Rest Area Mc Rest 2Switch Indirect Light"
+  },
+  {
+    "key": "entity_245",
+    "placeholder": "light.dwelldeck_slot_245",
+    "domain": "light",
+    "label": "Rest Area Mc Rest 2Switch Kids Hall Light"
+  },
+  {
+    "key": "entity_246",
+    "placeholder": "light.dwelldeck_slot_246",
+    "domain": "light",
+    "label": "Rest Area Mc Rest 2Switch Spot Light"
+  },
+  {
+    "key": "entity_247",
+    "placeholder": "light.dwelldeck_slot_247",
+    "domain": "light",
+    "label": "Roof Apartment Bed Room Switch P1"
+  },
+  {
+    "key": "entity_248",
+    "placeholder": "light.dwelldeck_slot_248",
+    "domain": "light",
+    "label": "Roof Apartment Bed Room Switch P2"
+  },
+  {
+    "key": "entity_249",
+    "placeholder": "light.dwelldeck_slot_249",
+    "domain": "light",
+    "label": "Roof Apartment Kitchen Switch Balcony Lights"
+  },
+  {
+    "key": "entity_250",
+    "placeholder": "light.dwelldeck_slot_250",
+    "domain": "light",
+    "label": "Roof Apartment Kitchen Switch Dish Washer Lights"
+  },
+  {
+    "key": "entity_251",
+    "placeholder": "light.dwelldeck_slot_251",
+    "domain": "light",
+    "label": "Roof Apartment Kitchen Switch Kitchen Light"
+  },
+  {
+    "key": "entity_252",
+    "placeholder": "light.dwelldeck_slot_252",
+    "domain": "light",
+    "label": "Roof Apartment Living Room Switch Coredor Light"
+  },
+  {
+    "key": "entity_253",
+    "placeholder": "light.dwelldeck_slot_253",
+    "domain": "light",
+    "label": "Roof Apartment Living Room Switch Kitchen Light"
+  },
+  {
+    "key": "entity_254",
+    "placeholder": "light.dwelldeck_slot_254",
+    "domain": "light",
+    "label": "Roof Apartment Living Room Switch Living Light"
+  },
+  {
+    "key": "entity_255",
+    "placeholder": "light.dwelldeck_slot_255",
+    "domain": "light",
+    "label": "Saloon Bar Switch All On Off Light"
+  },
+  {
+    "key": "entity_256",
+    "placeholder": "light.dwelldeck_slot_256",
+    "domain": "light",
+    "label": "Saloon Bar Switch Bar Spot Light"
+  },
+  {
+    "key": "entity_257",
+    "placeholder": "light.dwelldeck_slot_257",
+    "domain": "light",
+    "label": "Saloon Bar Switch Bar Track Light"
+  },
+  {
+    "key": "entity_258",
+    "placeholder": "light.dwelldeck_slot_258",
+    "domain": "light",
+    "label": "Saloon Saloon Switch Coredor Track Light"
+  },
+  {
+    "key": "entity_259",
+    "placeholder": "light.dwelldeck_slot_259",
+    "domain": "light",
+    "label": "Saloon Saloon Switch Indirect Light"
+  },
+  {
+    "key": "entity_260",
+    "placeholder": "light.dwelldeck_slot_260",
+    "domain": "light",
+    "label": "Saloon Saloon Switch Window Indirect Light"
+  },
+  {
+    "key": "entity_261",
+    "placeholder": "light.dwelldeck_slot_261",
+    "domain": "light",
+    "label": "Saloon Saloon Track Switch Coloum Light"
+  },
+  {
+    "key": "entity_262",
+    "placeholder": "light.dwelldeck_slot_262",
+    "domain": "light",
+    "label": "Saloon Saloon Track Switch Left Track Light"
+  },
+  {
+    "key": "entity_263",
+    "placeholder": "light.dwelldeck_slot_263",
+    "domain": "light",
+    "label": "Saloon Saloon Track Switch Right Track Light"
+  },
+  {
+    "key": "entity_264",
+    "placeholder": "light.dwelldeck_slot_264",
+    "domain": "light",
+    "label": "Street Switch P1"
+  },
+  {
+    "key": "entity_265",
+    "placeholder": "light.dwelldeck_slot_265",
+    "domain": "light",
+    "label": "Street Switch P2"
+  },
+  {
+    "key": "entity_266",
+    "placeholder": "light.dwelldeck_slot_266",
+    "domain": "light",
+    "label": "Street Switch P3"
+  },
+  {
+    "key": "entity_267",
+    "placeholder": "light.dwelldeck_slot_267",
+    "domain": "light",
+    "label": "Wall Washer All"
+  },
+  {
+    "key": "entity_268",
+    "placeholder": "media_player.dwelldeck_slot_268",
+    "domain": "media_player",
+    "label": "Bedroom 1 Bedroom Daniel Dany Sound System"
+  },
+  {
+    "key": "entity_269",
+    "placeholder": "media_player.dwelldeck_slot_269",
+    "domain": "media_player",
+    "label": "Garden Bbq Sound System"
+  },
+  {
+    "key": "entity_270",
+    "placeholder": "media_player.dwelldeck_slot_270",
+    "domain": "media_player",
+    "label": "Gym Gym Sound System"
+  },
+  {
+    "key": "entity_271",
+    "placeholder": "media_player.dwelldeck_slot_271",
+    "domain": "media_player",
+    "label": "Kitchen Kitch Kitchen Sound System"
+  },
+  {
+    "key": "entity_272",
+    "placeholder": "media_player.dwelldeck_slot_272",
+    "domain": "media_player",
+    "label": "Kitchen Tv 2"
+  },
+  {
+    "key": "entity_273",
+    "placeholder": "media_player.dwelldeck_slot_273",
+    "domain": "media_player",
+    "label": "Bedroom 2 Bedroom Bedroom 2Ound System"
+  },
+  {
+    "key": "entity_274",
+    "placeholder": "media_player.dwelldeck_slot_274",
+    "domain": "media_player",
+    "label": "Master Bedroom Master Sound System"
+  },
+  {
+    "key": "entity_275",
+    "placeholder": "media_player.dwelldeck_slot_275",
+    "domain": "media_player",
+    "label": "Media Pause"
+  },
+  {
+    "key": "entity_276",
+    "placeholder": "media_player.dwelldeck_slot_276",
+    "domain": "media_player",
+    "label": "Mini Kitchen M Kit M Kitchen Sound System"
+  },
+  {
+    "key": "entity_277",
+    "placeholder": "media_player.dwelldeck_slot_277",
+    "domain": "media_player",
+    "label": "Pool Area Bar"
+  },
+  {
+    "key": "entity_278",
+    "placeholder": "media_player.dwelldeck_slot_278",
+    "domain": "media_player",
+    "label": "Pool Area Pergul Pergola Sound System"
+  },
+  {
+    "key": "entity_279",
+    "placeholder": "media_player.dwelldeck_slot_279",
+    "domain": "media_player",
+    "label": "Pool Area Pool Appletv"
+  },
+  {
+    "key": "entity_280",
+    "placeholder": "media_player.dwelldeck_slot_280",
+    "domain": "media_player",
+    "label": "Pool Area Pool Sound System"
+  },
+  {
+    "key": "entity_281",
+    "placeholder": "media_player.dwelldeck_slot_281",
+    "domain": "media_player",
+    "label": "Rest Area Living 2F Tv Pro"
+  },
+  {
+    "key": "entity_282",
+    "placeholder": "media_player.dwelldeck_slot_282",
+    "domain": "media_player",
+    "label": "Rest Area Rest Living Sound System"
+  },
+  {
+    "key": "entity_283",
+    "placeholder": "media_player.dwelldeck_slot_283",
+    "domain": "media_player",
+    "label": "Saloon Saloon Sound System"
+  },
+  {
+    "key": "entity_284",
+    "placeholder": "media_player.dwelldeck_slot_284",
+    "domain": "media_player",
+    "label": "Saloon Saloon Tv"
+  },
+  {
+    "key": "entity_285",
+    "placeholder": "media_player.dwelldeck_slot_285",
+    "domain": "media_player",
+    "label": "Spotify Rawad Haidar"
+  },
+  {
+    "key": "entity_286",
+    "placeholder": "sensor.dwelldeck_slot_286",
+    "domain": "sensor",
+    "label": "Electric Room Deye Pv Power"
+  },
+  {
+    "key": "entity_287",
+    "placeholder": "sensor.dwelldeck_slot_287",
+    "domain": "sensor",
+    "label": "Solar Battery"
+  },
+  {
+    "key": "entity_288",
+    "placeholder": "sensor.dwelldeck_slot_288",
+    "domain": "sensor",
+    "label": "Villa Power"
+  },
+  {
+    "key": "entity_289",
+    "placeholder": "switch.dwelldeck_slot_289",
+    "domain": "switch",
+    "label": "Mechanical Room Electric Valve 1St Floor Valve"
+  },
+  {
+    "key": "entity_290",
+    "placeholder": "switch.dwelldeck_slot_290",
+    "domain": "switch",
+    "label": "Mechanical Room Electric Valve 2Nd Floor Valve"
+  },
+  {
+    "key": "entity_291",
+    "placeholder": "switch.dwelldeck_slot_291",
+    "domain": "switch",
+    "label": "Mechanical Room Electric Valve 3Rd Floor Valve"
+  },
+  {
+    "key": "entity_292",
+    "placeholder": "switch.dwelldeck_slot_292",
+    "domain": "switch",
+    "label": "Mechanical Room Mecanical Room Controller Chedier Switch"
+  },
+  {
+    "key": "entity_293",
+    "placeholder": "switch.dwelldeck_slot_293",
+    "domain": "switch",
+    "label": "Mechanical Room Mecanical Room Controller Gym Hood"
+  },
+  {
+    "key": "entity_294",
+    "placeholder": "switch.dwelldeck_slot_294",
+    "domain": "switch",
+    "label": "Pool Area Pool Controller Pool Filter"
+  },
+  {
+    "key": "entity_295",
+    "placeholder": "weather.dwelldeck_slot_295",
+    "domain": "weather",
+    "label": "Entrance Forecast Home"
+  }
+]

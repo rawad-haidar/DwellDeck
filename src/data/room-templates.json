@@ -1,0 +1,232 @@
+[
+  {
+    "key": "room_01",
+    "name": "Saloon",
+    "section": 1,
+    "card": 1,
+    "placeholders": [
+      "light.dwelldeck_slot_255",
+      "light.dwelldeck_slot_256",
+      "light.dwelldeck_slot_257",
+      "light.dwelldeck_slot_258",
+      "light.dwelldeck_slot_259",
+      "light.dwelldeck_slot_260",
+      "light.dwelldeck_slot_261",
+      "light.dwelldeck_slot_262",
+      "light.dwelldeck_slot_263"
+    ]
+  },
+  {
+    "key": "room_02",
+    "name": "Dining",
+    "section": 1,
+    "card": 2,
+    "placeholders": [
+      "light.dwelldeck_slot_172",
+      "light.dwelldeck_slot_173",
+      "light.dwelldeck_slot_174",
+      "light.dwelldeck_slot_175",
+      "light.dwelldeck_slot_176"
+    ]
+  },
+  {
+    "key": "room_03",
+    "name": "Kitchen",
+    "section": 1,
+    "card": 3,
+    "placeholders": [
+      "light.dwelldeck_slot_196",
+      "light.dwelldeck_slot_197",
+      "light.dwelldeck_slot_198",
+      "light.dwelldeck_slot_199",
+      "light.dwelldeck_slot_200",
+      "light.dwelldeck_slot_201"
+    ]
+  },
+  {
+    "key": "room_04",
+    "name": "Dirty Kitchen",
+    "section": 1,
+    "card": 4,
+    "placeholders": [
+      "light.dwelldeck_slot_177",
+      "light.dwelldeck_slot_178",
+      "light.dwelldeck_slot_179",
+      "light.dwelldeck_slot_180",
+      "light.dwelldeck_slot_181"
+    ]
+  },
+  {
+    "key": "room_05",
+    "name": "Entrance",
+    "section": 1,
+    "card": 5,
+    "placeholders": [
+      "light.dwelldeck_slot_184",
+      "light.dwelldeck_slot_185",
+      "light.dwelldeck_slot_186",
+      "light.dwelldeck_slot_187",
+      "light.dwelldeck_slot_188"
+    ]
+  },
+  {
+    "key": "room_06",
+    "name": "Rest Area",
+    "section": 1,
+    "card": 6,
+    "placeholders": [
+      "light.dwelldeck_slot_236",
+      "light.dwelldeck_slot_237",
+      "light.dwelldeck_slot_238",
+      "light.dwelldeck_slot_239",
+      "light.dwelldeck_slot_240",
+      "light.dwelldeck_slot_241",
+      "light.dwelldeck_slot_242",
+      "light.dwelldeck_slot_243",
+      "light.dwelldeck_slot_244",
+      "light.dwelldeck_slot_245",
+      "light.dwelldeck_slot_246"
+    ]
+  },
+  {
+    "key": "room_07",
+    "name": "Mini Kitchen",
+    "section": 1,
+    "card": 7,
+    "placeholders": [
+      "light.dwelldeck_slot_228",
+      "light.dwelldeck_slot_229"
+    ]
+  },
+  {
+    "key": "room_08",
+    "name": "Master Bedroom",
+    "section": 2,
+    "card": 1,
+    "placeholders": [
+      "light.dwelldeck_slot_211",
+      "light.dwelldeck_slot_212",
+      "light.dwelldeck_slot_213",
+      "light.dwelldeck_slot_214",
+      "light.dwelldeck_slot_215",
+      "light.dwelldeck_slot_216",
+      "light.dwelldeck_slot_217",
+      "light.dwelldeck_slot_218",
+      "light.dwelldeck_slot_219",
+      "light.dwelldeck_slot_220",
+      "light.dwelldeck_slot_221",
+      "light.dwelldeck_slot_222",
+      "light.dwelldeck_slot_223",
+      "light.dwelldeck_slot_224",
+      "light.dwelldeck_slot_225",
+      "light.dwelldeck_slot_226"
+    ]
+  },
+  {
+    "key": "room_09",
+    "name": "Bedroom 1",
+    "section": 2,
+    "card": 2,
+    "placeholders": [
+      "light.dwelldeck_slot_164",
+      "light.dwelldeck_slot_165",
+      "light.dwelldeck_slot_166",
+      "light.dwelldeck_slot_167",
+      "light.dwelldeck_slot_168",
+      "light.dwelldeck_slot_169",
+      "light.dwelldeck_slot_170",
+      "light.dwelldeck_slot_171"
+    ]
+  },
+  {
+    "key": "room_10",
+    "name": "Bedroom 2",
+    "section": 2,
+    "card": 3,
+    "placeholders": [
+      "light.dwelldeck_slot_206",
+      "light.dwelldeck_slot_207",
+      "light.dwelldeck_slot_208",
+      "light.dwelldeck_slot_209",
+      "light.dwelldeck_slot_210"
+    ]
+  },
+  {
+    "key": "room_11",
+    "name": "Guest Bathroom",
+    "section": 2,
+    "card": 4,
+    "placeholders": [
+      "light.dwelldeck_slot_189",
+      "light.dwelldeck_slot_190",
+      "light.dwelldeck_slot_191",
+      "light.dwelldeck_slot_192"
+    ]
+  },
+  {
+    "key": "room_12",
+    "name": "Pool Area",
+    "section": 3,
+    "card": 1,
+    "placeholders": [
+      "light.dwelldeck_slot_230",
+      "light.dwelldeck_slot_231",
+      "light.dwelldeck_slot_232",
+      "light.dwelldeck_slot_233",
+      "light.dwelldeck_slot_234",
+      "light.dwelldeck_slot_235"
+    ]
+  },
+  {
+    "key": "room_13",
+    "name": "Landscape",
+    "section": 3,
+    "card": 2,
+    "placeholders": [
+      "light.dwelldeck_slot_202",
+      "light.dwelldeck_slot_203",
+      "light.dwelldeck_slot_204",
+      "light.dwelldeck_slot_205",
+      "light.dwelldeck_slot_265",
+      "light.dwelldeck_slot_264",
+      "light.dwelldeck_slot_266"
+    ]
+  },
+  {
+    "key": "room_14",
+    "name": "Gym",
+    "section": 3,
+    "card": 3,
+    "placeholders": [
+      "light.dwelldeck_slot_193",
+      "light.dwelldeck_slot_194",
+      "light.dwelldeck_slot_195"
+    ]
+  },
+  {
+    "key": "room_15",
+    "name": "Roof Apartment",
+    "section": 4,
+    "card": 1,
+    "placeholders": [
+      "light.dwelldeck_slot_247",
+      "light.dwelldeck_slot_248",
+      "light.dwelldeck_slot_249",
+      "light.dwelldeck_slot_250",
+      "light.dwelldeck_slot_251",
+      "light.dwelldeck_slot_252",
+      "light.dwelldeck_slot_253",
+      "light.dwelldeck_slot_254"
+    ]
+  },
+  {
+    "key": "room_16",
+    "name": "Electric Room",
+    "section": 4,
+    "card": 2,
+    "placeholders": [
+      "light.dwelldeck_slot_182",
+      "light.dwelldeck_slot_183"
+    ]
+  }
+]

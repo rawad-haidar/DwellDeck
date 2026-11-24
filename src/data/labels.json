@@ -1,0 +1,26 @@
+[
+  {
+    "token": "__DWELLDECK_LABEL_01__",
+    "default": "Bedroom 1"
+  },
+  {
+    "token": "__DWELLDECK_LABEL_02__",
+    "default": "Bedroom 2"
+  },
+  {
+    "token": "__DWELLDECK_LABEL_03__",
+    "default": "Bedroom 1"
+  },
+  {
+    "token": "__DWELLDECK_LABEL_04__",
+    "default": "Bedroom 2"
+  },
+  {
+    "token": "__DWELLDECK_LABEL_05__",
+    "default": "Bedroom 1"
+  },
+  {
+    "token": "__DWELLDECK_LABEL_06__",
+    "default": "Bedroom 2"
+  }
+]
