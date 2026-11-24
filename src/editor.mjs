@@ -3,7 +3,7 @@ import {clone} from './util.mjs';
 import {dependencyStatus} from './dependencies.mjs';
 import {ROOM_CONTROL_DOMAINS, discoveryContext, discoverConfiguration} from './discovery.mjs';
 import {DWELL_PALETTES, DEFAULT_PALETTE} from './theme.mjs';
-import {detectionSensors, snapshotAutomation, SNAPSHOT_DIR} from './detection.mjs';
+import {detectionSensors, snapshotAutomation, cleanupAutomation, SNAPSHOT_DIR, SNAPSHOT_DAYS, CLEANUP_YAML} from './detection.mjs';
 import {SLOTS, ROOM_TEMPLATES} from './data.mjs';
 
 export class DwellDeckOriginalEditor extends HTMLElement {
@@ -119,8 +119,14 @@ export class DwellDeckOriginalEditor extends HTMLElement {
         }
         this.change({...this.config, detection_snapshots: true});
         const unlinked = sensors.filter(sensor => !sensor.camera).map(sensor => sensor.cam);
+        // Keep 30 days per camera: a nightly cleanup, when the shell command for it exists.
+        const canClean = !!this._hass.services?.shell_command?.dwelldeck_snapshot_cleanup;
+        if (canClean) await this._hass.callApi('POST', 'config/automation/config/dwelldeck_snapshot_cleanup', cleanupAutomation());
         snapshotStatus.textContent = `Snapshots set up for ${linked.length} sensors on ${automation.triggers.length} cameras.` +
-          (unlinked.length ? ` No camera found for: ${[...new Set(unlinked)].join(', ')}.` : '') + ' Save the dashboard to show them.';
+          (unlinked.length ? ` No camera found for: ${[...new Set(unlinked)].join(', ')}.` : '') + ' Save the dashboard to show them. ' +
+          (canClean ? `Snapshots older than ${SNAPSHOT_DAYS} days are deleted every night.`
+            : `To keep only the last ${SNAPSHOT_DAYS} days, add this to configuration.yaml, restart, and press this button again:\n${CLEANUP_YAML}`);
+        snapshotStatus.style.whiteSpace = 'pre-wrap';
         snapshots.textContent = 'Update detection snapshots';
       } catch (error) {
         snapshotStatus.textContent = `Could not set up snapshots: ${error.message || error.body?.message || 'administrator access is required'}`;

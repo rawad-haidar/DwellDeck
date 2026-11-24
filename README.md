@@ -156,3 +156,13 @@ Do not upload private dashboard backups, source household entity bindings, Home 
 For manual updates, replace the JavaScript, update its resource URL version, and refresh. Keep a backup of your strategy settings. The 0.1 room-grid card is not used by this edition; replace its dashboard configuration with the strategy example.
 
 MIT licensed. See `LICENSE`.
+
+
+### Keeping 30 days of detection snapshots
+
+Each detection saves a dated snapshot in `media/dwelldeck/snapshots/<camera>/`. To delete snapshots older than 30 days every night, add this to `configuration.yaml`, restart Home Assistant, then press **Update detection snapshots** in the dashboard editor:
+
+```yaml
+shell_command:
+  dwelldeck_snapshot_cleanup: "find /media/dwelldeck/snapshots -mindepth 2 -type f -name '*.jpg' -mmin +43200 -delete"
+```

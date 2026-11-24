@@ -103,6 +103,22 @@ function detectionCamera(id, cam, hass, cameras) {
   return pick(onDevice) || pick(byName) || null;
 }
 
+// Dated snapshots are kept this many days; a nightly cleanup deletes older ones, one day at a time.
+export const SNAPSHOT_DAYS = 30;
+// Home Assistant cannot delete files itself: this shell command (added to configuration.yaml) does it.
+export const CLEANUP_COMMAND = `find ${SNAPSHOT_DIR} -mindepth 2 -type f -name '*.jpg' -mmin +${SNAPSHOT_DAYS * 24 * 60} -delete`;
+export const CLEANUP_YAML = `shell_command:\n  dwelldeck_snapshot_cleanup: "${CLEANUP_COMMAND}"`;
+export function cleanupAutomation() {
+  return {
+    alias: 'DwellDeck · Snapshot cleanup',
+    description: `Created by DwellDeck. Every night, deletes dated detection snapshots older than ${SNAPSHOT_DAYS} days, so each camera keeps the last ${SNAPSHOT_DAYS} days.`,
+    mode: 'single',
+    triggers: [{trigger: 'time', at: '03:17:00'}],
+    conditions: [],
+    actions: [{action: 'shell_command.dwelldeck_snapshot_cleanup'}]
+  };
+}
+
 // One automation saves the latest snapshot for every linked sensor, overwriting the previous one.
 export function snapshotAutomation(sensors) {
   const byCamera = new Map();
@@ -209,7 +225,8 @@ function dwellSnapViewer(card, hass, cfg) {
       try {
         const folder = await hass.callWS({type: 'media_source/browse_media', media_content_id: cfg.folder});
         files = (folder.children || []).filter(child => !child.can_expand && /\.jpe?g$/i.test(child.title || ''))
-          .map(child => ({id: child.media_content_id, ...label(child.title)})).sort((a, b) => b.when - a.when).slice(0, cfg.max);
+          .map(child => ({id: child.media_content_id, ...label(child.title)}))
+          .filter(file => !file.when || file.when >= Date.now() - cfg.days * 86400000).sort((a, b) => b.when - a.when).slice(0, cfg.max);
       } catch (e) { /* no folder yet */ }
       // Before the first dated snapshot: the latest snapshot of each sensor.
       // Only sensors that have one: a sensor that never detected has no file.
@@ -221,7 +238,11 @@ function dwellSnapViewer(card, hass, cfg) {
         } catch (e) { /* no snapshots yet */ }
         files = cfg.latest.filter(item => saved.has(item.id)).map(item => ({id: item.id, when: 0, caption: item.caption}));
       }
-      const items = (await Promise.all(files.map(async file => ({...file, url: await resolve(file.id)})))).filter(item => item.url);
+      // Signed links, a few at a time so a month of snapshots does not flood Home Assistant.
+      const items = [];
+      for (let i = 0; i < files.length; i += 12) {
+        items.push(...(await Promise.all(files.slice(i, i + 12).map(async file => ({...file, url: await resolve(file.id)})))).filter(item => item.url));
+      }
       Object.assign(entry, {items, sel: 0, at: Date.now(), loading: false});
       // Draw into the card that asked; the popup may have been closed meanwhile.
       const deep = root => { const hit = root.querySelector?.(`.sv[data-key="${cfg.key}"]`); if (hit) return hit;
@@ -236,7 +257,7 @@ function dwellSnapViewer(card, hass, cfg) {
 function snapshotViewer(group) {
   const folderName = group.camera.split('.')[1];
   const cfg = {
-    key: folderName, max: 40,
+    key: folderName, max: 600, days: SNAPSHOT_DAYS,
     folder: `media-source://media_source/local/${SNAPSHOT_DIR.replace(/^\/media\//, '')}/${folderName}`,
     latest: group.sensors.map(sensor => ({id: snapshotImage(sensor.entity_id), caption: `${sensor.kinds.map(kind => kind === 'vehicle' ? 'Vehicle' : 'Human').join(' and ')} · latest`})),
     c: {muted: '#91a8bd', on: '#d5a74c', onText: '#efc875'}

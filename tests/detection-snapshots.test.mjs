@@ -147,3 +147,24 @@ test('before dated snapshots exist, the viewer shows only sensors that have a la
   assert(html.includes('binary_sensor.front_gate_smd_human.jpg'));
   assert(!html.includes('binary_sensor.front_gate_smd_vehicle.jpg'), 'no empty picture for a sensor without a snapshot');
 });
+test('snapshots are kept 30 days: the strip shows the last 30 days and a nightly cleanup deletes older dated ones', async () => {
+  const {CLEANUP_COMMAND, CLEANUP_YAML, cleanupAutomation, SNAPSHOT_DAYS} = await import('../src/detection.mjs');
+  assert.equal(SNAPSHOT_DAYS, 30);
+  assert.equal(CLEANUP_COMMAND, "find /media/dwelldeck/snapshots -mindepth 2 -type f -name '*.jpg' -mmin +43200 -delete");
+  assert(CLEANUP_YAML.includes('dwelldeck_snapshot_cleanup:'));
+  assert.deepEqual(cleanupAutomation().actions, [{action: 'shell_command.dwelldeck_snapshot_cleanup'}]);
+  const viewer = tiles(generate({detection_snapshots: true}))[0].popup.data.content.cards[0];
+  const body = viewer.custom_fields.viewer.trim().slice(3, -3);
+  const stamp = d => d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '_120000';
+  const day = n => new Date(Date.now() - n * 86400000);
+  const files = [...Array(45).keys()].map(n => `${stamp(day(n))}_front_gate_smd_human.jpg`);
+  const hass = {callWS: async msg => msg.type === 'media_source/browse_media'
+    ? {children: files.map(title => ({title, media_content_id: msg.media_content_id + '/' + title, can_expand: false}))}
+    : {url: '/media/' + msg.media_content_id.split('/').pop()}};
+  globalThis.window = {};
+  const run = () => Function('states', 'hass', body).call(null, {}, hass);
+  run();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  const thumbs = run().match(/class="th/g).length;
+  assert(thumbs >= 29 && thumbs <= 31, `about 30 days shown, got ${thumbs}`);
+});
