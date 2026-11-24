@@ -436,7 +436,7 @@ test('a room does not show Playing when only a cast entry of its TV is playing',
  const card=d.views.find(v=>v.path==='rooms').sections.flatMap(s=>s.cards).find(c=>c.name==='Saloon');
  const chips=card.custom_fields.chips;
  const cfg=JSON.parse(chips.slice(chips.lastIndexOf('(states, ')+9,chips.lastIndexOf(')')));
- assert.deepEqual(cfg.media,['media_player.saloon_tv']);
+ assert.deepEqual(cfg.media,[['media_player.saloon_tv']]);
 });
 test('TVs and sound systems are separate in a room, with their own chips',()=>{
  const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
@@ -453,4 +453,22 @@ test('TVs and sound systems are separate in a room, with their own chips',()=>{
  assert(html.includes('TV on')&&html.includes('Music playing'));
  const speaker=JSON.stringify(content).includes('mdi:speaker');
  assert(speaker);
+});
+test('a TV that is on but idle shows TV on, and players named Sound system are sound systems',()=>{
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([st('media_player.rest_area_living_tv','idle',{friendly_name:'Living Tv'}),st('remote.rest_area_living_2f_tv_pro','on',{current_activity:'com.netflix.ninja',friendly_name:'Living 2F TV Pro'}),
+  st('media_player.rest_area_sound_system','playing',{friendly_name:'Rest Area Sound System'}),st('light.rest_a','off')]);
+ const platform={'media_player.rest_area_living_tv':'androidtv','remote.rest_area_living_2f_tv_pro':'androidtv_remote','media_player.rest_area_sound_system':'cast','light.rest_a':'x'};
+ const entities=Object.fromEntries(Object.keys(states).map(id=>[id,{entity_id:id,area_id:'rest',platform:platform[id]}]));
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{rest:{area_id:'rest',name:'Rest Area',labels:[]}},floors:{},labels:{},devices:{},entities};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const card=d.views.find(v=>v.path==='rooms').sections.flatMap(s=>s.cards).find(c=>c.name==='Rest Area');
+ const html=Function('states',card.custom_fields.chips.trim().slice(3,-3))(states);
+ assert(html.includes('TV on'),'idle Android TV is on');
+ assert(html.includes('Music playing'),'named sound system is a speaker');
+ const headings=card.tap_action.browser_mod.data.content.cards.filter(c=>c.type==='heading').map(c=>c.heading);
+ assert(headings.includes('TVs')&&headings.includes('Sound systems'));
+ const off={...states,'media_player.rest_area_living_tv':{state:'off',attributes:{}},'remote.rest_area_living_2f_tv_pro':{state:'off',attributes:{}},'media_player.rest_area_sound_system':{state:'idle',attributes:{}}};
+ const quiet=Function('states',card.custom_fields.chips.trim().slice(3,-3))(off);
+ assert(!quiet.includes('TV on')&&!quiet.includes('Music'));
 });

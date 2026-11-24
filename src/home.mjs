@@ -1,6 +1,6 @@
 // Home: what needs you first, then the rooms in use, then outdoors, energy and shortcuts.
 import {clone} from './util.mjs';
-import {tvGroup, isTv} from './tv.mjs';
+import {tvGroup, isTv, tvSignals} from './tv.mjs';
 import {ROOM_COLORS} from './rooms.mjs';
 
 const HOME_C = ROOM_COLORS;
@@ -21,7 +21,7 @@ function dwellGlance(states, hass, cfg) {
   const domain = d => all.filter(id => id.startsWith(d + '.'));
   const lights = (cfg.lights.length ? cfg.lights : domain('light').filter(id => !Array.isArray(states[id].attributes?.entity_id))).filter(id => states[id]);
   const lightsOn = lights.filter(id => states[id].state === 'on').length;
-  const tvsOn = cfg.tvs.filter(id => states[id] && !['off', 'standby', 'unavailable', 'unknown'].includes(states[id].state)).length;
+  const tvsOn = cfg.tvs.filter(ids => ids.some(id => { const st = states[id]?.state; return st && (id.startsWith('remote.') ? st === 'on' : !['off', 'standby', 'unavailable', 'unknown'].includes(st)); })).length;
   const acOn = domain('climate').filter(id => {
     const e = states[id], a = e.attributes?.hvac_action;
     return a ? ['heating', 'cooling', 'drying', 'fan'].includes(a) : !['off', 'unavailable', 'unknown'].includes(e.state);
@@ -143,12 +143,15 @@ function evenShortcut(card) {
 
 // A room appears on Home while something in it is on. Visibility conditions only read states, so
 // "on" here is: a light, switch or fan on, a TV or player in use, or air conditioning not off.
-const activeCondition = id => {
+const TV_OFF = ['off', 'standby', 'unavailable', 'unknown'];
+const activeCondition = (id, tvs = []) => {
+  if (tvs.includes(id) && id.startsWith('media_player.')) return {condition: 'state', entity: id, state_not: TV_OFF};
   if (id.startsWith('media_player.')) return {condition: 'state', entity: id, state_not: ['off', 'standby', 'idle', 'unavailable', 'unknown']};
   if (id.startsWith('climate.')) return {condition: 'state', entity: id, state_not: ['off', 'unavailable', 'unknown']};
   return {condition: 'state', entity: id, state: 'on'};
 };
-const quietCondition = id => {
+const quietCondition = (id, tvs = []) => {
+  if (tvs.includes(id) && id.startsWith('media_player.')) return {condition: 'state', entity: id, state: TV_OFF};
   if (id.startsWith('media_player.')) return {condition: 'state', entity: id, state: ['off', 'standby', 'idle', 'unavailable', 'unknown']};
   if (id.startsWith('climate.')) return {condition: 'state', entity: id, state: ['off', 'unavailable', 'unknown']};
   return {condition: 'state', entity: id, state_not: 'on'};
@@ -177,13 +180,13 @@ function activeRooms(output, prefix) {
   if (!rooms.length) return [];
   const cards = rooms.map(room => {
     const card = clone(room);
-    card.visibility = [{condition: 'or', conditions: room.variables.dwell_active.map(activeCondition)}];
+    card.visibility = [{condition: 'or', conditions: room.variables.dwell_active.map(id => activeCondition(id, room.variables.dwell_tvs))}];
     // Two rooms side by side on a wide screen, one per row on a phone, so names have room.
     card.grid_options = {columns: 12, rows: 'auto'};
     return card;
   });
   const quiet = quietCard(`${prefix}/rooms`);
-  quiet.visibility = [{condition: 'and', conditions: [...new Set(rooms.flatMap(room => room.variables.dwell_active))].map(quietCondition)}];
+  quiet.visibility = [{condition: 'and', conditions: [...new Set(rooms.flatMap(room => room.variables.dwell_active))].map(id => quietCondition(id, rooms.flatMap(room => room.variables.dwell_tvs || [])))}];
   return [heading('Rooms in use', 'mdi:home-lightning-bolt-outline'), ...cards, quiet];
 }
 
@@ -217,7 +220,7 @@ export function designHome(output, {prefix, hass = {}}) {
   const alarmId = alarm[0]?.entity || alerts[0]?.triggers_update?.find?.(id => id.startsWith('alarm_control_panel.'));
   const glance = glanceCard({
     lights: (lightsShortcut?.triggers_update || []).filter(id => id.startsWith('light.') && !isPlaceholder(id)),
-    tvs: playerLeads(hass).filter(id => isTv(id, hass)), speakers: playerLeads(hass).filter(id => !isTv(id, hass)), alarm: isPlaceholder(alarmId) ? null : alarmId || null,
+    tvs: playerLeads(hass).filter(id => isTv(id, hass)).map(id => tvSignals(id, hass)), speakers: playerLeads(hass).filter(id => !isTv(id, hass)), alarm: isPlaceholder(alarmId) ? null : alarmId || null,
     paths: {lights: path('lighting'), media: path('media'), music: path('music-assistant'), climate: path('climate'), curtains: path('curtains'), security: path('security')},
     c: HOME_C
   });

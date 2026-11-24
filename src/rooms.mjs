@@ -1,7 +1,7 @@
 // Rooms page design: each room card is a glanceable summary with one quick action, and each room
 // opens with a compact status strip instead of rows of sensor tiles.
 
-import {tvGroup, isTv} from './tv.mjs';
+import {tvGroup, isTv, tvSignals} from './tv.mjs';
 export const ROOM_COLORS = {
   surface: '#1b2d40', surfaceEnd: '#172638', card: '#101c2b', text: '#edf5ff', muted: '#91a8bd',
   line: 'rgba(156,199,225,.12)', onBg: '#493b24', on: '#d5a74c', onText: '#efc875', active: '#39e2bc', alert: '#ff7885'
@@ -37,8 +37,10 @@ function dwellRoomChips(states, cfg) {
     chip(action === 'heating' ? 'mdi:fire' : 'mdi:snowflake', `${label}${target ? ` ${target}°` : ''}`, 'on');
     break;
   }
-  const tvOn = cfg.media.filter(id => live(id) && !['off', 'standby', 'idle'].includes(states[id].state));
-  if (tvOn.length) chip('mdi:television-play', states[tvOn[0]].state === 'playing' ? 'TV playing' : 'TV on', 'on');
+  // A TV is on when any of its real entries is on (idle counts: the TV is on, nothing is playing) or its remote is on.
+  const tvIsOn = ids => ids.some(id => { const st = states[id]?.state; return st && (id.startsWith('remote.') ? st === 'on' : !['off', 'standby', 'unavailable', 'unknown'].includes(st)); });
+  const tvOn = cfg.media.filter(tvIsOn);
+  if (tvOn.length) chip('mdi:television-play', tvOn.some(ids => ids.some(id => states[id]?.state === 'playing')) ? 'TV playing' : 'TV on', 'on');
   const music = cfg.speakers.filter(id => live(id) && ['playing', 'paused'].includes(states[id].state));
   if (music.length) chip('mdi:speaker', states[music[0]].state === 'playing' ? 'Music playing' : 'Music paused', states[music[0]].state === 'playing' ? 'on' : undefined);
   const open = cfg.covers.filter(id => live(id) && ['open', 'opening'].includes(states[id].state)).length;
@@ -71,7 +73,7 @@ const chipsConfig = (controls, hass, strip = false, room = {}) => ({
   binary: controls.filter(id => id.startsWith('binary_sensor.')),
   climates: controls.filter(id => id.startsWith('climate.')),
   // Each TV by its main entry: a cast or DLNA entry that keeps playing does not count as the TV playing.
-  media: [...new Set(controls.filter(id => id.startsWith('media_player.') && isTv(id, hass)).map(id => tvGroup(id, hass)[0]))],
+  media: [...new Map(controls.filter(id => id.startsWith('media_player.') && isTv(id, hass)).map(id => [tvGroup(id, hass)[0], tvSignals(id, hass)])).values()],
   speakers: [...new Set(controls.filter(id => id.startsWith('media_player.') && !isTv(id, hass)).map(id => tvGroup(id, hass)[0]))],
   covers: controls.filter(id => id.startsWith('cover.')),
   strip, c: ROOM_COLORS
@@ -113,14 +115,18 @@ export function designRoomCard(card, {lights, controls, hass, room = {}}) {
   // Active means something in the room is switched on: lights, a TV or player, air conditioning running, a switch.
   // Sensors, doors and open curtains are shown as chips, not as activity.
   // A TV counts once, by its main entry: a cast or DLNA entry that keeps playing does not light up the room.
-  const ids = [...new Set([...lights, ...controls.filter(id => /^(media_player|climate|switch|fan)\./.test(id) && !hass.entities?.[id]?.entity_category)
-    .map(id => id.startsWith('media_player.') ? tvGroup(id, hass)[0] : id)])];
-  const active = `(()=>{const ids=${JSON.stringify(ids)}; return ids.some(id=>{const e=states[id]; if(!e) return false;
+  // A TV counts by its real entries and remote (on, idle or playing); a sound system counts while it plays.
+  const players = controls.filter(id => id.startsWith('media_player.') && !hass.entities?.[id]?.entity_category);
+  const tvIds = [...new Set(players.filter(id => isTv(id, hass)).flatMap(id => tvSignals(id, hass)))];
+  const speakerIds = [...new Set(players.filter(id => !isTv(id, hass)).map(id => tvGroup(id, hass)[0]))];
+  const ids = [...new Set([...lights, ...controls.filter(id => /^(climate|switch|fan)\./.test(id) && !hass.entities?.[id]?.entity_category), ...tvIds, ...speakerIds])];
+  const active = `(()=>{const ids=${JSON.stringify(ids)}; const tvs=${JSON.stringify(tvIds)}; return ids.some(id=>{const e=states[id]; if(!e) return false;
     if(id.startsWith('climate.')) return ['heating','cooling','drying','fan'].includes(e.attributes?.hvac_action);
+    if(tvs.includes(id) && id.startsWith('media_player.')) return !['off','standby','unavailable','unknown'].includes(e.state);
     if(id.startsWith('media_player.')) return !['off','standby','idle','unavailable','unknown'].includes(e.state);
     return e.state==='on';});})()`;
   card.show_label = true;
-  card.variables = {...(card.variables || {}), dwell_active: ids};
+  card.variables = {...(card.variables || {}), dwell_active: ids, dwell_tvs: tvIds};
   card.label = total
     ? `[[[ const ids=${JSON.stringify(lights)}; const on=ids.filter(id=>states[id]?.state==='on').length; return on ? on + ' of ' + ids.length + (ids.length === 1 ? ' light on' : ' lights on') : 'All lights off'; ]]]`
     : (controls.length ? 'No lights' : 'Nothing assigned');

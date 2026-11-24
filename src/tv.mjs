@@ -71,7 +71,10 @@ const rank = (id, hass) => {
 // so a cast entry of a TV stays with the TV.
 const TV_PLATFORMS = ['androidtv', 'androidtv_remote', 'apple_tv', 'webostv', 'samsungtv', 'braviatv', 'philips_js', 'vizio', 'roku', 'panasonic_viera', 'lg_netcast', 'lg_thinq', 'hisense_tv', 'tcl'];
 const SPEAKER_PLATFORMS = ['music_assistant', 'sonos', 'squeezebox', 'linkplay', 'yamaha_musiccast', 'yamaha', 'denonavr', 'heos', 'bluesound', 'snapcast', 'mpd', 'volumio', 'dsppa', 'bose', 'onkyo', 'frontier_silicon', 'arcam_fmj', 'cambridge_audio', 'russound_rio', 'nad', 'openhome', 'spotify', 'forked_daapd', 'soundtouch', 'harman_kardon_avr', 'anthemav', 'monoprice', 'blackbird', 'xantech', 'dlna_dms'];
+// Names you give decide first: "Sound system", "Speaker", "Soundbar" or "Audio" in a name is a sound system.
+const SOUND_NAME = /sound\s*system|speaker|sound\s*bar|audio|amplifier|\bamp\b|receiver/i;
 const tvEntry = (id, hass) => {
+  if (SOUND_NAME.test(`${playerName(id, hass)} ${id.split('.')[1].replaceAll('_', ' ')}`)) return false;
   const dc = hass.states?.[id]?.attributes?.device_class;
   if (dc === 'tv') return true;
   if (dc === 'speaker' || dc === 'receiver') return false;
@@ -82,6 +85,15 @@ const tvEntry = (id, hass) => {
   return /\btv\b|television/i.test(`${playerName(id, hass)} ${id.split('.')[1].replaceAll('_', ' ')}`);
 };
 export const isTv = (id, hass) => tvGroup(id, hass).some(entry => tvEntry(entry, hass));
+// What tells whether a TV is on: its real TV entries (device_class tv or a TV integration, not a cast entry
+// that happens to be named after it) and its remote. A TV that is on but not playing reports "idle" or "on".
+export function tvSignals(id, hass) {
+  const group = tvGroup(id, hass);
+  const strong = group.filter(entry => !SOUND_NAME.test(playerName(entry, hass)) &&
+    (hass.states?.[entry]?.attributes?.device_class === 'tv' || TV_PLATFORMS.includes(hass.entities?.[entry]?.platform)));
+  const remote = group.map(entry => tvRemote(entry, hass)).find(Boolean);
+  return [...new Set([...(strong.length ? strong : group.slice(0, 1)), ...(remote?.id?.startsWith('remote.') ? [remote.id] : [])])];
+}
 
 // media_player supported_features bits.
 const FEATURE = {pause: 1, volumeSet: 4, turnOn: 128, turnOff: 256, volumeStep: 1024, play: 16384};
