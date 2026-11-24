@@ -98,6 +98,18 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
     output = replaceAggregates(output);
   }
   if (config.area_rooms) rebuildRichAreaViews(output, config, hass, lightPrototype, [...new Set(allLights)]);
+  // Rows in entity lists (history graphs, mini graphs, entities cards) are not cards:
+  // drop unselected rows, and hint only when a card has no selected rows left.
+  const unselected = row => (typeof row === 'string' ? row : row?.entity)?.includes?.('.dwelldeck_slot_');
+  visit(output,item => {
+    if (!item.type || !Array.isArray(item.entities) || !item.entities.some(unselected)) return;
+    item.entities = item.entities.filter(row => !unselected(row));
+    if (item.entities.length) return;
+    const layout = item.grid_options;
+    for (const key of Object.keys(item)) delete item[key];
+    Object.assign(item,{type:'markdown',content:'Select an entity in DwellDeck setup.'});
+    if (layout) item.grid_options = layout;
+  });
   // Native leaf cards with no selected entity become a small setup hint.
   visit(output,item => {
     if (typeof item.entity === 'string' && item.entity.includes('.dwelldeck_slot_')) {
