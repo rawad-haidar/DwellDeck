@@ -106,7 +106,9 @@ const HIDDEN_PACKAGES = /launcher|setupwraith|tungsten|katniss|systemui|inputmet
 const COMMON_APPS = [['Netflix', 'com.netflix.ninja'], ['YouTube', 'com.google.android.youtube.tv'], ['Disney+', 'com.disney.disneyplus'],
   ['Prime Video', 'com.amazon.amazonvideo.livingroom'], ['Spotify', 'com.spotify.tv.android'], ['YouTube Music', 'com.google.android.youtube.tvmusic']];
 // Shown when the TV lists no inputs: Android input keys. Whether a TV follows them depends on the TV.
-const COMMON_INPUTS = [['Home', 'HOME'], ['HDMI 1', 'TV_INPUT_HDMI_1'], ['HDMI 2', 'TV_INPUT_HDMI_2'], ['HDMI 3', 'TV_INPUT_HDMI_3'], ['HDMI 4', 'TV_INPUT_HDMI_4'], ['Inputs', 'TV_INPUT']];
+// Android key names; Android TV Remote sends them as they are, ADB as "input keyevent KEYCODE_<name>".
+const COMMON_INPUTS = [['Home', 'HOME'], ['Live TV', 'TV'], ['HDMI 1', 'TV_INPUT_HDMI_1'], ['HDMI 2', 'TV_INPUT_HDMI_2'],
+  ['HDMI 3', 'TV_INPUT_HDMI_3'], ['HDMI 4', 'TV_INPUT_HDMI_4'], ['Inputs', 'TV_INPUT']];
 const SOURCE_PATTERN = /hdmi|^tv$|live ?tv|antenna|tuner|^av\b|composite|component|usb|launcher|^home$/i;
 // App icons: Material Design brand icons (built into Home Assistant, so nothing is downloaded) on the
 // app's brand colour. Inputs use a neutral icon. Apps not listed get a letter tile (see dwellTvPanel).
@@ -123,7 +125,7 @@ const APP_ICONS = [
   [/xbox/i, 'mdi:microsoft-xbox', '#107c10'], [/home ?assistant/i, 'mdi:home-assistant', '#18bcf2'], [/cast/i, 'mdi:cast', '#4285f4'],
   [/google ?tv/i, 'mdi:television-play', '#4285f4'], [/settings/i, 'mdi:cog', '#5f6b7a'], [/podcast/i, 'mdi:podcast', '#8e44ad'],
   [/music/i, 'mdi:music-note', '#e0533d'], [/weather/i, 'mdi:weather-partly-cloudy', '#2d8cf0'], [/news/i, 'mdi:newspaper', '#5f6b7a'],
-  [/hdmi/i, 'mdi:video-input-hdmi'], [/launcher|^home$/i, 'mdi:home-outline'], [/^(tv|live ?tv|antenna|tuner)$/i, 'mdi:television-classic'],
+  [/hdmi/i, 'mdi:video-input-hdmi'], [/launcher|^home$/i, 'mdi:home-outline'], [/^(tv|live ?tv|antenna|tuner)$/i, 'mdi:television-classic'], [/^inputs$/i, 'mdi:import'],
   [/usb/i, 'mdi:usb'], [/^inputs$/i, 'mdi:import']];
 
 // A readable name for a list entry, or null for package names that are system services.
@@ -275,12 +277,13 @@ function dwellTvPanel(states, cfg) {
         ? 'Common apps. Turn the TV on and press Refresh to load the apps installed on it (needs the ADB connection).'
         : 'Common apps. To list the apps on this TV, add them in the Android TV Remote integration\'s options (Configure, then Applications).';
     }
-    if (cfg.remote?.target === cfg.fallback.remote && !items.some(i => i.input)) {
-      cfg.fallback.inputs.forEach(([name, command], index) => items.push({name, callData: keyCallFor(command), input: true, order: index}));
-      fallbackNote.sources = 'Input keys. Some TVs ignore the HDMI keys; Inputs opens the TV\'s own input menu.';
-    }
   } else if (cfg.adb && !installed.length && !items.some(i => !i.input)) {
     fallbackNote.apps = 'Turn the TV on and press Refresh to load the apps installed on it (needs the ADB connection).';
+  }
+  // Input keys for any Android TV (Android TV Remote or ADB) that lists no inputs of its own.
+  if (cfg.inputKeys && cfg.remote && !items.some(i => i.input)) {
+    cfg.inputKeys.forEach(([name, command], index) => items.push({name, callData: keyCallFor(cfg.remote.keyPrefix + command), input: true, order: index}));
+    fallbackNote.sources = 'Input keys. Some TVs ignore the HDMI keys; Inputs opens the TV\'s own input menu.';
   }
   const byName = (a, b) => (a.order ?? 99) - (b.order ?? 99) || a.name.localeCompare(b.name, undefined, {numeric: true});
   const look = name => cfg.icons.find(([pattern]) => new RegExp(pattern, 'i').test(name));
@@ -317,7 +320,7 @@ function dwellTvPanel(states, cfg) {
       <div class="row">${btn('mdi:arrow-left', 'Back', keyCall(k.back))}${btn('mdi:home-outline', 'Home', keyCall(k.home))}${btn('mdi:menu', 'Menu', keyCall(k.menu))}${k.mute ? btn('mdi:volume-off', 'Mute', keyCall(k.mute)) : ''}</div>
     </div>`);
   }
-  if (cfg.canSwitch) {
+  if (cfg.canSwitch || cfg.adb || cfg.inputKeys) {
     tabs.push(['apps', 'mdi:apps', 'Apps'], ['sources', 'mdi:video-input-hdmi', 'Sources']);
     const fetchCall = cfg.adb ? call('androidtv', 'adb_command', {entity_id: cfg.adb, command: cfg.fetchCommand}) : '';
     const refresh = cfg.adb ? `<button class="refresh" onclick="window.__dwellTv.call(this)" data-call="${fetchCall}"><ha-icon icon="mdi:refresh"></ha-icon><span>Refresh installed apps</span></button>` : '';
@@ -409,14 +412,15 @@ export function tvCard(requested, hass) {
     icons: APP_ICONS.map(([pattern, icon, color]) => [pattern.source, icon, color || '']),
     activities: remote?.platform === 'androidtv_remote' ? remote.id : null,
     keyboard: !!remote?.commands?.keyboard,
-    fallback: remote?.platform === 'androidtv_remote' ? {remote: remote.id, apps: COMMON_APPS, inputs: COMMON_INPUTS} : null,
+    fallback: remote?.platform === 'androidtv_remote' ? {remote: remote.id, apps: COMMON_APPS} : null,
     adb: players.find(p => hass.entities?.[p]?.platform === 'androidtv') || null,
     androidRemote: remote?.platform === 'androidtv_remote' ? remote.id : null,
     fetchCommand: FETCH_APPS, hiddenPackages: HIDDEN_PACKAGES.source,
     remote: remote && {
       domain: remote.platform === 'androidtv' ? 'androidtv' : 'remote', service: remote.platform === 'androidtv' ? 'adb_command' : 'send_command',
-      target: remote.id, keys: remote.commands
-    }
+      target: remote.id, keys: remote.commands, keyPrefix: remote.platform === 'androidtv' ? 'input keyevent KEYCODE_' : ''
+    },
+    inputKeys: ['androidtv_remote', 'androidtv'].includes(remote?.platform) ? COMMON_INPUTS : null
   };
 
   // One console line per TV, so a setup can be checked from the browser console (F12).

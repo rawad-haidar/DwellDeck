@@ -169,7 +169,7 @@ test('a TV seen through Android TV Remote, ADB and a speaker entry uses the entr
  assert(p.calls.some(c=>c[1]==='send_command'&&c[2].entity_id==='remote.saloon_tv'&&c[2].command==='DPAD_CENTER'));
  assert(p.names('apps-pane').includes('Netflix'));
  assert(p.calls.some(c=>c[1]==='turn_on'&&c[2].activity==='com.netflix.ninja'));
- assert.deepEqual(p.names('sources'),['Home','HDMI 1','HDMI 2','HDMI 3','HDMI 4','Inputs']);
+ assert.deepEqual(p.names('sources'),['Home','Live TV','HDMI 1','HDMI 2','HDMI 3','HDMI 4','Inputs']);
  const now=runField(tv,'now',states);
  assert(now.includes('YouTube')&&!now.includes('Paused'));
 });
@@ -260,4 +260,16 @@ test('installed apps come from ADB, are remembered, and drop out only when a new
  assert(run(removed).includes('monkey -p com.netflix.ninja'));
  globalThis.window.__dwellTv.open['media_player.bedroom_adb']='apps';
  assert(run(removed).includes('data-open="apps"'));
+});
+test('an ADB-only TV gets HDMI, Live TV and input keys as ADB key events',()=>{
+ const states={'media_player.rest_area_living_tv':{state:'on',attributes:{friendly_name:'Living Tv',device_class:'tv',supported_features:23997}}};
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{rest:{area_id:'rest',name:'Rest Area',labels:[]}},floors:{},labels:{},devices:{},
+  entities:{'media_player.rest_area_living_tv':{entity_id:'media_player.rest_area_living_tv',platform:'androidtv',device_id:'d1',area_id:'rest'}}};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const cards=[];const find=x=>{if(x&&typeof x==='object'){if(x.custom_fields?.media&&x.entity)cards.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ const p=panel(cards[0],states);
+ assert(p.tabs.includes('sources'));
+ assert.deepEqual(p.names('sources'),['Home','Live TV','HDMI 1','HDMI 2','HDMI 3','HDMI 4','Inputs']);
+ assert(p.calls.some(c=>c[0]==='androidtv'&&c[2].command==='input keyevent KEYCODE_TV_INPUT_HDMI_2'));
+ assert(p.calls.some(c=>c[0]==='androidtv'&&c[2].command==='input keyevent KEYCODE_TV'));
 });

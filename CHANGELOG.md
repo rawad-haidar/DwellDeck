@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.13 — Sources on every Android TV
+
+- **Sources** offers Home, **Live TV**, HDMI 1 to 4 and Inputs on every Android TV: as keys through Android TV Remote, or as `input keyevent` commands through ADB. ADB-only TVs such as Living Tv now get them too.
+- TVs that list inputs of their own (for example HDMI in a source list) show those instead.
+
 ## 0.9.12 — App icons
 
 - Apps show their brand icon on the brand colour (Netflix, YouTube, Spotify, Play Store, Plex, Kodi, Twitch, Apple TV and more), using icons built into Home Assistant, so nothing is downloaded. Apps without a brand icon get a tile with their first letter on a colour that stays the same for each app.
