@@ -718,3 +718,22 @@ test('an Android TV added by ADB and by Android TV Remote under different names 
   entities:{...entities,'media_player.bedroom_adb':{...ent('androidtv','adb2'),entity_id:'media_player.bedroom_adb'}},devices:{...devices,adb2:{id:'adb2',area_id:'rest',name:'Other'}}};
  assert.deepEqual(tvGroup('media_player.rest_area_living_tv',two),['media_player.rest_area_living_tv']);
 });
+
+test('a sound system card shows the artwork from its Music Assistant player while its zone leads',async()=>{
+ const {tvCard}=await import('../src/tv.mjs');
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([
+  st('media_player.rest_area_rest_living_sound_system','playing',{friendly_name:'Living Sound System',media_title:'Feel It Still',media_artist:'Portugal. The Man',source:'Internet music',supported_features:4+128+256+16384+1}),
+  st('media_player.living_sound_system_2','playing',{friendly_name:'Living Sound System',mass_player_type:'player',media_title:'Feel It Still',media_artist:'Portugal. The Man',
+   entity_picture:'http://192.168.14.243:8095/imageproxy/abc',app_id:'music_assistant',entity_picture_local:'/api/media_player_proxy/media_player.living_sound_system_2?token=x',supported_features:1+4+16+32+16384})]);
+ const entities={'media_player.rest_area_rest_living_sound_system':{entity_id:'media_player.rest_area_rest_living_sound_system',platform:'dsppa_am8328',device_id:'z'},
+  'media_player.living_sound_system_2':{entity_id:'media_player.living_sound_system_2',platform:'music_assistant',device_id:'m'}};
+ const hass={states,entities,devices:{z:{id:'z',area_id:'rest'},m:{id:'m',area_id:'rest'}},areas:{rest:{area_id:'rest',name:'Rest Area'}},floors:{}};
+ const card=tvCard('media_player.rest_area_rest_living_sound_system',hass);
+ assert.equal(card.entity,'media_player.rest_area_rest_living_sound_system','the zone leads (power goes to the amplifier)');
+ const now=runField(card,'now',states);
+ assert(now.includes('/api/media_player_proxy/media_player.living_sound_system_2')&&now.includes('Feel It Still'),'artwork and title on the card');
+ assert(now.includes('>Music Assistant<')&&!now.includes('Internet music'),'the app of the entry shown, not the zone\'s input');
+ const bg=card.styles.card.find(r=>r.background).background.trim().slice(3,-3);
+ assert(Function('states',bg)(states).includes('url("/api/media_player_proxy/media_player.living_sound_system_2'),'artwork behind the card');
+});

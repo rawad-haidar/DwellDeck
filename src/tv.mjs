@@ -607,10 +607,14 @@ export function tvCard(requested, hass) {
     const hasTv=all.some(p=>p.attributes?.device_class==='tv');
     // A sound system shows whichever of its players is playing something with a title or picture
     // (its Music Assistant player), so the music and artwork appear on the card.
-    const withMedia=live.find(p=>['playing','paused'].includes(p.state)&&(p.attributes?.media_title||p.attributes?.entity_picture_local||p.attributes?.entity_picture));
+    // The entry with artwork first: an amplifier zone reports the title too, but only its Music Assistant
+    // player has the picture.
+    const busy=p=>['playing','paused'].includes(p.state);
+    const withMedia=live.find(p=>busy(p)&&(p.attributes?.entity_picture_local||p.attributes?.entity_picture)&&p.attributes?.media_title)
+      || live.find(p=>busy(p)&&(p.attributes?.media_title||p.attributes?.entity_picture_local||p.attributes?.entity_picture));
     const m=!hasTv && withMedia ? withMedia : (lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || (hasTv ? lead : live.find(p=>p.state==='playing') || lead);
     const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'};
-    const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || live.map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
+    const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || [...(m && !OFFS.includes(m.state) ? [m] : []), ...live].map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
   // One on/off rule for the status, the TV icon and the power button: the entry the status uses is on.
   const isOn = `${current} const on = !!m && !OFFS.includes(m.state);`;
   const canSwitch = remote?.platform === 'androidtv_remote' || players.some(p =>
