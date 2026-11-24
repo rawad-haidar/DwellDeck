@@ -129,3 +129,21 @@ test('the snapshot viewer lists the camera folder newest first and switches the 
   assert(html.includes('class="big" src="/media/20261124_203724_front_gate_smd_human.jpg"'));
   assert(html.includes('__dwellSnapUi.pick'));
 });
+
+test('before dated snapshots exist, the viewer shows only sensors that have a latest snapshot', async () => {
+  const viewer = tiles(generate({detection_snapshots: true}))[0].popup.data.content.cards[0];
+  const body = viewer.custom_fields.viewer.trim().slice(3, -3);
+  const root = 'media-source://media_source/local/dwelldeck/snapshots';
+  const hass = {callWS: async msg => {
+    if (msg.type === 'media_source/browse_media' && msg.media_content_id === root) return {children: [{media_content_id: root + '/binary_sensor.front_gate_smd_human.jpg', title: 'binary_sensor.front_gate_smd_human.jpg'}]};
+    if (msg.type === 'media_source/browse_media') throw {code: 'browse_media_failed'};
+    return {url: '/media/' + msg.media_content_id.split('/').pop()};
+  }};
+  globalThis.window = {};
+  const run = () => Function('states', 'hass', body).call(null, {}, hass);
+  run();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const html = run();
+  assert(html.includes('binary_sensor.front_gate_smd_human.jpg'));
+  assert(!html.includes('binary_sensor.front_gate_smd_vehicle.jpg'), 'no empty picture for a sensor without a snapshot');
+});

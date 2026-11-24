@@ -212,7 +212,15 @@ function dwellSnapViewer(card, hass, cfg) {
           .map(child => ({id: child.media_content_id, ...label(child.title)})).sort((a, b) => b.when - a.when).slice(0, cfg.max);
       } catch (e) { /* no folder yet */ }
       // Before the first dated snapshot: the latest snapshot of each sensor.
-      if (!files.length) files = cfg.latest.map(item => ({id: item.id, when: 0, caption: item.caption}));
+      // Only sensors that have one: a sensor that never detected has no file.
+      if (!files.length) {
+        let saved = new Set();
+        try {
+          const root = await hass.callWS({type: 'media_source/browse_media', media_content_id: cfg.folder.slice(0, cfg.folder.lastIndexOf('/'))});
+          saved = new Set((root.children || []).map(child => child.media_content_id));
+        } catch (e) { /* no snapshots yet */ }
+        files = cfg.latest.filter(item => saved.has(item.id)).map(item => ({id: item.id, when: 0, caption: item.caption}));
+      }
       const items = (await Promise.all(files.map(async file => ({...file, url: await resolve(file.id)})))).filter(item => item.url);
       Object.assign(entry, {items, sel: 0, at: Date.now(), loading: false});
       // Draw into the card that asked; the popup may have been closed meanwhile.
