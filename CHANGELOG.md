@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.2 — TV apps
+
+- Each TV in Rooms and on the Media page gets an **Apps** card listing the apps on the TV, read when the dashboard loads: sources for Apple TV and most players, configured apps (remote activities) for Android TV Remote. Tap an app to open it; the app that is open is highlighted.
+- The remote pad gets a **Remote** heading.
+
 ## 0.9.1 — TV controls in discovered rooms
 
 - TVs and speakers in rooms built with **Discover rooms** (and on the Media page) now show playback, volume and, when the player lists them, apps, below the media card.
