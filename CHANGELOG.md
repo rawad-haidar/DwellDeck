@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.20 — Identical room cards
+
+- Every room card is the same size (two rows of the sections grid), with the icon, name, lights button and chips in the same place on every card.
+- The name stays on one line; cards show one row of the three most important chips (alerts and open doors, then temperature, air conditioning, TV, motion). The status strip inside the room still shows them all.
+
 ## 0.9.19 — Room card layout fix
 
 - The room's lights button sits top right in every card: the off and on buttons share one slot and Home Assistant's conditional cards show the one that applies. Before, the on button fell into an extra row and squeezed the room name to a few letters.

@@ -40,10 +40,14 @@ function dwellRoomChips(states, cfg) {
   if (alarms.length) chip('mdi:alert', 'Alert', 'alert');
   if (!chips.length) return cfg.strip ? `<div style="color:${cfg.c.muted};font-size:13px;text-align:left">No sensor readings in this room.</div>` : '';
   const color = tone => tone === 'on' ? cfg.c.onText : tone === 'active' ? cfg.c.active : tone === 'alert' ? cfg.c.alert : cfg.c.text;
-  const items = chips.map(({icon, text, tone}) => `<span style="display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:999px;
+  // Room cards show one row (the three most important chips) so every card is the same size; the strip in a room wraps.
+  // On the card, the most important first: alerts and open doors, then temperature, air conditioning, TV, motion.
+  const rank = ({icon}) => ['mdi:alert', 'mdi:door-open', 'mdi:thermometer', 'mdi:snowflake', 'mdi:fire', 'mdi:television-play', 'mdi:motion-sensor', 'mdi:water-percent', 'mdi:curtains'].indexOf(icon);
+  const shown = cfg.strip ? chips : [...chips].sort((a, b) => rank(a) - rank(b)).slice(0, 3);
+  const items = shown.map(({icon, text, tone}) => `<span style="display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:999px;
       background:rgba(0,0,0,.22);border:1px solid ${tone === 'alert' ? cfg.c.alert : cfg.c.line};color:${color(tone)};font-size:12.5px;font-weight:600;white-space:nowrap">
       <ha-icon icon="${icon}" style="--mdc-icon-size:16px"></ha-icon>${esc(text)}</span>`).join('');
-  return `<div style="display:flex;flex-wrap:wrap;gap:6px;width:100%;justify-content:flex-start">${items}</div>`;
+  return `<div style="display:flex;flex-wrap:${cfg.strip ? 'wrap' : 'nowrap'};gap:6px;width:100%;overflow:hidden;justify-content:flex-start">${items}</div>`;
 }
 
 const chipsConfig = (controls, hass, strip = false) => ({
@@ -99,22 +103,23 @@ export function designRoomCard(card, {lights, controls, hass}) {
   const areas = ['"i n power"', '"i l power"', '"chips chips chips"'];
   if (total) card.custom_fields.power = {card: lightsSlot(lights)};
   card.triggers_update = [...new Set([...lights, ...controls])];
-  card.grid_options = {columns: 6, rows: 'auto'};
+  // Every room card is the same size: two rows of the sections grid.
+  card.grid_options = {columns: 6, rows: 2};
   card.styles = {
-    grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '48px minmax(0,1fr) 48px'}, {'grid-template-rows': 'auto auto auto'}, {gap: '2px 12px'}, {'align-items': 'center'}],
-    card: [{padding: '16px'}, {'min-height': '132px'}, {'border-radius': '20px'}, {'text-align': 'left'}, {'box-shadow': 'none'},
+    grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '48px minmax(0,1fr) 48px'}, {'grid-template-rows': '24px 24px 1fr'}, {gap: '0 12px'}, {'align-items': 'center'}, {height: '100%'}],
+    card: [{padding: '14px 14px 12px'}, {height: '100%'}, {'box-sizing': 'border-box'}, {'border-radius': '20px'}, {'text-align': 'left'}, {'box-shadow': 'none'},
       {background: `[[[ return ${active} ? 'linear-gradient(135deg,${ROOM_COLORS.onBg},${ROOM_COLORS.surfaceEnd})' : 'linear-gradient(135deg,${ROOM_COLORS.surface},${ROOM_COLORS.card})'; ]]]`},
       {border: `[[[ return ${active} ? '1px solid ${ROOM_COLORS.on}' : '1px solid ${ROOM_COLORS.line}'; ]]]`}],
     img_cell: [{width: '48px'}, {height: '48px'}, {'border-radius': '14px'},
       {background: `[[[ return ${active} ? 'rgba(213,167,76,.18)' : 'rgba(0,0,0,.18)'; ]]]`}],
     icon: [{width: '26px'}, {color: `[[[ return ${active} ? '${ROOM_COLORS.onText}' : '${ROOM_COLORS.muted}'; ]]]`}],
-    // Long room names wrap onto a second line rather than being cut off.
+    // One line, so every card lines up; the name has the full width between the icon and the lights button.
     name: [{'justify-self': 'start'}, {'align-self': 'end'}, {'font-size': '16px'}, {'font-weight': '600'}, {color: ROOM_COLORS.text},
-      {'white-space': 'normal'}, {'line-height': '1.25'}, {'text-align': 'left'}, {'overflow-wrap': 'anywhere'}, {'max-width': '100%'}],
+      {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}, {'text-align': 'left'}],
     label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: ROOM_COLORS.muted}, {'white-space': 'nowrap'},
       {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
-    custom_fields: {power: [{'justify-self': 'end'}, {'align-self': 'center'}, {width: '48px'}],
-      chips: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {'min-height': '0'}]}
+    custom_fields: {power: [{'justify-self': 'end'}, {'align-self': 'center'}, {width: '48px'}, {height: '48px'}],
+      chips: [{'justify-self': 'stretch'}, {'align-self': 'end'}, {'min-width': '0'}, {overflow: 'hidden'}]}
   };
   return card;
 }
