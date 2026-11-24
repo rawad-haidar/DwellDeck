@@ -2138,7 +2138,8 @@ function dwellEnergyHistory(card, hass, cfg) {
     return [
       {id: 'energy', kind: 'bar', unit: 'kWh', title: `Solar and home, kWh ${per}`, list: [...paint(d.solarE, '#f2c14e'), ...paint(d.homeE, '#b9a3e3')]},
       {id: 'flows', kind: 'bar', unit: 'kWh', title: `Battery and grid, kWh ${per}`, list: [...paint(d.charge, '#a8c49a'), ...paint(d.discharge, '#6f9a6a'), ...paint(d.import, '#8fb8d0'), ...paint(d.export, '#5d8aa6')]},
-      {id: 'power', kind: 'line', unit: 'W', title: `Solar, home and battery power (W), average ${per}`, note: 'Battery: above zero charging, below zero discharging', list: [...paint(d.solarW, '#f2c14e'), ...paint(d.homeW, '#b9a3e3'), ...paint(d.batteryW || [], '#a8c49a')]},
+      {id: 'power', kind: 'line', unit: 'W', title: `Solar, home and battery power (W), average ${per}`, note: 'Battery: above zero charging, below zero discharging. Battery level on the right scale.', list: [...paint(d.solarW, '#f2c14e'), ...paint(d.homeW, '#b9a3e3'), ...paint(d.batteryW || [], '#a8c49a'),
+        ...paint(d.soc, '#7fd1c1').map(item => ({...item, name: item.name.replace(/^Battery/, 'Battery level'), axis: 'right', unit: '%'}))]},
       {id: 'soc', kind: 'line', unit: '%', title: 'Battery level, %', fixed: [0, 100],
         list: [...(d.socMax[0] ? [{name: 'Low to high', color: '#a8c49a', values: d.socMax[0].values, band: d.socMin[0].values}] : []), ...paint(d.soc, '#a8c49a')]}
     ].map(spec => ({...spec, list: spec.list.filter(item => item.values.some(v => v !== null && (spec.kind === 'line' || v)))})).filter(spec => spec.list.some(item => !item.band));
@@ -2147,16 +2148,22 @@ function dwellEnergyHistory(card, hass, cfg) {
   // Hovering a time shows every value at that time.
   const chart = (spec, W, H) => {
     spec = {...spec, list: spec.list.filter(item => !isOff(spec.id, item.band ? 'Low to high' : item.name))};
-    const L = 44, B = 22, T = 10, R = 6;
+    const L = 44, B = 22, T = 10;
+    const R = spec.list.some(item => item.axis === 'right') ? 40 : 6;
     if (!spec.list.length) return `<svg viewBox="0 0 ${W} ${H}"><text x="${W / 2}" y="${H / 2}" text-anchor="middle">All lines are switched off. Tap a name above to show it.</text></svg>`;
     const starts = st.data.starts, n = starts.length;
-    const values = spec.list.flatMap(item => [...item.values, ...(item.band || [])]).filter(v => v !== null);
+    // Lines on the right scale (battery level, 0–100 %) keep their own axis.
+    const right = spec.list.filter(item => item.axis === 'right');
+    const values = spec.list.filter(item => item.axis !== 'right').flatMap(item => [...item.values, ...(item.band || [])]).filter(v => v !== null);
     let lo = spec.fixed ? spec.fixed[0] : Math.min(0, ...values), hi = spec.fixed ? spec.fixed[1] : Math.max(0, ...values);
     if (!spec.fixed) { const pad = (hi - lo || 1) * 0.08; hi = hi > 0 ? hi + pad : hi; lo = lo < 0 ? lo - pad : lo; if (hi === lo) hi = lo + 1; }
     const y = v => T + (H - T - B) * (hi - v) / (hi - lo);
+    const y2 = v => T + (H - T - B) * (100 - v) / 100;
+    const yOf = item => item.axis === 'right' ? y2 : y;
     const slot = (W - L - R) / n, cx = i => L + (i + 0.5) * slot;
     const ticks = [...new Set([lo, hi, ...(lo < 0 && hi > 0 ? [0] : [(lo + hi) / 2])])].sort((a, b) => a - b);
-    const grid = ticks.map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="${cfg.c.line}"${v === 0 && lo < 0 ? ' stroke-width="1.5"' : ''}/><text x="${L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${num(v, '').trim()}</text>`).join('');
+    const rightAxis = right.length ? [0, 50, 100].map(v => `<text x="${W - R + 6}" y="${(y2(v) + 4).toFixed(1)}" text-anchor="start">${v}%</text>`).join('') : '';
+    const grid = rightAxis + ticks.map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="${cfg.c.line}"${v === 0 && lo < 0 ? ' stroke-width="1.5"' : ''}/><text x="${L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${num(v, '').trim()}</text>`).join('');
     const step = Math.max(1, Math.ceil(n / Math.max(4, Math.floor(W / 90))));
     const xl = starts.map((t, i) => i % step ? '' : `<text x="${cx(i).toFixed(1)}" y="${H - 6}" text-anchor="middle">${fmtTime(t)}</text>`).join('');
     const marks = spec.kind === 'bar'
@@ -2166,18 +2173,19 @@ function dwellEnergyHistory(card, hass, cfg) {
           return `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0.5, h).toFixed(1)}" rx="1.5" fill="${item.color}" fill-opacity="${fade(item)}"/>`;
         }).join('')).join('')
       : spec.list.map(item => {
-          const pts = (vals) => vals.map((v, i) => v === null ? null : `${cx(i).toFixed(1)},${y(v).toFixed(1)}`);
+          const yy = yOf(item);
+          const pts = (vals) => vals.map((v, i) => v === null ? null : `${cx(i).toFixed(1)},${yy(v).toFixed(1)}`);
           if (item.band) return `<polygon points="${[...pts(item.values), ...pts(item.band).reverse()].filter(Boolean).join(' ')}" fill="${item.color}" fill-opacity=".16"/>`;
-          return `<polyline points="${pts(item.values).filter(Boolean).join(' ')}" fill="none" stroke="${item.color}" stroke-opacity="${fade(item)}" stroke-width="2" stroke-linejoin="round"${item.shade ? ` stroke-dasharray="${item.shade === 1 ? '6 4' : '2 3'}"` : ''}/>`;
+          return `<polyline points="${pts(item.values).filter(Boolean).join(' ')}" fill="none" stroke="${item.color}" stroke-opacity="${fade(item)}" stroke-width="2" stroke-linejoin="round"${item.axis === 'right' && !item.shade ? ' stroke-dasharray="1 0"' : ''}${item.shade ? ` stroke-dasharray="${item.shade === 1 ? '6 4' : '2 3'}"` : ''}/>`;
         }).join('');
     // Hover: a column per time with a line, dots and a box listing the values.
     const shown = spec.list.filter(item => !item.band);
     const hover = starts.map((t, i) => {
-      const rows = [fmtFull(t), ...shown.map(item => `${item.name}: ${num(item.values[i], spec.unit)}`)];
+      const rows = [fmtFull(t), ...shown.map(item => `${item.name}: ${num(item.values[i], item.unit || spec.unit)}`)];
       if (spec.list.some(item => item.band)) rows.push(`Low to high: ${num(spec.list.find(item => item.band).band[i], '%')} – ${num(spec.list.find(item => item.band).values[i], '%')}`);
       const bw = Math.max(...rows.map(r => r.length)) * 6.4 + 16, bh = rows.length * 15 + 10;
       const bx = cx(i) + 10 + bw > W ? cx(i) - 10 - bw : cx(i) + 10;
-      const dots = spec.kind === 'line' ? shown.map(item => item.values[i] === null ? '' : `<circle cx="${cx(i).toFixed(1)}" cy="${y(item.values[i]).toFixed(1)}" r="3.5" fill="${item.color}"/>`).join('') : '';
+      const dots = spec.kind === 'line' ? shown.map(item => item.values[i] === null ? '' : `<circle cx="${cx(i).toFixed(1)}" cy="${yOf(item)(item.values[i]).toFixed(1)}" r="3.5" fill="${item.color}"/>`).join('') : '';
       return `<g class="hv"><rect class="hit" x="${(L + i * slot).toFixed(1)}" y="${T}" width="${slot.toFixed(1)}" height="${H - T - B}"/>
         <g class="tip"><line x1="${cx(i).toFixed(1)}" x2="${cx(i).toFixed(1)}" y1="${T}" y2="${H - B}" stroke="${cfg.c.muted}" stroke-dasharray="3 3"/>${dots}
         <rect x="${bx.toFixed(1)}" y="${T + 2}" width="${bw.toFixed(1)}" height="${bh}" rx="6" fill="#0d141c" stroke="${cfg.c.line}"/>
@@ -2195,9 +2203,9 @@ function dwellEnergyHistory(card, hass, cfg) {
     const stats = shown.map(item => {
       const v = item.values.filter(x => x !== null);
       const avg = v.length ? total(v) / v.length : null;
-      return `<tr><td><i style="background:${item.color};opacity:${fade(item)}"></i>${esc(item.name)}</td>${spec.unit === 'kWh' ? `<td>${num(total(v), 'kWh')}</td>` : ''}<td>${num(avg, spec.unit)}</td><td>${num(v.length ? Math.min(...v) : null, spec.unit)}</td><td>${num(v.length ? Math.max(...v) : null, spec.unit)}</td></tr>`;
+      return `<tr><td><i style="background:${item.color};opacity:${fade(item)}"></i>${esc(item.name)}</td>${spec.unit === 'kWh' ? `<td>${num(total(v), 'kWh')}</td>` : ''}<td>${num(avg, item.unit || spec.unit)}</td><td>${num(v.length ? Math.min(...v) : null, item.unit || spec.unit)}</td><td>${num(v.length ? Math.max(...v) : null, item.unit || spec.unit)}</td></tr>`;
     }).join('');
-    const rows = st.data.starts.map((t, i) => `<tr><td>${fmtFull(t)}</td>${shown.map(item => `<td>${num(item.values[i], spec.unit)}</td>`).join('')}</tr>`).reverse().join('');
+    const rows = st.data.starts.map((t, i) => `<tr><td>${fmtFull(t)}</td>${shown.map(item => `<td>${num(item.values[i], item.unit || spec.unit)}</td>`).join('')}</tr>`).reverse().join('');
     const csv = ['Time,' + shown.map(item => `"${item.name}"`).join(','), ...st.data.starts.map((t, i) => [new Date(t).toISOString(), ...shown.map(item => item.values[i] ?? '')].join(','))].join('\n');
     return `${bigStyle}<div class="ov" data-key="${cfg.key}" data-chart="${spec.id}" onclick="if(event.target===this)window.__dwellHistUi.close(this)"><div class="pn" role="dialog" aria-modal="true" aria-label="${esc(spec.title)}">
       <div class="ph"><div class="pt">${spec.title}<div class="ps">${esc(RANGES.find(r => r[0] === st.range)?.[1] || '')}</div></div>

@@ -170,13 +170,14 @@ test('the power chart includes the battery, and tapping a legend name switches i
   assert(before.includes('data-name="Battery"'));
   // Deye reports discharge as positive: drawn below zero.
   assert(/text-anchor="end">-\d/.test(before.slice(before.indexOf('Solar, home and battery power'))), 'discharging goes below zero');
-  const lines = html => (html.slice(html.indexOf('Solar, home and battery power')).split('Battery level')[0].match(/<polyline/g) || []).length;
-  assert.equal(lines(before), 3);
+  const lines = html => (html.slice(html.indexOf('Solar, home and battery power')).split('Battery level, %')[0].match(/<polyline/g) || []).length;
+  assert.equal(lines(before), 4, 'solar, home, battery power and battery level');
+  assert(before.includes('data-name="Battery level"') && before.includes('>100%</text>'), 'battery level on its own % scale');
   const button = {dataset: {chart: 'power', name: 'Battery'}, closest: sel => sel === '.eh' ? {dataset: {key: 'energy'}} : null};
   window.__dwellHistUi.toggle(button);
   const after = Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
-  assert.equal(lines(after), 2, 'battery line switched off');
+  assert.equal(lines(after), 3, 'battery line switched off');
   assert(after.includes('lgi off" data-chart="power" data-name="Battery"'));
   window.__dwellHistUi.toggle(button);
-  assert.equal(lines(Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass)), 3, 'and back on');
+  assert.equal(lines(Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass)), 4, 'and back on');
 });
