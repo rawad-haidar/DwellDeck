@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check dwelldeck.js",
+    "check": "node --check dwelldeck.js && node --check scripts/build.mjs",
     "build": "node scripts/build.mjs"
   },
   "description": "The original Villa Command Center design, with visual entity and room configuration.",

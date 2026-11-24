@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Modular source
+
+- Split the runtime into focused `src/` modules and move the layout data into `src/data/*.json`; the build no longer reads its own output.
+- Add golden tests that lock the generated dashboards, plus bundle and up-to-date checks in CI.
+- No change to the generated dashboards or the public API.
+
 ## 0.8.1 — Areas, activity and colour themes
 
 - Discover rooms from Home Assistant areas, floors and labels.

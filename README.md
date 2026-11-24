@@ -111,7 +111,22 @@ npm run check
 npm test
 ```
 
-`dwelldeck.js` contains the sanitized layout data and runtime. Edit runtime behavior in `original-layout-core.mjs`, then run the build to update the distributable while retaining the embedded layout data. GitHub Actions checks syntax and tests on pushes and pull requests.
+Edit the sources in `src/`, never `dwelldeck.js` directly. `npm run build` bundles them into the single `dwelldeck.js` file HACS serves.
+
+| Path | Contents |
+| --- | --- |
+| `src/data/*.json` | Sanitized layout template, entity slots, room templates, labels and built-in theme |
+| `src/util.mjs` | Cloning, tree walking and entity-ID list rewriting |
+| `src/dependencies.mjs` | Required custom cards and integrations, and their install status |
+| `src/discovery.mjs` | Area, device and entity discovery from Home Assistant registries |
+| `src/cards.mjs` | Room tiles, light popups, area room cards and entity sections |
+| `src/views.mjs` | Rooms, lights, curtains, media, camera and climate view organisation |
+| `src/theme.mjs` | Built-in colours, palettes and activity effects |
+| `src/generator.mjs` | `generateOriginal`, which applies bindings to the template |
+| `src/editor.mjs`, `src/strategy.mjs` | The Edit dashboard editor and the dashboard strategy |
+| `src/index.mjs` | Public API; only these names stay exported from the bundle |
+
+Golden tests in `tests/golden.test.mjs` hash the generated dashboard for many configurations. If you change output on purpose, review the change and regenerate them with `UPDATE_GOLDEN=1 npm test`. GitHub Actions checks syntax, runs the tests and fails if `dwelldeck.js` is out of date with `src/`.
 
 ## Publish and update
 
