@@ -198,7 +198,9 @@ function detectionTiles(hass, snapshots) {
 }
 
 // Media browser page of the snapshot folder (media/dwelldeck/snapshots).
-export const SNAPSHOT_BROWSER = '/media-browser/browser/' + encodeURIComponent(['app', 'media-source://media_source', 'media-source://media_source/local/dwelldeck/snapshots'].join(','));
+// Each level is "type,id", encoded, and levels are joined with "/" (as Home Assistant's own Media browser links).
+export const SNAPSHOT_BROWSER = '/media-browser/browser/' + [['app', 'media-source://media_source'], ['', 'media-source://media_source/local/dwelldeck/snapshots']]
+  .map(level => encodeURIComponent(level.join(','))).join('/');
 
 // Runs inside a button-card template: one folding list of cameras, newest detection first. It is folded
 // by default and remembers being open on this device. Each row opens the camera's detection popup.
@@ -288,7 +290,7 @@ function detectionPanel(tiles, snapshotsPath) {
     styles: {
       card: [{padding: '12px'}, {'border-radius': '20px'}, {background: 'linear-gradient(135deg, #1b2d40, #101c2b)'}, {border: '1px solid rgba(156,199,225,.12)'}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"list"'}, {'grid-template-columns': '1fr'}],
-      custom_fields: {list: [{width: '100%'}]}
+      custom_fields: {list: [{width: '100%'}, {'pointer-events': 'auto'}]}
     },
     grid_options: {columns: 'full', rows: 'auto'}
   };

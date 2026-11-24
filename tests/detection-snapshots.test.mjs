@@ -102,3 +102,7 @@ test('without detection sensors the recent activity table remains', () => {
   const section = d.views.find(v => v.path === 'security').sections.find(s => s.cards.some(c => c.heading === 'Camera detection'));
   assert(section.cards.some(c => c.type === 'markdown' && c.content.includes('| Camera |')));
 });
+test('the snapshots link opens the snapshot folder in the Media browser', async () => {
+  const {SNAPSHOT_BROWSER} = await import('../src/detection.mjs');
+  assert.equal(SNAPSHOT_BROWSER, '/media-browser/browser/app%2Cmedia-source%3A%2F%2Fmedia_source/%2Cmedia-source%3A%2F%2Fmedia_source%2Flocal%2Fdwelldeck%2Fsnapshots');
+});

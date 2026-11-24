@@ -1141,7 +1141,7 @@ function tvCard(requested, hass) {
       name: [{'justify-self': 'start'}, {'align-self': 'end'}, {'font-size': '17px'}, {'font-weight': '600'}, {color: C.text}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: C.muted}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       custom_fields: {power: [{'justify-self': 'end'}], now: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {padding: '10px 12px'}, {'border-radius': '14px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${C.line}`}], media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}],
-        panel: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}]}
+        panel: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}]}
     }
   };
 }
@@ -1386,7 +1386,7 @@ function glanceCard(cfg) {
       card: [{padding: '22px 24px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${HOME_C.surface},${HOME_C.card})`},
         {border: `1px solid ${HOME_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"glance"'}, {'grid-template-columns': '1fr'}],
-      custom_fields: {glance: [{width: '100%'}]}
+      custom_fields: {glance: [{width: '100%'}, {'pointer-events': 'auto'}]}
     },
     grid_options: {columns: 'full', rows: 'auto'}
   };
@@ -1426,7 +1426,7 @@ function energyCard(tiles) {
       card: [{padding: '10px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${HOME_C.surface},${HOME_C.card})`},
         {border: `1px solid ${HOME_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"energy"'}, {'grid-template-columns': '1fr'}],
-      custom_fields: {energy: [{width: '100%'}]}
+      custom_fields: {energy: [{width: '100%'}, {'pointer-events': 'auto'}]}
     },
     grid_options: {columns: 'full', rows: 'auto'}
   };
@@ -1671,7 +1671,7 @@ function securityStatusCard(cfg) {
       card: [{padding: '22px 24px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${SEC_C.surface},${SEC_C.card})`},
         {border: `1px solid ${SEC_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"status"'}, {'grid-template-columns': '1fr'}],
-      custom_fields: {status: [{width: '100%'}]}
+      custom_fields: {status: [{width: '100%'}, {'pointer-events': 'auto'}]}
     },
     grid_options: {columns: 'full', rows: 'auto'}
   };
@@ -2480,7 +2480,9 @@ function detectionTiles(hass, snapshots) {
 }
 
 // Media browser page of the snapshot folder (media/dwelldeck/snapshots).
-const SNAPSHOT_BROWSER = '/media-browser/browser/' + encodeURIComponent(['app', 'media-source://media_source', 'media-source://media_source/local/dwelldeck/snapshots'].join(','));
+// Each level is "type,id", encoded, and levels are joined with "/" (as Home Assistant's own Media browser links).
+const SNAPSHOT_BROWSER = '/media-browser/browser/' + [['app', 'media-source://media_source'], ['', 'media-source://media_source/local/dwelldeck/snapshots']]
+  .map(level => encodeURIComponent(level.join(','))).join('/');
 
 // Runs inside a button-card template: one folding list of cameras, newest detection first. It is folded
 // by default and remembers being open on this device. Each row opens the camera's detection popup.
@@ -2570,7 +2572,7 @@ function detectionPanel(tiles, snapshotsPath) {
     styles: {
       card: [{padding: '12px'}, {'border-radius': '20px'}, {background: 'linear-gradient(135deg, #1b2d40, #101c2b)'}, {border: '1px solid rgba(156,199,225,.12)'}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"list"'}, {'grid-template-columns': '1fr'}],
-      custom_fields: {list: [{width: '100%'}]}
+      custom_fields: {list: [{width: '100%'}, {'pointer-events': 'auto'}]}
     },
     grid_options: {columns: 'full', rows: 'auto'}
   };

@@ -74,7 +74,7 @@ function glanceCard(cfg) {
       card: [{padding: '22px 24px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${HOME_C.surface},${HOME_C.card})`},
         {border: `1px solid ${HOME_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"glance"'}, {'grid-template-columns': '1fr'}],
-      custom_fields: {glance: [{width: '100%'}]}
+      custom_fields: {glance: [{width: '100%'}, {'pointer-events': 'auto'}]}
     },
     grid_options: {columns: 'full', rows: 'auto'}
   };
@@ -114,7 +114,7 @@ function energyCard(tiles) {
       card: [{padding: '10px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${HOME_C.surface},${HOME_C.card})`},
         {border: `1px solid ${HOME_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"energy"'}, {'grid-template-columns': '1fr'}],
-      custom_fields: {energy: [{width: '100%'}]}
+      custom_fields: {energy: [{width: '100%'}, {'pointer-events': 'auto'}]}
     },
     grid_options: {columns: 'full', rows: 'auto'}
   };

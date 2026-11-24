@@ -491,3 +491,9 @@ test('security opens with status and what needs attention, then alarm, gates, ca
  const clear=Function('states','hass',v.sections[0].cards[0].custom_fields.status.trim().slice(3,-3))({},{entities:{}});
  assert(clear.includes('All clear'));
 });
+test('cards with buttons inside take clicks (button-card turns them off on cards that do nothing when tapped)',()=>{
+ const d=generate({});
+ const fields=[];JSON.stringify(d,(k,v)=>{if(v&&v.type==='custom:button-card'&&v.tap_action?.action==='none'&&v.custom_fields)for(const [name,f] of Object.entries(v.custom_fields))if(typeof f==='string'&&/onclick=/.test(f))fields.push([name,v.styles?.custom_fields?.[name]]);return v;});
+ assert(fields.length>=2);
+ for(const [name,styles] of fields)assert((styles||[]).some(r=>r['pointer-events']==='auto'),name+' must accept clicks');
+});
