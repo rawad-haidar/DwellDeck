@@ -1065,10 +1065,10 @@ function dwellMaButtons(cfg) {
 // player whose name matches the room's ("Dany Sound System" → "Dany", "M.Kitchen Sound System" → "M.kitch").
 const isMusicAssistant = (id, hass) => ['music_assistant', 'mass'].includes(hass.entities?.[id]?.platform) || 'mass_player_type' in (hass.states?.[id]?.attributes || {});
 function musicAssistantPlayer(players, hass) {
-  const maker = id => hass.devices?.[hass.entities?.[id]?.device_id]?.manufacturer || '';
   const lead = players[0];
-  // A Music Assistant player in the same card counts unless it is only the zone's own copy.
-  const inGroup = players.find(id => isMusicAssistant(id, hass) && (!maker(lead) || maker(id) !== maker(lead)));
+  // The Music Assistant player with the card's own name comes first ("Master Sound System"): that is the
+  // player music is played to in Music Assistant.
+  const inGroup = players.find(id => isMusicAssistant(id, hass));
   if (inGroup) return inGroup;
   const clean = text => normalizeName(String(text || '').replace(/sound\s*system|speakers?|audio|amplifier|\bamp\b/gi, ' ')).replace(/\s+/g, ' ').trim();
   const device = hass.devices?.[hass.entities?.[lead]?.device_id]?.name;
@@ -1076,14 +1076,13 @@ function musicAssistantPlayer(players, hass) {
   const wanted = [clean(playerName(lead, hass)), clean(device)].filter(name => name.length >= 3);
   const area = entityArea(lead, hass);
   const all = Object.keys(hass.states || {}).filter(id => id.startsWith('media_player.') && isMusicAssistant(id, hass) && !hass.entities?.[id]?.disabled_by);
-  // Music Assistant also lists the zone itself (same maker, nothing to play from); the streamer that plays
-  // Music Assistant's queue into the zone comes first, the zone's own copy only when there is no streamer.
-  const streamers = all.filter(id => !maker(lead) || maker(id) !== maker(lead));
+
   const score = id => {
     const name = clean(playerName(id, hass));
     if (name.length < 3) return 0;
     const sameArea = entityArea(id, hass) && entityArea(id, hass) === area ? 1 : 0;
-    // An exact name beats a partial one even in the same room ("kitchen" over "Kitchen TV").
+    // The very same name first ("Master Sound System"), then the room name ("Master"), then partial.
+    if (normalizeName(playerName(id, hass)) === normalizeName(playerName(lead, hass))) return 6 + sameArea;
     if (wanted.includes(name)) return 4 + sameArea;
     // Partial names ("M.kitch" for "M.Kitchen") only for sound systems: "Kitchen" is not the Kitchen TV.
     if (!tvLead && wanted.some(w => w.startsWith(name) || name.startsWith(w))) return 2 + sameArea;
@@ -1094,7 +1093,7 @@ function musicAssistantPlayer(players, hass) {
     // Only a clear winner: two equally good matches link nothing rather than the wrong room.
     return best.length && (best.length === 1 || best[0][1] > best[1][1]) ? best[0][0] : null;
   };
-  return pick(streamers) || players.find(id => isMusicAssistant(id, hass)) || (tvLead ? null : pick(all));
+  return pick(all);
 }
 
 function tvCard(requested, hass) {

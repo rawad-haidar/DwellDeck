@@ -552,7 +552,7 @@ test('each sound system links to its Music Assistant player by name, and to the 
  const entities=Object.fromEntries(Object.keys(states).map(id=>[id,{entity_id:id,area_id:id.includes('kitchen_tv')||id.includes('kitchen_kitch')?'kitchen':undefined,platform:states[id].attributes.mass_player_type?'music_assistant':'dsppa_am8328',device_id:id==='media_player.dani_s_bedroom_daniel_dany_sound_system'?'daniel':dsppa(id)?'zone':'streamer'}]));
  const hass={states,entities,devices:{daniel:{name:'Daniel',manufacturer:'DSPPA'},zone:{manufacturer:'DSPPA'},streamer:{manufacturer:'Xspeed, Inc.'}},areas:{}};
  const match=id=>musicAssistantPlayer([id],hass);
- assert.equal(match('media_player.dani_s_bedroom_daniel_dany_sound_system'),'media_player.dany');
+ assert.equal(match('media_player.dani_s_bedroom_daniel_dany_sound_system'),'media_player.dany_sound_system','the same-name player, as used in Music Assistant');
  assert.equal(match('media_player.kitchen_kitch_kitchen_sound_system'),'media_player.kitchen');
  assert.equal(match('media_player.mini_kitchen_m_kit_m_kitchen_sound_system'),'media_player.m_kitch');
  assert.equal(match('media_player.saloon_saloon_sound_system'),'media_player.saloon');
@@ -561,11 +561,11 @@ test('each sound system links to its Music Assistant player by name, and to the 
  const card=tvCard('media_player.dani_s_bedroom_daniel_dany_sound_system',hass);
  globalThis.window={};
  const html=Function('states',card.custom_fields.ma.trim().slice(3,-3))(states);
- assert(html.includes('data-entity="media_player.dany"')&&html.includes('Music player')&&html.includes('Music Assistant</button>'));
+ assert(html.includes('data-entity="media_player.dany_sound_system"')&&html.includes('Music player')&&html.includes('Music Assistant</button>'));
  assert(card.styles.grid[0]['grid-template-areas'].includes('"ma ma ma"'));
  assert(card.styles.custom_fields.ma.some(r=>r['pointer-events']==='auto'));
  assert.equal(typeof window.__dwellTvMa.app,'function');
- assert(html.includes('data-name="Dany"'),'the app button carries the Music Assistant player name');
+ assert(html.includes('data-name="Dany Sound System"'),'the app button carries the Music Assistant player name');
  const pushed=[];globalThis.location={pathname:'/dashboard-dwelldeck/media'};globalThis.history={pushState:(a,b,path)=>pushed.push(path)};window.dispatchEvent=()=>{};globalThis.CustomEvent=class{};
  window.__dwellTvMa.app({dataset:{}});
  assert.deepEqual(pushed,['/dashboard-dwelldeck/music-assistant'],'DwellDeck\'s own Music Assistant page');
