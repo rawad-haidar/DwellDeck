@@ -1183,7 +1183,8 @@ const chipsConfig = (controls, hass, strip = false, room = {}) => ({
   sensors: controls.filter(id => id.startsWith('sensor.')),
   binary: controls.filter(id => id.startsWith('binary_sensor.')),
   climates: controls.filter(id => id.startsWith('climate.')),
-  media: controls.filter(id => id.startsWith('media_player.')),
+  // Each TV by its main entry: a cast or DLNA entry that keeps playing does not count as the TV playing.
+  media: [...new Set(controls.filter(id => id.startsWith('media_player.')).map(id => tvGroup(id, hass)[0]))],
   covers: controls.filter(id => id.startsWith('cover.')),
   strip, c: ROOM_COLORS
 });

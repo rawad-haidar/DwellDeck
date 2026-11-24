@@ -6,7 +6,7 @@
 - **Rooms in use** shows the room cards only while something in the room is on (lights, a TV, air conditioning, a switch). When nothing is, one card says everything is off.
 - **Outside** keeps the weather hero top right, beside the glance card. **Safety** groups alerts, the outdoor alarm and the latest activity. **Energy and climate** shows solar, consumption and battery side by side, then air conditioning.
 - **Shortcuts**: the page buttons share one size and layout.
-- A room no longer counts as in use because a cast or DLNA entry of its TV keeps playing.
+- A room no longer counts as in use, or shows a Playing chip, because a cast or DLNA entry of its TV keeps playing; the TV's main entry decides.
 
 ## 0.9.25 — TV off means off
 

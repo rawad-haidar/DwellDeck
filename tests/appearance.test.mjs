@@ -427,3 +427,14 @@ test('home is ordered by importance and shows rooms only while something in them
  assert(shortcuts.length>=6&&shortcuts.every(c=>c.styles.card.some(r=>r.height==='120px')));
  assert(!JSON.stringify(home).includes("now().strftime('%H:%M')"));
 });
+test('a room does not show Playing when only a cast entry of its TV is playing',()=>{
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:{friendly_name:'Saloon TV',...a}}];
+ const states=Object.fromEntries([st('media_player.saloon_tv','off',{device_class:'tv'}),st('media_player.saloon_tv_192_168_14_246_2','playing',{media_title:'Home Assistant'}),st('light.saloon_a','off')]);
+ const entities=Object.fromEntries(Object.keys(states).map(id=>[id,{entity_id:id,area_id:'saloon',platform:id.endsWith('_2')?'dlna_dmr':'androidtv_remote'}]));
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{saloon:{area_id:'saloon',name:'Saloon',labels:[]}},floors:{},labels:{},devices:{},entities};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const card=d.views.find(v=>v.path==='rooms').sections.flatMap(s=>s.cards).find(c=>c.name==='Saloon');
+ const chips=card.custom_fields.chips;
+ const cfg=JSON.parse(chips.slice(chips.lastIndexOf('(states, ')+9,chips.lastIndexOf(')')));
+ assert.deepEqual(cfg.media,['media_player.saloon_tv']);
+});
