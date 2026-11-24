@@ -4,6 +4,7 @@
 
 - The Remote, Apps, Sources and Keyboard tabs are a slim segmented bar with the icon beside the label, so they no longer look like the app tiles. The open tab is highlighted.
 - A TV that lists only its home screen as a source still gets Live TV, HDMI 1 to 4 and Inputs.
+- The remote pad's arrows and OK are centred in their circle.
 
 ## 0.9.13 — Sources on every Android TV
 

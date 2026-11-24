@@ -359,7 +359,7 @@ function dwellTvPanel(states, cfg) {
     .dw-tv .tab ha-icon{--mdc-icon-size:18px;flex:none}
     .dw-tv .pane{display:none;gap:12px}
     .dw-tv .pad{position:relative;display:grid;grid-template-areas:". up ." "left ok right" ". down .";grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);
-      justify-content:center;align-items:center;justify-items:center;width:220px;height:220px;margin:4px auto 0;border-radius:50%;background:${c.surface}}
+      place-content:center;place-items:center;box-sizing:border-box;width:220px;height:220px;margin:4px auto 0;border-radius:50%;background:${c.surface}}
     .dw-tv .arrow{width:56px;height:56px;border-radius:50%;background:transparent;border:none}
     .dw-tv .arrow ha-icon{--mdc-icon-size:32px}
     .dw-tv .up{grid-area:up}.dw-tv .down{grid-area:down}.dw-tv .left{grid-area:left}.dw-tv .right{grid-area:right}
