@@ -205,23 +205,62 @@ function addBuiltinColors(dashboard) {
     else item.card_mod.style=css;
   });
 }
-const DWELL_PALETTES = {
-  ocean: {name:'Ocean blue', colors:['#1b2d40','#101c2b','#172638','#4b9aee'], page:'#080f1b'},
-  emerald: {name:'Emerald', colors:['#183d38','#102823','#15342e','#4cc9a6'], page:'#081712'},
-  violet: {name:'Amethyst', colors:['#332547','#1d152e','#2b203c','#b294ef'], page:'#100b1b'},
-  rose: {name:'Rosewood', colors:['#432b38','#291a25','#36222f','#e49db9'], page:'#190e16'},
-  slate: {name:'Graphite', colors:['#303944','#1c222b','#28313c','#a4bfd8'], page:'#10141b'}
+// Every colour in the original design belongs to one role. A palette recolours a role
+// everywhere it appears (card-mod CSS, button-card templates, inline HTML and SVG),
+// so a palette change reaches every accent, not only the card backgrounds.
+const COLOR_ROLES = {
+  page: ['#080e18', '#080f1b', '#0b141f', '#07131f'],
+  popup: ['#101c2b'], card: ['#162536'], tileA: ['#1b2d40'], tileB: ['#172638'],
+  text: ['#edf5ff', '#f2f7ff', '#dbe9ff'], textSoft: ['#b1becd', '#b7cadd', '#c0cede'],
+  muted: ['#91a8bd', '#91b4ce'], faint: ['#7892a9', '#758da3'], unavailable: ['#586a80', '#62798e'],
+  accent: ['#29d5ee', '#2ed7f0', '#4b9aee', '#49a8ff'], accentSoft: ['#8fc8dd', '#a6dbff', '#a9dcff'],
+  active: ['#39e2bc', '#4ed7bd', '#31dcc4'],
+  lampBg: ['#493b24'], lampBgEnd: ['#202936'], lamp: ['#d5a74c'], lampText: ['#efc875', '#ffd16b', '#ffdc91'],
+  violet: ['#be92f4', '#c28af4', '#9e9cf2', '#d4c7ff'], heat: ['#f5af7d', '#f3ac76', '#ff9a66'],
+  alert: ['#ff7885', '#ef9aab', '#a96e71'],
+  line: ['rgba(156,199,225,.12)', 'rgba(156,199,225,.15)', 'rgba(156,199,225,.18)', 'rgba(156,199,225,.1)'],
+  cardGlassA: ['rgba(29,47,65,.94)'], cardGlassB: ['rgba(15,27,42,.97)'], scrim: ['rgba(3,8,16,.76)'],
+  washA: ['rgba(12,79,94,.28)'], washB: ['rgba(75,35,100,.18)'],
+  skyPanel: ['rgba(5,15,29,.83)', 'rgba(5,15,29,.89)', 'rgba(4,14,27,.85)']
 };
+// colors: [tile, popup, tile end, accent] drive the editor swatch; roles override COLOR_ROLES.
+const DWELL_PALETTES = {
+  lamplight: {name: 'Lamplight', colors: ['#212a35', '#181f28', '#1b232d', '#f2b950'], page: '#141a22', roles: {
+    page: '#141a22', popup: '#181f28', card: '#1b222c', tileA: '#212a35', tileB: '#1b232d',
+    text: '#e8e2d8', textSoft: '#cfc8bc', muted: '#a8a296', faint: '#948e83', unavailable: '#8a8478',
+    accent: '#8fb8d0', accentSoft: '#a9c6d6', active: '#a8c49a',
+    lampBg: '#3b2e18', lampBgEnd: '#262119', lamp: '#f2b950', lampText: '#f6c868',
+    violet: '#b9a6d3', heat: '#e8a070', alert: '#ec7a6c',
+    line: 'rgba(232,226,216,.10)', cardGlassA: 'rgba(33,42,53,.94)', cardGlassB: 'rgba(27,35,45,.97)',
+    scrim: 'rgba(10,12,16,.78)', washA: 'rgba(0,0,0,0)', washB: 'rgba(0,0,0,0)', skyPanel: 'rgba(20,26,34,.86)'
+  }},
+  ocean: {name: 'Ocean blue', colors: ['#1b2d40', '#101c2b', '#172638', '#29d5ee'], page: '#080e18', roles: {card: '#162536', accent: undefined, accentSoft: undefined}},
+  emerald: {name: 'Emerald', colors: ['#183d38', '#102823', '#15342e', '#4cc9a6'], page: '#081712'},
+  violet: {name: 'Amethyst', colors: ['#332547', '#1d152e', '#2b203c', '#b294ef'], page: '#100b1b'},
+  rose: {name: 'Rosewood', colors: ['#432b38', '#291a25', '#36222f', '#e49db9'], page: '#190e16'},
+  slate: {name: 'Graphite', colors: ['#303944', '#1c222b', '#28313c', '#a4bfd8'], page: '#10141b'}
+};
+const DEFAULT_PALETTE = 'lamplight';
+const paletteRoles = palette => {
+  const [tileA, popup, tileB, accent] = palette.colors;
+  return {page: palette.page, popup, tileA, tileB, card: tileA, accent, accentSoft: accent, unavailable: '#8094a9', ...palette.roles};
+};
+// One spelling per colour: "rgba(156, 199, 225, 0.12)" and "rgba(156,199,225,.12)" become the same string.
+const normalizeRgba = text => text.replace(/rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*0?(\.\d+)\s*\)/g, 'rgba($1,$2,$3,$4)');
 function applyDwellPalette(dashboard, key) {
-  const palette=DWELL_PALETTES[key] || DWELL_PALETTES.ocean;
-  if(key==='ocean' || !DWELL_PALETTES[key])return dashboard;
-  const originals=['#1b2d40','#101c2b','#172638','#4b9aee'];
-  const replacements=new Map(originals.map((color,index)=>[color,palette.colors[index]]));
-  const themed=walk(dashboard,text=>text.replace(/#1b2d40|#101c2b|#172638|#4b9aee/gi,color=>replacements.get(color.toLowerCase())));
-  for(const view of themed.views){
+  const name = DWELL_PALETTES[key] ? key : DEFAULT_PALETTE;
+  const palette = DWELL_PALETTES[name];
+  const roles = paletteRoles(palette);
+  const replacements = new Map();
+  for (const [role, sources] of Object.entries(COLOR_ROLES)) if (roles[role]) for (const color of sources) replacements.set(color, roles[role]);
+  const pattern = new RegExp([...replacements.keys()].map(c => c.replace(/[().|]/g, '\\$&')).join('|'), 'gi');
+  const themed = walk(dashboard, text => normalizeRgba(text).replace(pattern, color => replacements.get(color.toLowerCase()) || color));
+  const accent = roles.accent || palette.colors[3];
+  const surface = name === 'lamplight' ? roles.page : `linear-gradient(135deg,${roles.page},${roles.popup})`;
+  for (const view of themed.views) {
     view.card_mod ||= {};
-    view.card_mod.style=(view.card_mod.style || '')+`
-:host {--primary-color:${palette.colors[3]};--accent-color:${palette.colors[3]};--lovelace-background:linear-gradient(135deg,${palette.page},${palette.colors[1]});--primary-background-color:${palette.page};--ha-card-background:${palette.colors[0]};--card-background-color:${palette.colors[0]};background:linear-gradient(135deg,${palette.page},${palette.colors[1]})!important;}`;
+    view.card_mod.style = (view.card_mod.style || '') + `
+:host {--primary-color:${accent};--accent-color:${accent};--lovelace-background:${surface};--primary-background-color:${roles.page};--ha-card-background:${roles.card};--card-background-color:${roles.card};--history-unavailable-color:${roles.unavailable};background:${surface}!important;}`;
   }
   return themed;
 }
@@ -230,10 +269,7 @@ function applyDwellPalette(dashboard, key) {
 function addLivingDesign(dashboard) {
   const motion = `
     @keyframes dwell-breathe { 0%,100% {filter: brightness(1);} 50% {filter: brightness(1.14);} }
-    @keyframes dwell-arrive {from {opacity:.65; transform:translateY(6px);} to {opacity:1;transform:none;} }
-    ha-card {transition:background .7s ease,border-color .7s ease,box-shadow .7s ease,transform .25s ease;
-      animation:dwell-arrive .45s ease both;}
-    @media (hover:hover) {ha-card:hover {transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.22);}}
+    ha-card {transition:background .7s ease,border-color .7s ease,box-shadow .7s ease;}
     @media (prefers-reduced-motion:reduce) {ha-card,ha-state-icon {animation:none!important;transition:none!important;transform:none!important;}}
   `;
   visit(dashboard, card => {
@@ -243,7 +279,7 @@ function addLivingDesign(dashboard) {
       const active = `const ids=${JSON.stringify(ids)}; return ids.some(id=>{const e=states[id];if(!e)return false;if(id.startsWith('climate.'))return ['heating','cooling','drying','fan'].includes(e.attributes?.hvac_action);return ['on','playing','opening','closing'].includes(e.state);});`;
       card.styles ||= {};
       card.styles.card ||= [];
-      card.styles.card.push({transition:'background .7s ease, border-color .7s ease, box-shadow .7s ease, transform .25s ease'},
+      card.styles.card.push({transition:'background .7s ease, border-color .7s ease, box-shadow .7s ease'},
         {'box-shadow':`[[[ return (()=>{${active}})() ? '0 0 22px rgba(255,196,90,.16), inset 0 1px 0 rgba(255,223,163,.12)' : '0 5px 18px rgba(0,0,0,.12)'; ]]]`});
       card.styles.icon ||= [];
       card.styles.icon.push({animation:`[[[ return (()=>{${active}})() ? 'dwell-breathe 3.6s ease-in-out infinite' : 'none'; ]]]`});
@@ -266,10 +302,93 @@ function addLivingDesign(dashboard) {
   let greeted=false;
   visit(home, card=>{
     if(!greeted && card.type==='markdown' && card.content?.includes('now().strftime')) {
-      card.content = `{% set hour = now().hour %}\n### {% if hour < 12 %}Good morning ☀️{% elif hour < 18 %}Good afternoon 🌤️{% else %}Good evening ✨{% endif %}\n` + card.content;
+      card.content = `{% set hour = now().hour %}\n### {% if hour < 12 %}Good morning{% elif hour < 18 %}Good afternoon{% else %}Good evening{% endif %}\n` + card.content;
       greeted=true;
     }
   });
+}
+// Design refresh: readable type, a clear radius hierarchy, unboxed information cards,
+// a sky-first Home page and plain-sentence status copy. Runs on the generated copy,
+// so the original template stays untouched.
+
+const DWELL_FONT_STACK = "'Atkinson Hyperlegible Next','Atkinson Hyperlegible',Roboto,system-ui,sans-serif";
+const DWELL_FONT_URL = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&display=swap';
+const MIN_TEXT_PX = 12;
+const CONTROL_RADIUS = '12px';
+
+// Status copy: plain sentences in sentence case instead of "A · B" fragments and capitals.
+const COPY = [
+  ['Activity · 24 hours', 'Last 24 hours'],
+  ['Lighting · Room control', 'Lighting'],
+  ['Air conditioning · Live status', 'Air conditioning'],
+  ['Room °C / Set °C · Enabled does not always mean actively cooling', 'Room and target temperature. On does not always mean cooling.'],
+  ['${active} of 6 enabled', '${active} of ${ids.filter(id=>states[id]).length} on'],
+  ['const rows=ids.map((id,i)=>{const e=states[id];', 'const rows=ids.map((id,i)=>{const e=states[id];if(!e)return \'\';'],
+  ['font-size:10px;font-weight:800;letter-spacing:.3px;', 'font-size:13px;font-weight:600;'],
+  ["text:'OFF'", "text:'Off'"], ["text:'COOLING'", "text:'Cooling'"], ["text:'HEATING'", "text:'Heating'"],
+  ["text:'DRYING'", "text:'Drying'"], ["text:'FAN'", "text:'Fan'"], ["text:'IDLE'", "text:'Idle'"],
+  ['text:e.state.toUpperCase()', 'text:e.state.charAt(0).toUpperCase()+e.state.slice(1)'],
+  ['`${active.length} ON · ${ids.length} lights', '`${active.length} of ${ids.length} on'],
+  ['`All available lights off · ${offline.length} unavailable`', '`All off, ${offline.length} unavailable`'],
+  ['`All off · ${ids.length} lights`', '`All ${ids.length} off`'],
+  ['# 💡 {{ ns.on }} lights ON / {{ room_lights | count }} total', '## {{ ns.on }} of {{ room_lights | count }} lights on'],
+  ['**{{ ns.available - ns.on }} OFF** · **{{ (room_lights | count) - ns.available }} unavailable/unknown**',
+    '{{ ns.available - ns.on }} off, {{ (room_lights | count) - ns.available }} unavailable.'],
+  ['**{{ n.lights }}** lights on · **{{ n.covers }}** curtains open · **{{ n.media }}** players active',
+    "{{ n.lights }} {{ 'light is' if n.lights == 1 else 'lights are' }} on, {{ n.covers }} {{ 'curtain is' if n.covers == 1 else 'curtains are' }} open and {{ n.media }} {{ 'player is' if n.media == 1 else 'players are' }} playing."]
+];
+
+const raiseSmallText = text => text.replace(/(font-size\s*:\s*)(\d+(?:\.\d+)?)px/g,
+  (match, key, size) => Number(size) < MIN_TEXT_PX ? `${key}${MIN_TEXT_PX}px` : match);
+// Controls get 12px corners; popups keep their larger 20px corners.
+const tightenRadius = text => text.replace(/(border-radius\s*:\s*)16px/g, `$1${CONTROL_RADIUS}`);
+const refreshText = text => tightenRadius(raiseSmallText(COPY.reduce((value, [from, to]) => value.split(from).join(to), text)));
+
+const appendStyle = (card, css) => {
+  if (!card.card_mod) card.card_mod = {style: css};
+  else if (typeof card.card_mod.style === 'string') card.card_mod.style += '\n' + css;
+  else if (card.card_mod.style && typeof card.card_mod.style === 'object') card.card_mod.style['.'] = (card.card_mod.style['.'] || '') + '\n' + css;
+  else card.card_mod.style = css;
+};
+const isCard = card => typeof card.type === 'string' && !card.type.startsWith('custom:popup') &&
+  (card.type.startsWith('custom:') || ['markdown', 'tile', 'button', 'entities', 'history-graph', 'thermostat', 'picture-entity',
+    'alarm-panel', 'weather-forecast', 'media-control', 'logbook', 'heading'].includes(card.type));
+
+function applyDesignRefresh(dashboard, config = {}) {
+  const output = walk(dashboard, refreshText);
+  const font = config.font === 'system' ? '' :
+    `:host{--ha-font-family-body:${DWELL_FONT_STACK};--mdc-typography-font-family:${DWELL_FONT_STACK};--paper-font-common-base_-_font-family:${DWELL_FONT_STACK};} ha-card{font-family:${DWELL_FONT_STACK};}`;
+  visit(output, item => {
+    // button-card style lists hold values without their CSS property names.
+    for (const [key, value] of Object.entries(item)) {
+      if (typeof value !== 'string') continue;
+      if (key === 'font-size') item[key] = raiseSmallText(`font-size:${value}`).slice(10);
+      if (key === 'border-radius' && value === '16px') item[key] = CONTROL_RADIUS;
+    }
+    if (!isCard(item)) return;
+    // Information sits on the page; only things you tap keep a raised surface.
+    if (item.type === 'markdown') appendStyle(item, 'ha-card{background:transparent!important;border:none!important;box-shadow:none!important;}');
+    if (font) appendStyle(item, font);
+  });
+  return output;
+}
+
+// Home opens with the live sky, then one sentence about the house. Runs before unselected
+// entities become setup hints, so the sky keeps its place even before a weather entity is chosen.
+function skyFirst(dashboard) {
+  const first = dashboard.views.find(view => view.path === 'home')?.sections?.[0];
+  if (!first?.cards) return;
+  const sky = first.cards.find(card => card.custom_fields?.sky);
+  const rest = first.cards.filter(card => card !== sky && !(card.type === 'heading' && card.heading === 'Welcome home'));
+  if (sky) first.cards = [sky, ...rest];
+}
+
+// Fonts declared in the page are available inside every card's shadow root.
+function loadDwellFont(config = {}) {
+  if (config.font === 'system' || typeof document === 'undefined' || document.getElementById('dwelldeck-font')) return;
+  const link = document.createElement('link');
+  Object.assign(link, {id: 'dwelldeck-font', rel: 'stylesheet', href: DWELL_FONT_URL});
+  document.head.append(link);
 }
 // Card builders: room tiles, light popups, area room cards and entity sections.
 
@@ -1036,6 +1155,7 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
     return result.replace(entityPattern, id => lookup.get(id) || id);
   });
   output.title = config.title || 'DwellDeck';
+  skyFirst(output);
   for (const view of output.views) if (view.theme) view.theme = config.theme || 'DwellDeck Midnight';
   const lighting = output.views.find(v => v.path === 'lighting');
   const lightPrototype = clone(lighting.sections[roomTemplates[0].section].cards[roomTemplates[0].card]);
@@ -1138,7 +1258,7 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
   });
   if(!config.theme && config.builtin_colors!==false)addBuiltinColors(output);
   addLivingDesign(output);
-  return applyDwellPalette(output, config.color_palette || 'ocean');
+  return applyDwellPalette(applyDesignRefresh(output, config), config.color_palette || DEFAULT_PALETTE);
 }
 // Visual setup editor shown under Edit dashboard.
 
@@ -1182,15 +1302,15 @@ class DwellDeckOriginalEditor extends HTMLElement {
     this.shadowRoot.replaceChildren();
     const appearance=document.createElement('section');
     const appearanceTitle=document.createElement('h3');appearanceTitle.textContent='Theme colour';appearance.append(appearanceTitle);
-    const appearanceHelp=document.createElement('p');appearanceHelp.textContent='Choose your home’s palette, then Save. Active lights keep their warm yellow status.';appearance.append(appearanceHelp);
+    const appearanceHelp=document.createElement('p');appearanceHelp.textContent='Choose a palette, then Save. Lamplight keeps colour for things that are on; the others are the original colour schemes.';appearance.append(appearanceHelp);
     const swatches=document.createElement('div');swatches.setAttribute('role','group');swatches.setAttribute('aria-label','Theme colour');
     for(const [key,palette] of Object.entries(DWELL_PALETTES)){
       const button=document.createElement('button');button.type='button';
       button.textContent=palette.name;
-      button.setAttribute('aria-pressed',String((this.config.color_palette || 'ocean')===key));
+      button.setAttribute('aria-pressed',String((this.config.color_palette || DEFAULT_PALETTE)===key));
       button.style.background=`linear-gradient(120deg,${palette.colors[0]},${palette.colors[1]})`;
       button.style.borderColor=palette.colors[3];
-      button.style.borderWidth=(this.config.color_palette || 'ocean')===key?'3px':'1px';
+      button.style.borderWidth=(this.config.color_palette || DEFAULT_PALETTE)===key?'3px':'1px';
       button.onclick=()=>{this.change({...this.config,color_palette:key});for(const other of swatches.querySelectorAll('button')){const selected=other===button;other.setAttribute('aria-pressed',String(selected));other.style.borderWidth=selected?'3px':'1px';}};
       swatches.append(button);
     }
@@ -1270,12 +1390,18 @@ class DwellDeckOriginalEditor extends HTMLElement {
     this.shadowRoot.append(this.form([
       {name: 'auto_discover', selector: {boolean: {}}},
       {name: 'room_controls', selector: {boolean: {}}},
-      {name: 'camera_detection', selector: {boolean: {}}}
-    ], {auto_discover: !!this.config.auto_discover, room_controls: !!this.config.room_controls, camera_detection: this.config.camera_detection !== false},
-    value => this.change({...this.config, ...value}), {
+      {name: 'camera_detection', selector: {boolean: {}}},
+      {name: 'readable_font', selector: {boolean: {}}}
+    ], {auto_discover: !!this.config.auto_discover, room_controls: !!this.config.room_controls, camera_detection: this.config.camera_detection !== false, readable_font: this.config.font !== 'system'},
+    ({readable_font, ...value}) => {
+      const next = {...this.config, ...value};
+      if (readable_font === false) next.font = 'system'; else delete next.font;
+      this.change(next);
+    }, {
       auto_discover: 'Discover newly added areas automatically',
       room_controls: 'Show room controls and sensors in room popups',
-      camera_detection: 'Show camera human and vehicle detection on the Security page'
+      camera_detection: 'Show camera human and vehicle detection on the Security page',
+      readable_font: 'Use the Atkinson Hyperlegible font (loaded from Google Fonts). Off uses the Home Assistant font.'
     }));
     const roomDetails=document.createElement('details');roomDetails.open=true;const summary=document.createElement('summary');summary.textContent='Home Assistant areas and controls';roomDetails.append(summary);
     const editorRooms = this.config.area_rooms
@@ -1313,6 +1439,7 @@ class DwellDeckOriginalStrategy extends HTMLElement {
   static getConfigElement(){return document.createElement('dwelldeck-original-editor');}
   static getCreateSuggestions(){return {title:'DwellDeck',icon:'mdi:view-dashboard'};}
   static async generate(config, hass) {
+    loadDwellFont(config);
     const needsDiscovery = config.auto_discover || config.room_controls ||
       Object.values(config.rooms || {}).some(room => room.area) ||
       (config.extra_rooms || []).some(room => room.area);

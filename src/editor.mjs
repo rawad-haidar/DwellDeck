@@ -2,7 +2,7 @@
 import {clone} from './util.mjs';
 import {dependencyStatus} from './dependencies.mjs';
 import {ROOM_CONTROL_DOMAINS, discoveryContext, discoverConfiguration} from './discovery.mjs';
-import {DWELL_PALETTES} from './theme.mjs';
+import {DWELL_PALETTES, DEFAULT_PALETTE} from './theme.mjs';
 import {detectionSensors, snapshotAutomation, SNAPSHOT_DIR} from './detection.mjs';
 import {SLOTS, ROOM_TEMPLATES} from './data.mjs';
 
@@ -46,15 +46,15 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     this.shadowRoot.replaceChildren();
     const appearance=document.createElement('section');
     const appearanceTitle=document.createElement('h3');appearanceTitle.textContent='Theme colour';appearance.append(appearanceTitle);
-    const appearanceHelp=document.createElement('p');appearanceHelp.textContent='Choose your home’s palette, then Save. Active lights keep their warm yellow status.';appearance.append(appearanceHelp);
+    const appearanceHelp=document.createElement('p');appearanceHelp.textContent='Choose a palette, then Save. Lamplight keeps colour for things that are on; the others are the original colour schemes.';appearance.append(appearanceHelp);
     const swatches=document.createElement('div');swatches.setAttribute('role','group');swatches.setAttribute('aria-label','Theme colour');
     for(const [key,palette] of Object.entries(DWELL_PALETTES)){
       const button=document.createElement('button');button.type='button';
       button.textContent=palette.name;
-      button.setAttribute('aria-pressed',String((this.config.color_palette || 'ocean')===key));
+      button.setAttribute('aria-pressed',String((this.config.color_palette || DEFAULT_PALETTE)===key));
       button.style.background=`linear-gradient(120deg,${palette.colors[0]},${palette.colors[1]})`;
       button.style.borderColor=palette.colors[3];
-      button.style.borderWidth=(this.config.color_palette || 'ocean')===key?'3px':'1px';
+      button.style.borderWidth=(this.config.color_palette || DEFAULT_PALETTE)===key?'3px':'1px';
       button.onclick=()=>{this.change({...this.config,color_palette:key});for(const other of swatches.querySelectorAll('button')){const selected=other===button;other.setAttribute('aria-pressed',String(selected));other.style.borderWidth=selected?'3px':'1px';}};
       swatches.append(button);
     }
@@ -134,12 +134,18 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     this.shadowRoot.append(this.form([
       {name: 'auto_discover', selector: {boolean: {}}},
       {name: 'room_controls', selector: {boolean: {}}},
-      {name: 'camera_detection', selector: {boolean: {}}}
-    ], {auto_discover: !!this.config.auto_discover, room_controls: !!this.config.room_controls, camera_detection: this.config.camera_detection !== false},
-    value => this.change({...this.config, ...value}), {
+      {name: 'camera_detection', selector: {boolean: {}}},
+      {name: 'readable_font', selector: {boolean: {}}}
+    ], {auto_discover: !!this.config.auto_discover, room_controls: !!this.config.room_controls, camera_detection: this.config.camera_detection !== false, readable_font: this.config.font !== 'system'},
+    ({readable_font, ...value}) => {
+      const next = {...this.config, ...value};
+      if (readable_font === false) next.font = 'system'; else delete next.font;
+      this.change(next);
+    }, {
       auto_discover: 'Discover newly added areas automatically',
       room_controls: 'Show room controls and sensors in room popups',
-      camera_detection: 'Show camera human and vehicle detection on the Security page'
+      camera_detection: 'Show camera human and vehicle detection on the Security page',
+      readable_font: 'Use the Atkinson Hyperlegible font (loaded from Google Fonts). Off uses the Home Assistant font.'
     }));
     const roomDetails=document.createElement('details');roomDetails.open=true;const summary=document.createElement('summary');summary.textContent='Home Assistant areas and controls';roomDetails.append(summary);
     const editorRooms = this.config.area_rooms

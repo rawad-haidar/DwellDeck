@@ -15,23 +15,62 @@ export function addBuiltinColors(dashboard) {
     else item.card_mod.style=css;
   });
 }
-export const DWELL_PALETTES = {
-  ocean: {name:'Ocean blue', colors:['#1b2d40','#101c2b','#172638','#4b9aee'], page:'#080f1b'},
-  emerald: {name:'Emerald', colors:['#183d38','#102823','#15342e','#4cc9a6'], page:'#081712'},
-  violet: {name:'Amethyst', colors:['#332547','#1d152e','#2b203c','#b294ef'], page:'#100b1b'},
-  rose: {name:'Rosewood', colors:['#432b38','#291a25','#36222f','#e49db9'], page:'#190e16'},
-  slate: {name:'Graphite', colors:['#303944','#1c222b','#28313c','#a4bfd8'], page:'#10141b'}
+// Every colour in the original design belongs to one role. A palette recolours a role
+// everywhere it appears (card-mod CSS, button-card templates, inline HTML and SVG),
+// so a palette change reaches every accent, not only the card backgrounds.
+export const COLOR_ROLES = {
+  page: ['#080e18', '#080f1b', '#0b141f', '#07131f'],
+  popup: ['#101c2b'], card: ['#162536'], tileA: ['#1b2d40'], tileB: ['#172638'],
+  text: ['#edf5ff', '#f2f7ff', '#dbe9ff'], textSoft: ['#b1becd', '#b7cadd', '#c0cede'],
+  muted: ['#91a8bd', '#91b4ce'], faint: ['#7892a9', '#758da3'], unavailable: ['#586a80', '#62798e'],
+  accent: ['#29d5ee', '#2ed7f0', '#4b9aee', '#49a8ff'], accentSoft: ['#8fc8dd', '#a6dbff', '#a9dcff'],
+  active: ['#39e2bc', '#4ed7bd', '#31dcc4'],
+  lampBg: ['#493b24'], lampBgEnd: ['#202936'], lamp: ['#d5a74c'], lampText: ['#efc875', '#ffd16b', '#ffdc91'],
+  violet: ['#be92f4', '#c28af4', '#9e9cf2', '#d4c7ff'], heat: ['#f5af7d', '#f3ac76', '#ff9a66'],
+  alert: ['#ff7885', '#ef9aab', '#a96e71'],
+  line: ['rgba(156,199,225,.12)', 'rgba(156,199,225,.15)', 'rgba(156,199,225,.18)', 'rgba(156,199,225,.1)'],
+  cardGlassA: ['rgba(29,47,65,.94)'], cardGlassB: ['rgba(15,27,42,.97)'], scrim: ['rgba(3,8,16,.76)'],
+  washA: ['rgba(12,79,94,.28)'], washB: ['rgba(75,35,100,.18)'],
+  skyPanel: ['rgba(5,15,29,.83)', 'rgba(5,15,29,.89)', 'rgba(4,14,27,.85)']
 };
+// colors: [tile, popup, tile end, accent] drive the editor swatch; roles override COLOR_ROLES.
+export const DWELL_PALETTES = {
+  lamplight: {name: 'Lamplight', colors: ['#212a35', '#181f28', '#1b232d', '#f2b950'], page: '#141a22', roles: {
+    page: '#141a22', popup: '#181f28', card: '#1b222c', tileA: '#212a35', tileB: '#1b232d',
+    text: '#e8e2d8', textSoft: '#cfc8bc', muted: '#a8a296', faint: '#948e83', unavailable: '#8a8478',
+    accent: '#8fb8d0', accentSoft: '#a9c6d6', active: '#a8c49a',
+    lampBg: '#3b2e18', lampBgEnd: '#262119', lamp: '#f2b950', lampText: '#f6c868',
+    violet: '#b9a6d3', heat: '#e8a070', alert: '#ec7a6c',
+    line: 'rgba(232,226,216,.10)', cardGlassA: 'rgba(33,42,53,.94)', cardGlassB: 'rgba(27,35,45,.97)',
+    scrim: 'rgba(10,12,16,.78)', washA: 'rgba(0,0,0,0)', washB: 'rgba(0,0,0,0)', skyPanel: 'rgba(20,26,34,.86)'
+  }},
+  ocean: {name: 'Ocean blue', colors: ['#1b2d40', '#101c2b', '#172638', '#29d5ee'], page: '#080e18', roles: {card: '#162536', accent: undefined, accentSoft: undefined}},
+  emerald: {name: 'Emerald', colors: ['#183d38', '#102823', '#15342e', '#4cc9a6'], page: '#081712'},
+  violet: {name: 'Amethyst', colors: ['#332547', '#1d152e', '#2b203c', '#b294ef'], page: '#100b1b'},
+  rose: {name: 'Rosewood', colors: ['#432b38', '#291a25', '#36222f', '#e49db9'], page: '#190e16'},
+  slate: {name: 'Graphite', colors: ['#303944', '#1c222b', '#28313c', '#a4bfd8'], page: '#10141b'}
+};
+export const DEFAULT_PALETTE = 'lamplight';
+const paletteRoles = palette => {
+  const [tileA, popup, tileB, accent] = palette.colors;
+  return {page: palette.page, popup, tileA, tileB, card: tileA, accent, accentSoft: accent, unavailable: '#8094a9', ...palette.roles};
+};
+// One spelling per colour: "rgba(156, 199, 225, 0.12)" and "rgba(156,199,225,.12)" become the same string.
+export const normalizeRgba = text => text.replace(/rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*0?(\.\d+)\s*\)/g, 'rgba($1,$2,$3,$4)');
 export function applyDwellPalette(dashboard, key) {
-  const palette=DWELL_PALETTES[key] || DWELL_PALETTES.ocean;
-  if(key==='ocean' || !DWELL_PALETTES[key])return dashboard;
-  const originals=['#1b2d40','#101c2b','#172638','#4b9aee'];
-  const replacements=new Map(originals.map((color,index)=>[color,palette.colors[index]]));
-  const themed=walk(dashboard,text=>text.replace(/#1b2d40|#101c2b|#172638|#4b9aee/gi,color=>replacements.get(color.toLowerCase())));
-  for(const view of themed.views){
+  const name = DWELL_PALETTES[key] ? key : DEFAULT_PALETTE;
+  const palette = DWELL_PALETTES[name];
+  const roles = paletteRoles(palette);
+  const replacements = new Map();
+  for (const [role, sources] of Object.entries(COLOR_ROLES)) if (roles[role]) for (const color of sources) replacements.set(color, roles[role]);
+  const pattern = new RegExp([...replacements.keys()].map(c => c.replace(/[().|]/g, '\\$&')).join('|'), 'gi');
+  const themed = walk(dashboard, text => normalizeRgba(text).replace(pattern, color => replacements.get(color.toLowerCase()) || color));
+  const accent = roles.accent || palette.colors[3];
+  const surface = name === 'lamplight' ? roles.page : `linear-gradient(135deg,${roles.page},${roles.popup})`;
+  for (const view of themed.views) {
     view.card_mod ||= {};
-    view.card_mod.style=(view.card_mod.style || '')+`
-:host {--primary-color:${palette.colors[3]};--accent-color:${palette.colors[3]};--lovelace-background:linear-gradient(135deg,${palette.page},${palette.colors[1]});--primary-background-color:${palette.page};--ha-card-background:${palette.colors[0]};--card-background-color:${palette.colors[0]};background:linear-gradient(135deg,${palette.page},${palette.colors[1]})!important;}`;
+    view.card_mod.style = (view.card_mod.style || '') + `
+:host {--primary-color:${accent};--accent-color:${accent};--lovelace-background:${surface};--primary-background-color:${roles.page};--ha-card-background:${roles.card};--card-background-color:${roles.card};--history-unavailable-color:${roles.unavailable};background:${surface}!important;}`;
   }
   return themed;
 }
@@ -40,10 +79,7 @@ export function applyDwellPalette(dashboard, key) {
 export function addLivingDesign(dashboard) {
   const motion = `
     @keyframes dwell-breathe { 0%,100% {filter: brightness(1);} 50% {filter: brightness(1.14);} }
-    @keyframes dwell-arrive {from {opacity:.65; transform:translateY(6px);} to {opacity:1;transform:none;} }
-    ha-card {transition:background .7s ease,border-color .7s ease,box-shadow .7s ease,transform .25s ease;
-      animation:dwell-arrive .45s ease both;}
-    @media (hover:hover) {ha-card:hover {transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.22);}}
+    ha-card {transition:background .7s ease,border-color .7s ease,box-shadow .7s ease;}
     @media (prefers-reduced-motion:reduce) {ha-card,ha-state-icon {animation:none!important;transition:none!important;transform:none!important;}}
   `;
   visit(dashboard, card => {
@@ -53,7 +89,7 @@ export function addLivingDesign(dashboard) {
       const active = `const ids=${JSON.stringify(ids)}; return ids.some(id=>{const e=states[id];if(!e)return false;if(id.startsWith('climate.'))return ['heating','cooling','drying','fan'].includes(e.attributes?.hvac_action);return ['on','playing','opening','closing'].includes(e.state);});`;
       card.styles ||= {};
       card.styles.card ||= [];
-      card.styles.card.push({transition:'background .7s ease, border-color .7s ease, box-shadow .7s ease, transform .25s ease'},
+      card.styles.card.push({transition:'background .7s ease, border-color .7s ease, box-shadow .7s ease'},
         {'box-shadow':`[[[ return (()=>{${active}})() ? '0 0 22px rgba(255,196,90,.16), inset 0 1px 0 rgba(255,223,163,.12)' : '0 5px 18px rgba(0,0,0,.12)'; ]]]`});
       card.styles.icon ||= [];
       card.styles.icon.push({animation:`[[[ return (()=>{${active}})() ? 'dwell-breathe 3.6s ease-in-out infinite' : 'none'; ]]]`});
@@ -76,7 +112,7 @@ export function addLivingDesign(dashboard) {
   let greeted=false;
   visit(home, card=>{
     if(!greeted && card.type==='markdown' && card.content?.includes('now().strftime')) {
-      card.content = `{% set hour = now().hour %}\n### {% if hour < 12 %}Good morning ☀️{% elif hour < 18 %}Good afternoon 🌤️{% else %}Good evening ✨{% endif %}\n` + card.content;
+      card.content = `{% set hour = now().hour %}\n### {% if hour < 12 %}Good morning{% elif hour < 18 %}Good afternoon{% else %}Good evening{% endif %}\n` + card.content;
       greeted=true;
     }
   });

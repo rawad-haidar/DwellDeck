@@ -29,9 +29,11 @@ test('detection history button opens the Activity view under the dashboard path'
 });
 
 test('detection cards use the dashboard colours and selected palette', () => {
-  const ocean = JSON.stringify(detectionSection(generate({})));
+  const ocean = JSON.stringify(detectionSection(generate({color_palette: 'ocean'})));
+  const lamplight = JSON.stringify(detectionSection(generate({})));
   const emerald = JSON.stringify(detectionSection(generate({color_palette: 'emerald'})));
   assert(ocean.includes('--primary-text-color:#edf5ff'));
+  assert(lamplight.includes('--primary-text-color:#e8e2d8'));
   assert(emerald.includes('#183d38'));
 });
 

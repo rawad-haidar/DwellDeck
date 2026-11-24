@@ -48,7 +48,7 @@ test('detects dashboard URL and keeps an explicit override',async()=>{
  assert.equal(inferDashboardPath({dashboard_path:'/custom-home/'},'/dashboard-other/home'),'/custom-home');
 });
 test('built-in colors need no installed theme and preserve feature schemas',()=>{
- const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,config);
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{...config,color_palette:'ocean'});
  assert(d.views.every(v=>!v.theme));
  assert(JSON.stringify(d).includes('--primary-text-color:#edf5ff'));
  const features=[];const walk=x=>{if(x&&typeof x==='object'){if(x.features)features.push(...x.features);Object.values(x).forEach(walk);}};walk(d);

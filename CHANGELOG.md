@@ -2,6 +2,16 @@
 
 ## Unreleased — Modular source
 
+- Add the **Lamplight** palette and make it the default: warm, quiet surfaces where colour marks state, with lamplight yellow for lights that are on. Existing dashboards that chose a palette keep it; choose **Ocean blue** for the original colours.
+- Palettes now recolour every accent, status colour and border, not only card backgrounds. Colours have one spelling each.
+- Use the Atkinson Hyperlegible Next font, loaded from Google Fonts; turn it off with **Use the Atkinson Hyperlegible font** in Edit dashboard or `font: system`.
+- Raise all text to at least 12px; air-conditioning status labels are 13px in sentence case.
+- Air conditioning counts the units you configured instead of a fixed 6, and hides unselected rows.
+- Home opens with the live sky; the "Welcome home" heading and greeting emoji are removed.
+- Markdown summaries sit on the page without a card box; controls keep 12px corners and popups 20px.
+- Cards no longer slide in on every page or lift on hover; the glow and breathing icon on active devices remain.
+- The unavailable colour in history graphs now meets 3:1 contrast.
+- Status summaries read as sentences, for example "2 of 4 on" instead of "2 ON · 4 lights".
 - Make Security page camera tiles clickable, showing the latest human and vehicle detection snapshots and the live view; **Set up detection snapshots** in Edit dashboard creates the automation that saves them to the login-protected media folder.
 - Add camera human and vehicle detection status and recent activity to the Security page (`camera_detection: false` to hide).
 - Fix history graphs, mini graphs and entities cards breaking when some of their entities are not selected.
