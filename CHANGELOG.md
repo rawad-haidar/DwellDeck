@@ -2,6 +2,7 @@
 
 ## Unreleased — Modular source
 
+- Make Security page camera tiles clickable, showing the latest human and vehicle detection snapshots and the live view; **Set up detection snapshots** in Edit dashboard creates the automation that saves them to the login-protected media folder.
 - Add camera human and vehicle detection status and recent activity to the Security page (`camera_detection: false` to hide).
 - Fix history graphs, mini graphs and entities cards breaking when some of their entities are not selected.
 - Split the runtime into focused `src/` modules and move the layout data into `src/data/*.json`; the build no longer reads its own output.
