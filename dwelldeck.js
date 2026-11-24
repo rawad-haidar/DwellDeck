@@ -681,7 +681,7 @@ function tvSignals(id, hass) {
 }
 
 // media_player supported_features bits.
-const FEATURE = {pause: 1, volumeSet: 4, turnOn: 128, turnOff: 256, volumeStep: 1024, play: 16384};
+const FEATURE = {pause: 1, volumeSet: 4, volumeMute: 8, previous: 16, next: 32, turnOn: 128, turnOff: 256, volumeStep: 1024, play: 16384};
 const supports = (id, hass, bits) => (Number(hass.states?.[id]?.attributes?.supported_features) & bits) !== 0;
 // The first entry of the TV (lead first) that supports an action, so each button reaches an entry that can do it.
 const playerFor = (players, hass, bits) => players.find(id => supports(id, hass, bits));
@@ -1025,6 +1025,38 @@ function dwellTvPanel(states, cfg) {
 </div>`;
 }
 
+// Runs inside a button-card template: the volume as a slider, with mute and the level in %. When the player
+// only steps the volume, two buttons instead. Self-contained: serialised with toString.
+function dwellVolume(states, cfg) {
+  window.__dwellVol = window.__dwellVol || {
+    hass: () => document.querySelector('home-assistant')?.hass,
+    show(el) { el.closest('.vl').querySelector('.pc').textContent = el.value + '%'; },
+    set(el) { this.hass()?.callService('media_player', 'volume_set', {entity_id: el.dataset.entity, volume_level: Number(el.value) / 100}); },
+    mute(el) { this.hass()?.callService('media_player', 'volume_mute', {entity_id: el.dataset.entity, is_volume_muted: el.dataset.muted !== '1'}); },
+    step(el) { this.hass()?.callService('media_player', el.dataset.dir === 'up' ? 'volume_up' : 'volume_down', {entity_id: el.dataset.entity}); }
+  };
+  const btn = `all:unset;box-sizing:border-box;cursor:pointer;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:rgba(0,0,0,.18);border:1px solid ${cfg.c.line};color:${cfg.c.text}`;
+  const icon = name => `<ha-icon icon="${name}" style="--mdc-icon-size:20px;width:20px;height:20px;display:block"></ha-icon>`;
+  if (!cfg.entity) {
+    return `<div style="display:flex;align-items:center;gap:8px;justify-content:center">
+      <button style="${btn}" aria-label="Volume down" data-entity="${cfg.step}" data-dir="down" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-minus')}</button>
+      <span style="color:${cfg.c.muted};font-size:13px">Volume</span>
+      <button style="${btn}" aria-label="Volume up" data-entity="${cfg.step}" data-dir="up" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-plus')}</button></div>`;
+  }
+  const e = states[cfg.entity];
+  const level = Math.round((Number(e?.attributes?.volume_level) || 0) * 100);
+  const muted = !!e?.attributes?.is_volume_muted;
+  const off = !e || ['off', 'unavailable', 'unknown'].includes(e.state);
+  const fill = muted ? 0 : level;
+  return `<div class="vl" style="display:grid;grid-template-columns:36px 1fr 44px;align-items:center;gap:10px;opacity:${off ? 0.5 : 1}">
+    ${cfg.mute ? `<button style="${btn}" aria-label="${muted ? 'Unmute' : 'Mute'}" data-entity="${cfg.mute}" data-muted="${muted ? 1 : 0}" onclick="event.stopPropagation();window.__dwellVol.mute(this)">${icon(muted ? 'mdi:volume-off' : level < 35 ? 'mdi:volume-low' : level < 70 ? 'mdi:volume-medium' : 'mdi:volume-high')}</button>`
+      : `<span style="display:grid;place-items:center;color:${cfg.c.muted}">${icon('mdi:volume-high')}</span>`}
+    <input type="range" min="0" max="100" step="1" value="${level}" aria-label="Volume" data-entity="${cfg.entity}" ${off ? 'disabled' : ''}
+      style="width:100%;height:28px;margin:0;accent-color:${cfg.c.on};cursor:pointer;background:transparent;--fill:${fill}%"
+      onclick="event.stopPropagation()" oninput="event.stopPropagation();window.__dwellVol.show(this)" onchange="event.stopPropagation();window.__dwellVol.set(this)">
+    <span class="pc" style="font-size:13px;color:${cfg.c.text};text-align:right;font-variant-numeric:tabular-nums">${muted ? 'Muted' : level + '%'}</span></div>`;
+}
+
 // Runs inside a button-card template: two buttons, this room's Music Assistant player and the Music
 // Assistant app. Self-contained: serialised with toString.
 function dwellMaButtons(cfg) {
@@ -1112,9 +1144,12 @@ function tvCard(requested, hass) {
     : remote ? remote.send('POWER') : player('toggle');
   const volumePlayer = playerFor(players, hass, FEATURE.volumeStep | FEATURE.volumeSet) || id;
   const playPlayer = playerFor(players, hass, FEATURE.play | FEATURE.pause) || id;
+  // A sound system's Music Assistant player also counts: it skips tracks and sets the volume.
   const ma = musicAssistantPlayer(players, hass);
-  // What plays on a sound system comes from its Music Assistant player: watch it for the title and artwork.
   const sources = ma && !players.includes(ma) ? [...players, ma] : players;
+  const skipPlayer = playerFor(sources, hass, FEATURE.next | FEATURE.previous) || playPlayer;
+  const sliderPlayer = playerFor(sources, hass, FEATURE.volumeSet);
+  // What plays on a sound system comes from its Music Assistant player: watch it for the title and artwork.
   const watched = [...new Set([...sources, ...(remote ? [remote.id] : [])])];
   // Status comes from whichever entry is on: the TV's own player first, then anything playing.
   const current = `const OFFS=${OFF}; const known=${JSON.stringify(KNOWN_PACKAGES)};
@@ -1173,10 +1208,11 @@ function tvCard(requested, hass) {
           {'border-radius': '50%'}, {'box-shadow': `[[[ ${isOn} return on ? '0 0 14px rgba(213,167,76,.35)' : 'none'; ]]]`},
           {width: '46px'}, {height: '46px'}, {padding: '0'}, {transition: 'background .3s ease, box-shadow .3s ease'}]}
     }},
+    // Previous, play or pause, next; the volume is a slider below.
     media: {card: group('"down play up"', 'repeat(3,1fr)', {
-      down: key('Volume down', 'mdi:volume-minus', player('volume_down', volumePlayer)),
+      down: key('Previous', 'mdi:skip-previous', player('media_previous_track', skipPlayer)),
       play: key('Play or pause', 'mdi:play-pause', player('media_play_pause', playPlayer)),
-      up: key('Volume up', 'mdi:volume-plus', player('volume_up', volumePlayer))
+      up: key('Next', 'mdi:skip-next', player('media_next_track', skipPlayer))
     })}
   };
   // Now playing: status, artwork, title, artist or series, and the app.
@@ -1203,6 +1239,11 @@ function tvCard(requested, hass) {
       + '</div></div>';
   ]]]`;
   const areas = ['"i n power"', '"i l power"', '"now now now"', '"media media media"'];
+  if (sliderPlayer || volumePlayer) {
+    fields.vol = `[[[ return (${dwellVolume.toString()})(states, ${JSON.stringify({entity: sliderPlayer, step: sliderPlayer ? null : volumePlayer,
+      mute: playerFor(sources, hass, FEATURE.volumeMute), c: {line: C.line, text: C.text, muted: C.muted, on: C.on, onText: C.onText, card: C.card}})}); ]]]`;
+    areas.push('"vol vol vol"');
+  }
   if (ma) {
     // Two buttons under the controls: this room's Music Assistant player, and the Music Assistant app.
     fields.ma = `[[[ return (${dwellMaButtons.toString()})(${JSON.stringify({player: ma, playerName: String(playerName(ma, hass)).replace(/["<>&]/g, ''), c: {line: C.line, text: C.text, onText: C.onText, muted: C.muted}})}); ]]]`;
@@ -1236,7 +1277,8 @@ function tvCard(requested, hass) {
       label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: C.muted}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       custom_fields: {power: [{'justify-self': 'end'}], now: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {padding: '10px 12px'}, {'border-radius': '14px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${C.line}`}], media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}],
         panel: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}],
-        ma: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}]}
+        ma: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}],
+        vol: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}]}
     }
   };
 }

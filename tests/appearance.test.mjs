@@ -588,3 +588,22 @@ test('a sound system card shows what its Music Assistant player plays, with artw
  const bg=card.styles.card.find(r=>typeof r.background==='string'&&r.background.includes('[[['));
  assert(Function('states','entity',bg.background.trim().slice(3,-3))(states,states['media_player.rest_living_sound_system']).includes('/api/art/1.jpg'),'artwork behind the card');
 });
+test('player cards: previous, play and next buttons, and a volume slider on the player that sets the volume',async()=>{
+ const {tvCard}=await import('../src/tv.mjs');
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([st('media_player.rest_living_sound_system','on',{friendly_name:'Living Sound System',supported_features:4+8+1024}),
+  st('media_player.living_sound_system_2','playing',{friendly_name:'Living Sound System',mass_player_type:'player',supported_features:1+4+8+16+32+16384,volume_level:0.42})]);
+ const entities={'media_player.rest_living_sound_system':{platform:'dsppa_am8328',device_id:'z'},'media_player.living_sound_system_2':{platform:'music_assistant',device_id:'z'}};
+ const hass={states,entities,devices:{z:{manufacturer:'DSPPA'}},areas:{}};
+ const card=tvCard('media_player.rest_living_sound_system',hass);
+ const media=JSON.stringify(card.custom_fields.media);
+ assert(media.includes('media_previous_track')&&media.includes('media_next_track')&&!media.includes('volume_up'),'skip buttons, no volume buttons');
+ assert(card.styles.grid[0]['grid-template-areas'].includes('"vol vol vol"'));
+ globalThis.window={};
+ const html=Function('states',card.custom_fields.vol.trim().slice(3,-3))(states);
+ assert(html.includes('type="range"')&&html.includes('value="42"')&&html.includes('>42%<'));
+ const calls=[];globalThis.document={querySelector:()=>({hass:{callService:(...a)=>calls.push(a)}})};
+ window.__dwellVol.set({dataset:{entity:'media_player.rest_living_sound_system'},value:'60'});
+ assert.deepEqual(calls[0],['media_player','volume_set',{entity_id:'media_player.rest_living_sound_system',volume_level:0.6}]);
+ assert(card.styles.custom_fields.vol.some(r=>r['pointer-events']==='auto'));
+});
