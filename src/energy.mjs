@@ -38,6 +38,18 @@ export function discoverInverters(hass = {}) {
 }
 
 export const ENERGY_TOTALS = ['solar', 'home', 'charge', 'discharge', 'import', 'export'];
+export const ENERGY_COMBINE = ['solar_combine', 'home_combine', 'battery_combine', 'grid_combine', 'battery_soc_combine', 'energy_combine'];
+
+// Short names for sensors drawn one per line: the words that differ between them ("Master", "Slave").
+export function shortNames(ids, hass = {}) {
+  const words = ids.map(id => (hass.states?.[id]?.attributes?.friendly_name || id.split('.')[1].replaceAll('_', ' ')).split(/\s+/));
+  const out = {};
+  ids.forEach((id, i) => {
+    const differ = words[i].filter(word => words.some((other, j) => j !== i && !other.includes(word)));
+    out[id] = (differ.length && ids.length > 1 ? differ : words[i]).join(' ');
+  });
+  return out;
+}
 
 // What the dashboard editor shows: the chosen sensors, or what would be found, so they can be checked and changed.
 export function energyEditorValues(config = {}, hass = {}) {
@@ -46,6 +58,7 @@ export function energyEditorValues(config = {}, hass = {}) {
   return {
     solar: setup.solar, home: setup.home, battery: setup.battery, grid: setup.grid, battery_soc: setup.soc,
     battery_charging: chosen.battery_charging || 'negative', grid_import: chosen.grid_import || 'positive',
+    ...Object.fromEntries(ENERGY_COMBINE.map(key => [key, setup.modes[{solar_combine: 'solar', home_combine: 'home', battery_combine: 'battery', grid_combine: 'grid', battery_soc_combine: 'soc', energy_combine: 'energy'}[key]]])),
     ...Object.fromEntries(ENERGY_TOTALS.flatMap(key => [[`today_${key}`, setup.today[key]], [`total_${key}`, setup.total[key]]]))
   };
 }
@@ -56,34 +69,42 @@ export function energySetup(config = {}, hass = {}, slots = {}) {
   const inverters = discoverInverters(hass);
   const list = (key, from) => (chosen[key]?.length ? chosen[key] : inverters.map(inv => from(inv)).filter(Boolean));
   const fallback = (ids, id) => ids.length ? ids : (id && !id.includes('.dwelldeck_slot_') ? [id] : []);
-  return {
+  const setup = {
     inverters: inverters.map(inv => inv.name),
     solar: fallback(list('solar', inv => inv.pv), slots.solar),
     home: fallback(list('home', inv => inv.load), slots.home),
     battery: list('battery', inv => inv.battery),
     grid: list('grid', inv => inv.grid),
     soc: fallback(chosen.battery_soc ? [].concat(chosen.battery_soc) : inverters.map(inv => inv.soc).filter(Boolean), slots.soc),
+    // How several sensors in one field combine: added up, averaged, or one line each.
+    modes: {solar: chosen.solar_combine || 'sum', home: chosen.home_combine || 'sum', battery: chosen.battery_combine || 'sum', grid: chosen.grid_combine || 'sum',
+      soc: chosen.battery_soc_combine || 'average', energy: chosen.energy_combine || 'sum'},
     // Sign conventions: Deye and most hybrid inverters report battery discharge and grid import as positive.
     batteryCharging: chosen.battery_charging === 'positive' ? 1 : -1,
     gridImport: chosen.grid_import === 'negative' ? -1 : 1,
     today: Object.fromEntries(ENERGY_TOTALS.map(key => [key, chosen[`today_${key}`]?.length ? chosen[`today_${key}`] : inverters.map(inv => inv.today[key]).filter(Boolean)])),
     total: Object.fromEntries(ENERGY_TOTALS.map(key => [key, chosen[`total_${key}`]?.length ? chosen[`total_${key}`] : inverters.map(inv => inv.total[key]).filter(Boolean)]))
   };
+  setup.names = Object.assign({}, ...[setup.solar, setup.home, setup.battery, setup.grid, setup.soc, ...Object.values(setup.today), ...Object.values(setup.total)]
+    .map(list => shortNames(list, hass)));
+  return setup;
 }
 
 // Runs inside a button-card template: the power flow. Solar on top, grid left, house right, battery below,
 // the inverter in the middle. Dots move the way power flows, faster when more flows.
 // Self-contained: serialised with toString.
 function dwellEnergyFlow(states, cfg) {
-  const read = ids => {
+  // Added up, unless setup says to average this field.
+  const read = (ids, mode) => {
     const live = ids.map(id => states[id]).filter(s => s && Number.isFinite(Number(s.state)));
     if (!live.length) return null;
-    return live.reduce((sum, s) => {
+    const total = live.reduce((sum, s) => {
       const n = Number(s.state), unit = s.attributes?.unit_of_measurement;
       return sum + (unit === 'kW' ? n * 1000 : unit === 'MW' ? n * 1e6 : n);
     }, 0);
+    return mode === 'average' ? total / live.length : total;
   };
-  const solar = read(cfg.solar), home = read(cfg.home), battery = read(cfg.battery), grid = read(cfg.grid);
+  const solar = read(cfg.solar, cfg.modes.solar), home = read(cfg.home, cfg.modes.home), battery = read(cfg.battery, cfg.modes.battery), grid = read(cfg.grid, cfg.modes.grid);
   const socs = cfg.soc.map(id => Number(states[id]?.state)).filter(Number.isFinite);
   const soc = socs.length ? Math.round(socs.reduce((a, b) => a + b, 0) / socs.length) : null;
   const charge = battery === null ? null : battery * cfg.batteryCharging; // > 0 charging
@@ -143,7 +164,8 @@ function dwellEnergyFlow(states, cfg) {
 function dwellEnergyToday(states, cfg) {
   const sum = ids => {
     const live = ids.map(id => states[id]).filter(s => s && Number.isFinite(Number(s.state)));
-    return live.length ? live.reduce((total, s) => total + Number(s.state) * (s.attributes?.unit_of_measurement === 'Wh' ? 0.001 : 1), 0) : null;
+    const total = live.reduce((t, s) => t + Number(s.state) * (s.attributes?.unit_of_measurement === 'Wh' ? 0.001 : 1), 0);
+    return live.length ? (cfg.mode === 'average' ? total / live.length : total) : null;
   };
   const kwh = v => v === null ? '—' : (v >= 100 ? Math.round(v) : v.toFixed(1)) + '<small> kWh</small>';
   const rows = [
@@ -214,18 +236,28 @@ function dwellEnergyHistory(card, hass, cfg) {
       const stats = await hass.callWS({type: 'recorder/statistics_during_period', start_time: from.toISOString(), end_time: to.toISOString(),
         statistic_ids: ids, period, types: ['change', 'mean', 'min', 'max'], units: {energy: 'kWh', power: 'W'}});
       const starts = [...new Set(Object.values(stats).flat().map(row => typeof row.start === 'number' ? row.start : Date.parse(row.start)))].sort((a, b) => a - b);
-      const series = (list, type) => starts.map(t => {
-        const values = list.map(id => (stats[id] || []).find(row => (typeof row.start === 'number' ? row.start : Date.parse(row.start)) === t)?.[type]).filter(v => Number.isFinite(v));
-        return values.length ? values.reduce((a, b) => a + b, 0) : null;
+      const pick = (id, type) => starts.map(t => {
+        const v = (stats[id] || []).find(row => (typeof row.start === 'number' ? row.start : Date.parse(row.start)) === t)?.[type];
+        return Number.isFinite(v) ? v : null;
       });
-      const avg = (list, type) => starts.map(t => {
-        const values = list.map(id => (stats[id] || []).find(row => (typeof row.start === 'number' ? row.start : Date.parse(row.start)) === t)?.[type]).filter(v => Number.isFinite(v));
-        return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
-      });
+      // Each field is added up, averaged, or drawn one line per sensor, as chosen in DwellDeck setup.
+      const combine = (list, type, mode, label) => {
+        if (!list.length) return [];
+        const cols = list.map(id => pick(id, type));
+        if (mode === 'each' && list.length > 1) return list.map((id, k) => ({name: label + ' · ' + (cfg.names[id] || id), values: cols[k], shade: k}));
+        return [{name: label, shade: 0, values: starts.map((_, i) => {
+          const v = cols.map(col => col[i]).filter(x => x !== null);
+          return v.length ? (mode === 'average' ? v.reduce((a, b) => a + b, 0) / v.length : v.reduce((a, b) => a + b, 0)) : null;
+        })}];
+      };
+      const m = cfg.modes;
       st.data = {period, starts, error: '',
-        energy: Object.fromEntries(Object.entries(cfg.totals).map(([key, list]) => [key, series(list, 'change')])),
-        solarW: series(cfg.power.solar, 'mean'), homeW: series(cfg.power.home, 'mean'),
-        soc: avg(cfg.soc, 'mean'), socMin: avg(cfg.soc, 'min'), socMax: avg(cfg.soc, 'max')};
+        solarE: combine(cfg.totals.solar, 'change', m.energy, 'Solar'), homeE: combine(cfg.totals.home, 'change', m.energy, 'Home'),
+        charge: combine(cfg.totals.charge, 'change', m.energy, 'Charged'), discharge: combine(cfg.totals.discharge, 'change', m.energy, 'Discharged'),
+        import: combine(cfg.totals.import, 'change', m.energy, 'From grid'), export: combine(cfg.totals.export, 'change', m.energy, 'To grid'),
+        solarW: combine(cfg.power.solar, 'mean', m.solar, 'Solar'), homeW: combine(cfg.power.home, 'mean', m.home, 'Home'),
+        soc: combine(cfg.soc, 'mean', m.soc, 'Battery'),
+        socMin: m.soc === 'each' ? [] : combine(cfg.soc, 'min', 'average', 'Battery'), socMax: m.soc === 'each' ? [] : combine(cfg.soc, 'max', 'average', 'Battery')};
     } catch (e) {
       st.data = {error: 'Could not read the history: ' + (e?.message || e?.code || 'unknown error')};
     }
@@ -264,7 +296,10 @@ function dwellEnergyHistory(card, hass, cfg) {
     return st.data.starts.map((t, i) => i % step ? '' : `<text x="${L + (i + 0.5) * (W - L) / n}" y="${H - 6}" text-anchor="middle">${fmtTime(t)}</text>`).join('');
   };
   const total = values => values.reduce((a, v) => a + (v || 0), 0);
-  const legend = items => `<div class="lg">${items.map(([name, color, extra]) => `<span><i style="background:${color}"></i>${esc(name)}${extra ? ` <b>${extra}</b>` : ''}</span>`).join('')}</div>`;
+  // One colour per kind; several sensors of one kind get lighter shades (bars) or dashes (lines).
+  const paint = (list, color) => list.map(item => ({...item, color}));
+  const fade = item => Math.max(0.35, 1 - (item.shade || 0) * 0.3);
+  const legend = items => `<div class="lg">${items.map(([name, color, extra, shade]) => `<span><i style="background:${color};opacity:${Math.max(0.35, 1 - (shade || 0) * 0.3)}"></i>${esc(name)}${extra ? ` <b>${extra}</b>` : ''}</span>`).join('')}</div>`;
   const barChart = (title, unit, list) => {
     list = list.filter(item => item.values.some(v => v));
     if (!list.length) return '';
@@ -273,9 +308,9 @@ function dwellEnergyHistory(card, hass, cfg) {
     const bars = list.map((item, k) => item.values.map((v, i) => {
       if (!v) return '';
       const h = (H - T - B) * v / max, x = L + i * slot + slot * 0.1 + k * bw;
-      return `<rect x="${x.toFixed(1)}" y="${(H - B - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${item.color}"><title>${esc(item.name)} · ${fmtTime(st.data.starts[i])}: ${v.toFixed(1)} ${unit}</title></rect>`;
+      return `<rect x="${x.toFixed(1)}" y="${(H - B - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${item.color}" fill-opacity="${fade(item)}"><title>${esc(item.name)} · ${fmtTime(st.data.starts[i])}: ${v.toFixed(1)} ${unit}</title></rect>`;
     }).join('')).join('');
-    return `<div class="ch"><div class="tt">${title}</div>${legend(list.map(item => [item.name, item.color, total(item.values).toFixed(1) + ' ' + unit]))}
+    return `<div class="ch"><div class="tt">${title}</div>${legend(list.map(item => [item.name, item.color, total(item.values).toFixed(1) + ' ' + unit, item.shade]))}
       <svg viewBox="0 0 ${W} ${H}">${axis(max, unit)}${bars}${xLabels(n)}</svg></div>`;
   };
   const lineChart = (title, unit, list, fixedMax) => {
@@ -286,20 +321,19 @@ function dwellEnergyHistory(card, hass, cfg) {
     const lines = list.map(item => {
       const pts = item.values.map((v, i) => v === null ? null : pt(v, i)).filter(Boolean);
       return item.band ? `<polygon points="${[...item.values.map((v, i) => v === null ? null : pt(v, i)), ...item.band.map((v, i) => v === null ? null : pt(v, i)).reverse()].filter(Boolean).join(' ')}" fill="${item.color}" fill-opacity=".18"/>`
-        : `<polyline points="${pts.join(' ')}" fill="none" stroke="${item.color}" stroke-width="2" stroke-linejoin="round"/>`;
+        : `<polyline points="${pts.join(' ')}" fill="none" stroke="${item.color}" stroke-opacity="${fade(item)}" stroke-width="2" stroke-linejoin="round"${item.shade ? ` stroke-dasharray="${item.shade === 1 ? '6 4' : '2 3'}"` : ''}/>`;
     }).join('');
-    return `<div class="ch"><div class="tt">${title}</div>${legend(list.filter(item => !item.band).map(item => [item.name, item.color]))}
+    return `<div class="ch"><div class="tt">${title}</div>${legend(list.filter(item => !item.band).map(item => [item.name, item.color, '', item.shade]))}
       <svg viewBox="0 0 ${W} ${H}">${axis(max, unit)}${lines}${xLabels(n)}</svg></div>`;
   };
   const render = () => {
     const d = st.data;
     const per = d?.period === 'hour' ? 'per hour' : 'per day';
     const charts = !d ? `<div class="msg">Loading history…</div>` : d.error ? `<div class="msg">${esc(d.error)}</div>` : !d.starts.length ? `<div class="msg">No history for these dates.</div>` : [
-      barChart(`Solar and home, kWh ${per}`, 'kWh', [{name: 'Solar', color: '#f2c14e', values: d.energy.solar}, {name: 'Home', color: '#b9a3e3', values: d.energy.home}]),
-      barChart(`Battery and grid, kWh ${per}`, 'kWh', [{name: 'Charged', color: '#a8c49a', values: d.energy.charge}, {name: 'Discharged', color: '#6f9a6a', values: d.energy.discharge},
-        {name: 'From grid', color: '#8fb8d0', values: d.energy.import}, {name: 'To grid', color: '#5d8aa6', values: d.energy.export}]),
-      lineChart(`Solar and home power (W), average ${per}`, 'W', [{name: 'Solar', color: '#f2c14e', values: d.solarW}, {name: 'Home', color: '#b9a3e3', values: d.homeW}]),
-      lineChart('Battery level, %', '%', [{name: 'Low to high', color: '#a8c49a', values: d.socMax, band: d.socMin}, {name: 'Battery', color: '#a8c49a', values: d.soc}], 100)
+      barChart(`Solar and home, kWh ${per}`, 'kWh', [...paint(d.solarE, '#f2c14e'), ...paint(d.homeE, '#b9a3e3')]),
+      barChart(`Battery and grid, kWh ${per}`, 'kWh', [...paint(d.charge, '#a8c49a'), ...paint(d.discharge, '#6f9a6a'), ...paint(d.import, '#8fb8d0'), ...paint(d.export, '#5d8aa6')]),
+      lineChart(`Solar and home power (W), average ${per}`, 'W', [...paint(d.solarW, '#f2c14e'), ...paint(d.homeW, '#b9a3e3')]),
+      lineChart('Battery level, %', '%', [...(d.socMax[0] ? [{name: 'Low to high', color: '#a8c49a', values: d.socMax[0].values, band: d.socMin[0].values}] : []), ...paint(d.soc, '#a8c49a')], 100)
     ].join('') || `<div class="msg">No energy history yet.</div>`;
     return `<div class="eh" data-key="${cfg.key}">
       <div class="bar"><select class="rg" aria-label="Dates" onchange="event.stopPropagation();window.__dwellHistUi.pick(this)">${RANGES.map(([v, label]) => `<option value="${v}"${v === st.range ? ' selected' : ''}>${label}</option>`).join('')}</select>
@@ -333,7 +367,7 @@ function dwellEnergyHistory(card, hass, cfg) {
 }
 
 function historyCard(setup) {
-  const cfg = {key: 'energy', totals: setup.total, power: {solar: setup.solar, home: setup.home}, soc: setup.soc,
+  const cfg = {key: 'energy', totals: setup.total, power: {solar: setup.solar, home: setup.home}, soc: setup.soc, modes: setup.modes, names: setup.names,
     c: {text: EN_C.text, muted: EN_C.muted, line: EN_C.line, on: EN_C.on, onText: EN_C.onText}};
   return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
@@ -357,8 +391,8 @@ export function designEnergy(output, {config = {}, hass = {}}) {
   const watched = [...new Set([...setup.solar, ...setup.home, ...setup.battery, ...setup.grid, ...setup.soc])];
   const todayIds = [...new Set(Object.values(setup.today).flat())];
   const c = {text: EN_C.text, muted: EN_C.muted, line: EN_C.line, on: EN_C.on, onText: EN_C.onText};
-  const flow = panel('flow', dwellEnergyFlow, {...setup, today: undefined, total: undefined, height: ENERGY_TOP - 32, c}, watched, ENERGY_TOP);
-  const today = panel('today', dwellEnergyToday, {today: setup.today, c}, todayIds, ENERGY_TOP);
+  const flow = panel('flow', dwellEnergyFlow, {...setup, today: undefined, total: undefined, names: undefined, height: ENERGY_TOP - 32, c}, watched, ENERGY_TOP);
+  const today = panel('today', dwellEnergyToday, {today: setup.today, mode: setup.modes.energy, c}, todayIds, ENERGY_TOP);
 
   // History with a date picker when there are sensors with statistics; otherwise the page's own graphs, at 30 days.
   const hasHistory = Object.values(setup.total).some(list => list.length) || setup.solar.length || setup.home.length || setup.soc.length;

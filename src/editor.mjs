@@ -3,7 +3,7 @@ import {clone} from './util.mjs';
 import {dependencyStatus} from './dependencies.mjs';
 import {ROOM_CONTROL_DOMAINS, discoveryContext, discoverConfiguration} from './discovery.mjs';
 import {DWELL_PALETTES, DEFAULT_PALETTE} from './theme.mjs';
-import {energyEditorValues, ENERGY_TOTALS} from './energy.mjs';
+import {energyEditorValues, ENERGY_TOTALS, ENERGY_COMBINE} from './energy.mjs';
 import {detectionSensors, snapshotAutomation, cleanupAutomation, SNAPSHOT_DIR, SNAPSHOT_DAYS, CLEANUP_YAML} from './detection.mjs';
 import {SLOTS, ROOM_TEMPLATES} from './data.mjs';
 
@@ -147,18 +147,24 @@ export class DwellDeckOriginalEditor extends HTMLElement {
       : 'Found automatically from your inverters. Change any field to choose sensors yourself; several in one field are added up.';
     const power = {entity: {multiple: true, filter: {domain: 'sensor', device_class: 'power'}}};
     const kwh = {entity: {multiple: true, filter: {domain: 'sensor', device_class: 'energy'}}};
+    // Several sensors in one field: added up (inverters in parallel), averaged (like battery level), or one line each.
+    const combine = {select: {mode: 'dropdown', options: [{value: 'sum', label: 'Add them up'}, {value: 'average', label: 'Average them'}, {value: 'each', label: 'One line each in the graphs (added up in the flow)'}]}};
     const totalLabels = {solar: 'solar produced', home: 'home used', charge: 'battery charged', discharge: 'battery discharged', import: 'from the grid', export: 'to the grid'};
     this._energyFilled = Object.keys(this._hass?.states || {}).length > 0;
     energy.append(energyTitle, energyNote, this._energyForm = this.form([
-      {name: 'solar', selector: power}, {name: 'home', selector: power}, {name: 'battery', selector: power}, {name: 'grid', selector: power},
-      {name: 'battery_soc', selector: {entity: {multiple: true, filter: {domain: 'sensor', device_class: 'battery'}}}},
+      {name: 'solar', selector: power}, {name: 'solar_combine', selector: combine}, {name: 'home', selector: power}, {name: 'home_combine', selector: combine},
+      {name: 'battery', selector: power}, {name: 'battery_combine', selector: combine}, {name: 'grid', selector: power}, {name: 'grid_combine', selector: combine},
+      {name: 'battery_soc', selector: {entity: {multiple: true, filter: {domain: 'sensor', device_class: 'battery'}}}}, {name: 'battery_soc_combine', selector: combine},
       {name: 'battery_charging', selector: {select: {mode: 'dropdown', options: [{value: 'negative', label: 'Negative while charging (Deye, most hybrid inverters)'}, {value: 'positive', label: 'Positive while charging'}]}}},
       {name: 'grid_import', selector: {select: {mode: 'dropdown', options: [{value: 'positive', label: 'Positive while importing (Deye, most inverters)'}, {value: 'negative', label: 'Negative while importing'}]}}},
+      {name: 'energy_combine', selector: combine},
       ...ENERGY_TOTALS.map(key => ({name: `today_${key}`, selector: kwh})),
       ...ENERGY_TOTALS.map(key => ({name: `total_${key}`, selector: kwh}))
     ], energyEditorValues(this.config, this._hass || {}), value => this.change({...this.config, energy: value}), {
       solar: 'Solar power', home: 'Home power (inverter output)', battery: 'Battery power', grid: 'Grid power', battery_soc: 'Battery level (%)',
       battery_charging: 'Battery power sign', grid_import: 'Grid power sign',
+      solar_combine: 'Several solar sensors', home_combine: 'Several home sensors', battery_combine: 'Several battery power sensors', grid_combine: 'Several grid sensors',
+      battery_soc_combine: 'Several battery level sensors', energy_combine: 'Several energy (kWh) sensors, for Today and History',
       ...Object.fromEntries(ENERGY_TOTALS.map(key => [`today_${key}`, `Today: ${totalLabels[key]} (kWh)`])),
       ...Object.fromEntries(ENERGY_TOTALS.map(key => [`total_${key}`, `Running total: ${totalLabels[key]} (kWh, for the 30-day graphs)`]))
     }));

@@ -103,3 +103,35 @@ test('the dashboard editor shows the energy sensors that were found, and chosen 
   const view = generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x', ...chosen}, hass).views.find(v => v.path === 'energy');
   assert(view.sections[0].cards[1].custom_fields.flow.includes('sensor.villa_power'));
 });
+
+test('each field adds up, averages or draws one line per sensor, as chosen', async () => {
+  const {shortNames} = await import('../src/energy.mjs');
+  assert.deepEqual(Object.values(shortNames(['sensor.electric_room_inverter_master_power', 'sensor.electric_room_inverter_slave_power'], hass)), ['Master', 'Slave']);
+  const historyOf = config => {
+    const view = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x', ...config}, hass));
+    return view.sections[2].cards[1].custom_fields.history.trim().slice(3, -3);
+  };
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const fakeHass = {callWS: async msg => Object.fromEntries(msg.statistic_ids.map(id => [id, [0, 1].map(i => ({start: start.getTime() - (1 - i) * 86400000,
+    change: id.includes('master') ? 10 : 20, mean: id.includes('master') ? 60 : 80, min: 50, max: 90}))]))};
+  const draw = async body => {
+    globalThis.window = {};
+    const shadow = {querySelector: () => null};
+    Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    return Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+  };
+  // Default: energy added up (10 + 20 per day), battery level averaged (60 and 80 → 70).
+  const plain = await draw(historyOf({}));
+  assert(plain.includes('Solar <b>60.0 kWh</b>'), 'two days of 10 + 20');
+  assert(!plain.includes('Solar · Master'));
+  // One line each for energy; battery level shown per inverter too.
+  const found = energySetup({}, hass);
+  const each = await draw(historyOf({energy: {solar: found.solar, home: found.home, energy_combine: 'each', battery_soc_combine: 'each'}}));
+  assert(each.includes('Solar · Master <b>20.0 kWh</b>') && each.includes('Solar · Slave <b>40.0 kWh</b>'));
+  assert(each.includes('Battery · Master') && each.includes('stroke-dasharray'));
+  // Averaged power in the flow.
+  const avg = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x', energy: {home_combine: 'average'}}, hass));
+  globalThis.window = {};
+  assert(run(avg.sections[0].cards[1], 'flow').includes('>929 W<'), '(938 + 919) / 2');
+});
