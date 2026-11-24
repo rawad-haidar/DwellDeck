@@ -515,3 +515,12 @@ test('cards with buttons inside take clicks (button-card turns them off on cards
  assert(fields.length>=2);
  for(const [name,styles] of fields)assert((styles||[]).some(r=>r['pointer-events']==='auto'),name+' must accept clicks');
 });
+test('curtain "all" buttons call real cover actions, and tiles have no invalid colour',()=>{
+ const d=generate({});
+ const text=JSON.stringify(d.views.find(v=>v.path==='curtains'));
+ assert(!/"perform_action":"cover\.dwelldeck_slot_/.test(text),'actions are not entity slots');
+ for(const action of ['cover.open_cover','cover.stop_cover','cover.close_cover'])assert(text.includes(`"perform_action":"${action}"`),action);
+ assert(!JSON.stringify(d).includes('"color":"state"'));
+ assert(!/"perform_action":"[a-z_]+\.dwelldeck_slot_/.test(JSON.stringify(d)),'no action anywhere is an entity slot');
+ assert(JSON.stringify(d).includes('"perform_action":"media_player.media_pause"'));
+});

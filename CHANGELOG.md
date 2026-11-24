@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.28 — Curtain fixes
+
+- **Curtains**: Open all, Stop all and Close all at the top of the page did nothing; they now open, stop and close every curtain. The same mistake broke the **Pause all audio** buttons on the Music page; they work again.
+- Curtain position sliders showed only a small bar: tiles carried a colour value Home Assistant no longer understands. Tiles now use their normal state colour, so sliders show their full track and fill.
+
 ## 0.9.27 — Climate, Energy power flow, Security shortcuts
 
 - **Climate** follows Home's arrangement. **Climate now**: the average inside temperature (and outside), how many air conditioners are on, whether heating is on, and a list of everything heating or cooling with its mode and current → target temperature (tap for its controls). **Turn everything off** needs a second tap to confirm. **Heating** (boiler, hot water, valves) sits beside it at the same height. Then **AC scenes** in one row right above **Air conditioners**, then **Thermostats**.

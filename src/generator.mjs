@@ -135,6 +135,9 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
       Object.assign(item,{type:'markdown',content:'### Music Assistant\nChoose your Music Assistant app path in DwellDeck setup.'});
     }
   });
+  // Tiles colour by state on their own; the old "state" value is no longer understood and leaves
+  // sliders (curtain position, light brightness) without a colour, so only their handle shows.
+  visit(output, item => { if (item.type === 'tile' && item.color === 'state') delete item.color; });
   if(!config.theme && config.builtin_colors!==false)addBuiltinColors(output);
   addLivingDesign(output);
   return applyDwellPalette(applyDesignRefresh(output, config), config.color_palette || DEFAULT_PALETTE);
