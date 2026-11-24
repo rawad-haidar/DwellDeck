@@ -417,7 +417,7 @@ test('home is ordered by importance and shows rooms only while something in them
   entities:Object.fromEntries(Object.keys(states).map(id=>[id,{entity_id:id,area_id:'den'}]))};
  const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
  const home=d.views.find(v=>v.path==='home');
- assert.deepEqual(home.sections.map(s=>s.cards[0].heading||s.cards[0].custom_fields&&Object.keys(s.cards[0].custom_fields)[0]),['glance','Safety','Outside','Climate and energy','Shortcuts']);
+ assert.deepEqual(home.sections.map(s=>s.cards[0].heading||s.cards[0].custom_fields&&Object.keys(s.cards[0].custom_fields)[0]),['glance','Outside','Safety','Climate and energy','Shortcuts']);
  assert.equal(home.sections[0].column_span,2);
  const den=home.sections[0].cards.find(c=>c.name==='Den');
  assert(den.visibility[0].conditions.some(c=>c.entity==='light.den_a'&&c.state==='on'));

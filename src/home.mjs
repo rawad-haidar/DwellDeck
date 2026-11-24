@@ -236,8 +236,9 @@ export function designHome(output, {prefix, hass = {}}) {
   const section = (items, span) => ({type: 'grid', ...(span ? {column_span: span} : {}), cards: items});
   const sections = [
     section([glance, ...activeRooms(output, prefix)], 2),
-    section([heading('Safety', 'mdi:shield-home-outline'), ...alerts, ...alarm, ...latest]),
+    // The weather sits top right, beside the glance card.
     section([heading('Outside', 'mdi:weather-partly-cloudy'), ...weather]),
+    section([heading('Safety', 'mdi:shield-home-outline'), ...alerts, ...alarm, ...latest]),
     section([heading('Climate and energy', 'mdi:lightning-bolt-outline'), ...climate, ...energy]),
     section([heading('Shortcuts', 'mdi:view-grid-outline'), ...shortcuts.map(evenShortcut)])
   ];
