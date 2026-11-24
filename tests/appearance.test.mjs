@@ -761,9 +761,18 @@ test('player cards stay small: shared code is loaded once, not copied into every
  assert.equal(Function('states',card.label.trim().slice(3,-3))(hass.states),'On, YouTube','and it still works');
 });
 
-test('a theme\'s frosted-glass blur is off on DwellDeck pages: cards are solid, and the blur slows scrolling',()=>{
- const d=generate({});
- for(const view of d.views)assert(String(view.card_mod?.style||'').includes('--ha-card-backdrop-filter:none'),view.path);
+test('page colours and no theme blur go on the dashboard root and the browser page, for every palette',async()=>{
+ const {dwellPageCss,DWELL_PALETTES}=await import('../src/theme.mjs');
+ for(const key of Object.keys(DWELL_PALETTES)){
+  const {root,page}=dwellPageCss(key);
+  const pageColour=DWELL_PALETTES[key].roles?.page||DWELL_PALETTES[key].page;
+  assert(root.startsWith(':host{')&&root.includes('--ha-card-backdrop-filter:none')&&root.includes(`--primary-background-color:${pageColour}`),key);
+  assert.equal(page,`html,body{background-color:${pageColour}!important}`,key);
+ }
+ // Delivered by the strategy into Home Assistant's dashboard root (a style on a sections view is not applied).
+ const fs=await import('node:fs');
+ const strategy=fs.readFileSync(new URL('../src/strategy.mjs',import.meta.url),'utf8');
+ assert(strategy.includes("put(root, 'dwelldeck-root', wanted?.root)")&&strategy.includes("put(document.head, 'dwelldeck-page', wanted?.page)"));
 });
 
 test('icon and label sit together, centred, in the player buttons and tabs (button-card centres icons with automatic margins)',async()=>{

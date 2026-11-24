@@ -3,25 +3,29 @@ import {discoveryContext} from './discovery.mjs';
 import {generateOriginal} from './generator.mjs';
 import {loadDwellFont} from './design.mjs';
 import {DwellDeckOriginalEditor} from './editor.mjs';
-import {dwellTabsCss, DEFAULT_PALETTE} from './theme.mjs';
+import {dwellTabsCss, dwellPageCss, DEFAULT_PALETTE} from './theme.mjs';
 import {ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES} from './data.mjs';
 
-// Keeps DwellDeck's tab style in Home Assistant's tab bar while a DwellDeck dashboard is open, and takes it
-// away on other dashboards. Reaches the bar directly (no page-wide search), twice a second.
-function keepDwellTabs(css) {
+// Keeps DwellDeck's page colours and tab style in Home Assistant's dashboard root (the only place a style
+// reaches every view and the tab bar) and its page colour on the browser page while a DwellDeck dashboard is
+// open, and takes them away on other dashboards. Reaches the root directly (no page-wide search), twice a second.
+function keepDwellPage(css) {
   if (typeof document === 'undefined' || typeof location === 'undefined') return;
   const state = window.__dwellTabs ||= {paths: {}, timer: null};
   state.paths[`/${location.pathname.split('/')[1] || ''}`] = css;
   if (state.timer) return;
+  const put = (parent, id, text) => {
+    let style = parent.querySelector(`#${id}`);
+    if (!text) { style?.remove(); return; }
+    if (!style) { style = document.createElement('style'); style.id = id; parent.append(style); }
+    if (style.textContent !== text) style.textContent = text;
+  };
   state.timer = setInterval(() => {
     const panel = document.querySelector('home-assistant')?.shadowRoot?.querySelector('home-assistant-main')?.shadowRoot?.querySelector('ha-panel-lovelace');
     const root = panel?.shadowRoot?.querySelector('hui-root')?.shadowRoot;
-    if (!root) return;
-    const wanted = state.paths[`/${panel.panel?.url_path || location.pathname.split('/')[1] || ''}`];
-    let style = root.getElementById('dwelldeck-tabs');
-    if (!wanted) { style?.remove(); return; }
-    if (!style) { style = document.createElement('style'); style.id = 'dwelldeck-tabs'; root.append(style); }
-    if (style.textContent !== wanted) style.textContent = wanted;
+    const wanted = panel ? state.paths[`/${panel.panel?.url_path || location.pathname.split('/')[1] || ''}`] : null;
+    put(document.head, 'dwelldeck-page', wanted?.page);
+    if (root) { put(root, 'dwelldeck-tabs', wanted?.tabs); put(root, 'dwelldeck-root', wanted?.root); }
   }, 500);
 }
 
@@ -31,7 +35,8 @@ class DwellDeckOriginalStrategy extends HTMLElement {
   static getCreateSuggestions(){return {title:'DwellDeck',icon:'mdi:view-dashboard'};}
   static async generate(config, hass) {
     loadDwellFont(config);
-    if (config.modern_tabs !== false) keepDwellTabs(dwellTabsCss(config.color_palette || DEFAULT_PALETTE));
+    const palette = config.color_palette || DEFAULT_PALETTE;
+    keepDwellPage({...dwellPageCss(palette), tabs: config.modern_tabs !== false ? dwellTabsCss(palette) : ''});
     const needsDiscovery = config.auto_discover || config.room_controls ||
       Object.values(config.rooms || {}).some(room => room.area) ||
       (config.extra_rooms || []).some(room => room.area);
