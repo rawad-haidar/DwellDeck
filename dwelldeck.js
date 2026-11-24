@@ -709,6 +709,7 @@ const withoutDuplicatePlayers = (ids, hass) => {
 
 // Friendly names for common Android TV packages; other package names are system services and are hidden.
 const KNOWN_PACKAGES = {
+  'music_assistant': 'Music Assistant',
   'com.netflix.ninja': 'Netflix', 'com.google.android.youtube.tv': 'YouTube', 'com.google.android.youtube.tvmusic': 'YouTube Music',
   'com.disney.disneyplus': 'Disney+', 'com.amazon.amazonvideo.livingroom': 'Prime Video', 'com.spotify.tv.android': 'Spotify',
   'net.mbc.shahid.androidtv': 'Shahid', 'net.mbc.shahidtv': 'Shahid', 'com.tod.tv': 'TOD', 'com.bein.tod': 'TOD',
@@ -1128,7 +1129,7 @@ function tvCard(requested, hass) {
     const hasTv=all.some(p=>p.attributes?.device_class==='tv');
     // A sound system shows whichever of its players is playing something with a title or picture
     // (its Music Assistant player), so the music and artwork appear on the card.
-    const withMedia=live.find(p=>['playing','paused'].includes(p.state)&&(p.attributes?.media_title||p.attributes?.entity_picture));
+    const withMedia=live.find(p=>['playing','paused'].includes(p.state)&&(p.attributes?.media_title||p.attributes?.entity_picture_local||p.attributes?.entity_picture));
     const m=!hasTv && withMedia ? withMedia : (lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || (hasTv ? lead : live.find(p=>p.state==='playing') || lead);
     const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'};
     const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || live.map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
@@ -1191,7 +1192,9 @@ function tvCard(requested, hass) {
     const color = state === 'Playing' ? '${C.onText}' : state === 'Off' || state === 'Unavailable' ? '${C.muted}' : '${C.text}';
     const pill = '<span style="flex:none;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;color:' + color + ';border:1px solid ' + (state === 'Playing' ? '${C.on}' : '${C.line}') + '">' + state + '</span>';
     if (off || (!title && !app)) return '<div style="display:flex;align-items:center;gap:10px;width:100%;color:${C.muted};font-size:13px;text-align:left">' + pill + '<span>' + (off ? '${tv ? 'The TV is off.' : 'Off.'}' : 'Nothing playing.') + '</span></div>';
-    const art = a.entity_picture ? '<div style="flex:none;width:56px;height:56px;border-radius:10px;background:${C.card} url(&quot;' + esc(a.entity_picture) + '&quot;) center/cover"></div>' : '';
+    // Home Assistant's own link to the artwork works from anywhere; the player's own address may not.
+    const pic = a.entity_picture_local || a.entity_picture;
+    const art = pic ? '<div style="flex:none;width:56px;height:56px;border-radius:10px;background:${C.card} url(&quot;' + esc(pic) + '&quot;) center/cover"></div>' : '';
     return '<div style="display:flex;align-items:center;gap:12px;width:100%;min-width:0;text-align:left">' + art
       + '<div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:8px;min-width:0">' + pill
       + '<span style="font-size:12px;color:${C.muted};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(app) + '</span></div>'
@@ -1225,7 +1228,7 @@ function tvCard(requested, hass) {
       // Cards in one row stretch to the same height.
       card: [{padding: '16px'}, {height: '100%'}, {'box-sizing': 'border-box'}, {'align-content': 'start'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
         // The artwork of whatever plays fills the card behind a dark veil.
-        {background: `[[[ ${current} const p = m?.attributes?.entity_picture; return m && m.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
+        {background: `[[[ ${current} const p = m?.attributes?.entity_picture_local || m?.attributes?.entity_picture; return m && m.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
       grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '40px minmax(0,1fr) 46px'}, {gap: '2px 12px'}, {'align-items': 'center'}],
       img_cell: [{'justify-content': 'flex-start'}, {width: '40px'}, {height: '40px'}],
       icon: [{width: '28px'}, {color: `[[[ ${isOn} return on ? '${C.onText}' : '${C.muted}'; ]]]`}],

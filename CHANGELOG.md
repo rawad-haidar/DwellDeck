@@ -4,7 +4,7 @@
 
 - **Media**: sound systems show only a **Sources** tab, and only when they list sources (no Apps tab on a speaker). Player cards side by side end on the same line. **Pause all villa audio** has an icon again (the old one no longer exists in the icon set).
 - **Music Assistant on sound system cards**: two buttons, **Music player** (this room's Music Assistant player: now playing, volume, browse music) and **Music Assistant** (DwellDeck's own Music Assistant page, opened with this room's player selected). The player is found by name: the Music Assistant player with the card's own name first ("Master Sound System"), then the room name, then a partial name.
-- Sound system cards show what their Music Assistant player plays: title, artist, and the artwork behind the card. TV cards link only to their own Music Assistant player, never to the room's speakers.
+- Sound system cards show what their Music Assistant player plays: title, artist, and the artwork behind the card. Artwork comes through Home Assistant's own image link, so it shows from a phone, remotely or over https too (Music Assistant's own address only works at home over http). TV cards link only to their own Music Assistant player, never to the room's speakers.
 - Floor names in headings start with a capital ("Ground · Kitchen").
 
 - **Curtains**: Open all, Stop all and Close all at the top of the page did nothing; they now open, stop and close every curtain. The same mistake broke the **Pause all audio** buttons on the Music page; they work again.

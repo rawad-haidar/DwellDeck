@@ -574,7 +574,7 @@ test('a sound system card shows what its Music Assistant player plays, with artw
  const {tvCard,musicAssistantPlayer}=await import('../src/tv.mjs');
  const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
  const states=Object.fromEntries([st('media_player.rest_living_sound_system','on',{friendly_name:'Living Sound System'}),
-  st('media_player.living','playing',{friendly_name:'Living',mass_player_type:'player',media_title:'Ya Habibi',media_artist:'Elissa',entity_picture:'/api/art/1.jpg'}),
+  st('media_player.living','playing',{friendly_name:'Living',mass_player_type:'player',media_title:'Ya Habibi',media_artist:'Elissa',app_id:'music_assistant',entity_picture:'http://192.168.14.243:8095/imageproxy/1',entity_picture_local:'/api/art/1.jpg'}),
   st('media_player.kitchen_tv','off',{friendly_name:'Kitchen Tv',device_class:'tv'}),st('media_player.kitchen','idle',{friendly_name:'kitchen',mass_player_type:'player'})]);
  const entities={'media_player.rest_living_sound_system':{platform:'dsppa_am8328',device_id:'z'},'media_player.living':{platform:'music_assistant',device_id:'s'},
   'media_player.kitchen_tv':{platform:'androidtv_remote'},'media_player.kitchen':{platform:'music_assistant',device_id:'s'}};
@@ -583,7 +583,8 @@ test('a sound system card shows what its Music Assistant player plays, with artw
  const card=tvCard('media_player.rest_living_sound_system',hass);
  assert(card.triggers_update.includes('media_player.living'));
  const now=Function('states','entity',card.custom_fields.now.trim().slice(3,-3))(states,states['media_player.rest_living_sound_system']);
- assert(now.includes('Ya Habibi')&&now.includes('Elissa')&&now.includes('/api/art/1.jpg'),'title, artist and artwork');
+ assert(now.includes('Ya Habibi')&&now.includes('Elissa')&&now.includes('/api/art/1.jpg'),'title, artist and artwork through Home Assistant');
+ assert(now.includes('Music Assistant')&&!now.includes('music_assistant'),'readable app name');
  const bg=card.styles.card.find(r=>typeof r.background==='string'&&r.background.includes('[[['));
  assert(Function('states','entity',bg.background.trim().slice(3,-3))(states,states['media_player.rest_living_sound_system']).includes('/api/art/1.jpg'),'artwork behind the card');
 });
