@@ -2,6 +2,7 @@
 // a sky-first Home page and plain-sentence status copy. Runs on the generated copy,
 // so the original template stays untouched.
 import {walk, visit} from './util.mjs';
+import {liveWeatherCard} from './weather.mjs';
 
 export const DWELL_FONT_STACK = "'Atkinson Hyperlegible Next','Atkinson Hyperlegible',Roboto,system-ui,sans-serif";
 export const DWELL_FONT_URL = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&display=swap';
@@ -72,7 +73,9 @@ export function skyFirst(dashboard) {
   if (!first?.cards) return;
   const sky = first.cards.find(card => card.custom_fields?.sky);
   const rest = first.cards.filter(card => card !== sky && !(card.type === 'heading' && card.heading === 'Welcome home'));
-  if (sky) first.cards = [sky, ...rest];
+  if (sky) first.cards = [liveWeatherCard(sky), ...rest];
+  // The weather hero gets room to breathe: the first Home section spans two columns.
+  first.column_span = 2;
 }
 
 // Fonts declared in the page are available inside every card's shadow root.

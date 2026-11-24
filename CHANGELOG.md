@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0 — Lamplight and live weather
+
+- Replace the Home weather card with a live weather hero: the sky colour follows the sun's real elevation, the sun or moon sits where it is in the sky, and clouds, rain, snow, fog and lightning move across it. It shows a large temperature, the condition in plain words, a 6-hour forecast streamed from Home Assistant, a sunrise or sunset countdown, wind direction, humidity and solar output. Motion stops for reduced-motion preferences.
+- The first Home section spans two columns so the weather has room.
+- The browser console shows the loaded DwellDeck version, and the dashboard picker shows it too.
+
 ## Unreleased — Modular source
 
 - Add the **Lamplight** palette and make it the default: warm, quiet surfaces where colour marks state, with lamplight yellow for lights that are on. Existing dashboards that chose a palette keep it; choose **Ocean blue** for the original colours.
