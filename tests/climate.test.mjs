@@ -14,6 +14,8 @@ test('climate opens with what runs now, heating beside it, then the rest', () =>
   assert.deepEqual(v.sections.map(s => s.cards[0].heading), ['Climate now', 'Heating', 'AC scenes', 'Air conditioners', 'Thermostats', 'History']);
   assert.equal(v.sections[0].column_span, 2);
   assert(!JSON.stringify(v).includes('"name":"AC live status"'), 'the old list is replaced');
+  const rooms = generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x', entities, area_rooms: true}, {states: {}, areas: {}, floors: {}, entities: {}, devices: {}, labels: {}}).views.find(x => x.path === 'climate');
+  assert(!rooms.sections.flatMap(s => s.cards).some(c => c.type === 'logbook'), 'no climate log card');
   const heatTile = v.sections[1].cards.find(c => c.entity === 'switch.boiler');
   const top = Number(v.sections[0].cards[1].styles.card.find(r => r.height).height.replace('px', ''));
   assert(heatTile.card_mod.style.includes('height:'), 'heating tiles fill the column');

@@ -318,7 +318,8 @@ export function designClimate(output, {hass = {}} = {}) {
   const history = cards.filter(card => card.type === 'history-graph');
   const used = new Set([...acTiles, ...thermostats, ...scenes, ...heating, ...history]);
   // The old live status list is replaced by the status card; anything else is kept.
-  const rest = cards.filter(card => card.type !== 'heading' && !used.has(card) && card.name !== 'AC live status');
+  // The climate log card is left out too: the history card's activity rows show the same, more clearly.
+  const rest = cards.filter(card => card.type !== 'heading' && !used.has(card) && card.name !== 'AC live status' && card.type !== 'logbook');
   const bound = id => typeof id === 'string' && !id.includes('.dwelldeck_slot_');
   const weather = output.views.flatMap(item => item.sections || []).flatMap(section => section.cards || []).map(card => card.entity).find(id => bound(id) && id.startsWith('weather.'));
   const climates = [...new Set([...acTiles, ...thermostats].map(card => card.entity).filter(bound))];
