@@ -37,7 +37,7 @@ const run = (card, field) => Function('states', card.custom_fields[field].trim()
 
 test('the power flow adds the inverters up and shows the direction of each flow', () => {
   const view = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x'}, hass));
-  assert.deepEqual(view.sections.map(s => s.cards[0].heading), ['Power flow', 'Today', 'Last 30 days']);
+  assert.deepEqual(view.sections.map(s => s.cards[0].heading), ['Power flow', 'Today', 'History']);
   globalThis.window = {};
   const html = run(view.sections[0].cards[1], 'flow');
   assert(html.includes('>1.9 kW<'), 'home: 938 + 919 W');
@@ -55,16 +55,33 @@ test('today adds up both inverters', () => {
   assert(html.includes('40.9<small> kWh</small>') && html.includes('Home used'));
 });
 
-test('graphs cover the last 30 days', () => {
+test('history has a date dropdown and reads statistics for the picked range', async () => {
   const view = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x'}, hass));
-  const graphs = view.sections[2].cards.slice(1);
-  assert(graphs.length >= 3);
-  assert(graphs.every(g => g.type === 'statistics-graph' && g.days_to_show === 30));
-  assert(graphs.some(g => g.chart_type === 'bar' && g.stat_types.includes('change')));
-  // Without inverters the page's own graphs stretch to 30 days.
-  const plain = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x'}, {}));
-  const minis = plain.sections.at(-1).cards.slice(1);
-  assert(minis.length && minis.every(g => g.hours_to_show === 720 || g.type === 'markdown'));
+  const card = view.sections[2].cards[1];
+  const body = card.custom_fields.history.trim().slice(3, -3);
+  const calls = [];
+  const day = 86400000, start = new Date(); start.setHours(0, 0, 0, 0);
+  const rows = n => [...Array(n).keys()].map(i => ({start: start.getTime() - (n - 1 - i) * day, change: 10 + i, mean: 500 + i, min: 40, max: 90}));
+  const fakeHass = {callWS: async msg => { calls.push(msg); return Object.fromEntries(msg.statistic_ids.map(id => [id, rows(msg.period === 'day' ? 7 : 3)])); }};
+  globalThis.window = {}; globalThis.localStorage = undefined;
+  const shadow = {querySelector: () => null};
+  const html = Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+  for (const label of ['Today', 'Yesterday', 'Last 2 days', 'Last 3 days', 'Last week', 'Last 2 weeks', 'Last 3 weeks', 'Last month', 'Custom dates']) assert(html.includes(`>${label}</option>`), label);
+  assert(html.includes('type="date"'));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(calls[0].type, 'recorder/statistics_during_period');
+  assert.equal(calls[0].period, 'day', 'a month is shown per day');
+  assert(calls[0].statistic_ids.includes('sensor.electric_room_inverter_master_total_production'));
+  assert.equal(Math.round((new Date(calls[0].end_time) - new Date(calls[0].start_time)) / day), 30);
+  // Drawn after loading: both inverters added up per day.
+  const drawn = Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+  assert(drawn.includes('Solar and home, kWh per day'));
+  assert(drawn.includes('<rect'));
+  // Picking "Yesterday" reads hours.
+  window.__dwellHist.energy.range = 'yesterday'; window.__dwellHist.energy.asked = '';
+  await window.__dwellHistLoad.energy();
+  assert.equal(calls.at(-1).period, 'hour');
+  assert(card.styles.custom_fields.history.some(r => r['pointer-events'] === 'auto'));
 });
 
 test('sign conventions can be flipped in setup', () => {

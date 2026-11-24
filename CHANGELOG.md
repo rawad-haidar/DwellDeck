@@ -5,7 +5,7 @@
 - **Energy** follows Home's arrangement. Top row: a live **Power flow** (solar on top, grid left, house right, battery below, the inverter in the middle; moving dots show which way power flows and speed up with more power; tap a circle for its sensor) and **Today** (solar produced, home used, battery charged and discharged, from and to the grid).
 - Inverters are found by their sensor names (Solarman / Deye style) and added up, so two inverters in parallel show as one house. The house uses each inverter's output power.
 - **Energy page sensors** in the dashboard editor: solar, home, battery and grid power, battery level, the sign conventions, and the today and running-total energy sensors. They show what was found; change any to choose your own (several in one field are added up), or press **Find energy sensors automatically again**.
-- **Last 30 days**: daily kWh bars for solar and home, battery and grid, the daily average power, and the battery's daily low, average and high, from Home Assistant's long-term statistics. Without inverter sensors, the page's own graphs show 30 days.
+- **History** with a date dropdown: today, yesterday, the last 2 or 3 days, 1, 2 or 3 weeks, a month, or custom dates. Charts: solar and home kWh, battery and grid kWh (with totals for the range), average solar and home power, and the battery level with its low-to-high band. Hours for up to three days, days beyond. The choice is remembered on each device.
 
 - Security shortcuts are one full-width row of buttons (icon, name, what it opens, and an arrow) instead of small tiles squeezed into one column; nothing is cut off, and on a phone they stack one per row.
 - Recent history and Detection history opened the same page; they are one **History** button now.

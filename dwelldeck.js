@@ -1909,7 +1909,7 @@ function dwellEnergyFlow(states, cfg) {
     const dots = on ? [0, 1, 2].map(i => `<circle r="4" fill="${color}"><animateMotion dur="${dur}s" begin="-${(i * dur / 3).toFixed(2)}s" repeatCount="indefinite" path="${path}"/></circle>`).join('') : '';
     return `<path id="${id}" d="M${x1},${y1} L${x2},${y2}" stroke="${on ? color : cfg.c.line}" stroke-width="${on ? 2.5 : 1.5}" stroke-opacity="${on ? 0.55 : 1}" fill="none" stroke-linecap="round"/>${dots}`;
   };
-  const C = {solar: '#f2c14e', grid: '#8fb8d0', home: '#efc875', battery: '#a8c49a'};
+  const C = {solar: '#f2c14e', grid: '#8fb8d0', home: '#b9a3e3', battery: '#a8c49a'};
   const node = (key, icon, title, value, sub, color, active, entity) => {
     const [x, y] = P[key];
     return `<button class="node" style="left:${x / 4}%;top:${y / 3}%;--c:${color}" ${entity ? `data-entity="${entity}" onclick="event.stopPropagation();window.__dwellEnergy.info(this)"` : 'tabindex="-1"'}>
@@ -1956,7 +1956,7 @@ function dwellEnergyToday(states, cfg) {
   const kwh = v => v === null ? '—' : (v >= 100 ? Math.round(v) : v.toFixed(1)) + '<small> kWh</small>';
   const rows = [
     ['mdi:solar-power-variant', 'Solar produced', sum(cfg.today.solar), '#f2c14e'],
-    ['mdi:home-lightning-bolt', 'Home used', sum(cfg.today.home), '#efc875'],
+    ['mdi:home-lightning-bolt', 'Home used', sum(cfg.today.home), '#b9a3e3'],
     ['mdi:battery-arrow-up', 'Battery charged', sum(cfg.today.charge), '#a8c49a'],
     ['mdi:battery-arrow-down', 'Battery discharged', sum(cfg.today.discharge), '#a8c49a'],
     ['mdi:transmission-tower-import', 'From the grid', sum(cfg.today.import), '#8fb8d0'],
@@ -1986,13 +1986,175 @@ const panel = (field, fn, cfg, watched, height) => ({
   grid_options: {columns: 'full', rows: 'auto'}
 });
 
-// A Home Assistant statistics graph over the last 30 days (long-term statistics: fast for a month).
-const monthGraph = (title, entities, stat_types, chart_type, extra = {}) => ({
-  type: 'statistics-graph', title, entities, days_to_show: 30, period: 'day', stat_types, chart_type,
-  hide_legend: entities.length < 2, grid_options: {columns: 'full', rows: 'auto'}, ...extra
-});
-const named = (ids, hass, label) => ids.map(id => ({entity: id, name: ids.length > 1
-  ? `${label} · ${(hass.states?.[id]?.attributes?.friendly_name || id).replace(/^(.*?inverter\s+\w+).*/i, '$1')}` : label}));
+// Runs inside a button-card template (`card` is the button-card element): energy history for a range picked
+// from a dropdown (today, yesterday, 2 and 3 days, 1–3 weeks, a month, or custom dates). Reads Home
+// Assistant's long-term statistics and draws the charts itself. Self-contained: serialised with toString.
+function dwellEnergyHistory(card, hass, cfg) {
+  const all = window.__dwellHist = window.__dwellHist || {};
+  const store = (() => { try { return window.localStorage; } catch (e) { return null; } })();
+  const st = all[cfg.key] = all[cfg.key] || {range: store?.getItem('dwelldeck-energy-range') || '30d', from: '', to: '', data: null, loading: false, asked: ''};
+  const RANGES = [['today', 'Today'], ['yesterday', 'Yesterday'], ['2d', 'Last 2 days'], ['3d', 'Last 3 days'], ['7d', 'Last week'], ['14d', 'Last 2 weeks'],
+    ['21d', 'Last 3 weeks'], ['30d', 'Last month'], ['custom', 'Custom dates']];
+  const day0 = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  const span = () => {
+    const now = new Date(), today = day0(now);
+    if (st.range === 'today') return [today, now];
+    if (st.range === 'yesterday') return [new Date(today.getTime() - 86400000), today];
+    if (st.range === 'custom' && st.from && st.to) {
+      const from = day0(st.from + 'T00:00'), to = new Date(day0(st.to + 'T00:00').getTime() + 86400000);
+      return to > from ? [from, to < now ? to : now] : [from, new Date(from.getTime() + 86400000)];
+    }
+    const days = Number.parseInt(st.range, 10) || 30;
+    return [new Date(today.getTime() - (days - 1) * 86400000), now];
+  };
+  const draw = () => {
+    const target = card?.shadowRoot?.querySelector(`.eh[data-key="${cfg.key}"]`);
+    if (target) target.outerHTML = render();
+  };
+  const load = async () => {
+    const [from, to] = span();
+    const period = to - from <= 3 * 86400000 + 1000 ? 'hour' : 'day';
+    const asked = `${st.range}|${st.from}|${st.to}|${from.toDateString()}|${Math.floor(Date.now() / 300000)}`;
+    if (st.loading || st.asked === asked) return;
+    Object.assign(st, {loading: true, asked});
+    const ids = [...new Set([...Object.values(cfg.totals).flat(), ...cfg.power.solar, ...cfg.power.home, ...cfg.soc])];
+    try {
+      const stats = await hass.callWS({type: 'recorder/statistics_during_period', start_time: from.toISOString(), end_time: to.toISOString(),
+        statistic_ids: ids, period, types: ['change', 'mean', 'min', 'max'], units: {energy: 'kWh', power: 'W'}});
+      const starts = [...new Set(Object.values(stats).flat().map(row => typeof row.start === 'number' ? row.start : Date.parse(row.start)))].sort((a, b) => a - b);
+      const series = (list, type) => starts.map(t => {
+        const values = list.map(id => (stats[id] || []).find(row => (typeof row.start === 'number' ? row.start : Date.parse(row.start)) === t)?.[type]).filter(v => Number.isFinite(v));
+        return values.length ? values.reduce((a, b) => a + b, 0) : null;
+      });
+      const avg = (list, type) => starts.map(t => {
+        const values = list.map(id => (stats[id] || []).find(row => (typeof row.start === 'number' ? row.start : Date.parse(row.start)) === t)?.[type]).filter(v => Number.isFinite(v));
+        return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+      });
+      st.data = {period, starts, error: '',
+        energy: Object.fromEntries(Object.entries(cfg.totals).map(([key, list]) => [key, series(list, 'change')])),
+        solarW: series(cfg.power.solar, 'mean'), homeW: series(cfg.power.home, 'mean'),
+        soc: avg(cfg.soc, 'mean'), socMin: avg(cfg.soc, 'min'), socMax: avg(cfg.soc, 'max')};
+    } catch (e) {
+      st.data = {error: 'Could not read the history: ' + (e?.message || e?.code || 'unknown error')};
+    }
+    st.loading = false;
+    draw();
+  };
+  window.__dwellHistUi = window.__dwellHistUi || {
+    pick(el) {
+      const box = el.closest('.eh'); const s = window.__dwellHist[box.dataset.key];
+      s.range = el.value; try { window.localStorage.setItem('dwelldeck-energy-range', el.value); } catch (e) { /* private mode */ }
+      box.querySelector('.custom').hidden = el.value !== 'custom';
+      if (el.value !== 'custom') { s.asked = ''; window.__dwellHistLoad[box.dataset.key]?.(); }
+    },
+    apply(el) {
+      const box = el.closest('.eh'); const s = window.__dwellHist[box.dataset.key];
+      s.from = box.querySelector('.from').value; s.to = box.querySelector('.to').value || s.from;
+      if (!s.from) return;
+      s.asked = ''; window.__dwellHistLoad[box.dataset.key]?.();
+    }
+  };
+  window.__dwellHistLoad = window.__dwellHistLoad || {};
+  window.__dwellHistLoad[cfg.key] = load;
+
+  const esc = v => String(v).replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+  const fmtTime = t => {
+    const d = new Date(t);
+    return st.data.period === 'hour' ? d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : d.toLocaleDateString([], {day: 'numeric', month: 'short'});
+  };
+  const W = 600, H = 170, L = 40, B = 22, T = 8;
+  const axis = (max, unit) => [0, 0.5, 1].map(f => {
+    const y = T + (H - T - B) * (1 - f);
+    return `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="${cfg.c.line}"/><text x="${L - 6}" y="${y + 4}" text-anchor="end">${unit === '%' ? Math.round(max * f) : (max * f >= 10 ? Math.round(max * f) : (max * f).toFixed(1))}</text>`;
+  }).join('');
+  const xLabels = n => {
+    const step = Math.max(1, Math.ceil(n / 8));
+    return st.data.starts.map((t, i) => i % step ? '' : `<text x="${L + (i + 0.5) * (W - L) / n}" y="${H - 6}" text-anchor="middle">${fmtTime(t)}</text>`).join('');
+  };
+  const total = values => values.reduce((a, v) => a + (v || 0), 0);
+  const legend = items => `<div class="lg">${items.map(([name, color, extra]) => `<span><i style="background:${color}"></i>${esc(name)}${extra ? ` <b>${extra}</b>` : ''}</span>`).join('')}</div>`;
+  const barChart = (title, unit, list) => {
+    list = list.filter(item => item.values.some(v => v));
+    if (!list.length) return '';
+    const n = st.data.starts.length, max = Math.max(0.1, ...list.flatMap(item => item.values.map(v => v || 0))) * 1.1;
+    const slot = (W - L) / n, bw = Math.max(1, slot * 0.8 / list.length);
+    const bars = list.map((item, k) => item.values.map((v, i) => {
+      if (!v) return '';
+      const h = (H - T - B) * v / max, x = L + i * slot + slot * 0.1 + k * bw;
+      return `<rect x="${x.toFixed(1)}" y="${(H - B - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${item.color}"><title>${esc(item.name)} · ${fmtTime(st.data.starts[i])}: ${v.toFixed(1)} ${unit}</title></rect>`;
+    }).join('')).join('');
+    return `<div class="ch"><div class="tt">${title}</div>${legend(list.map(item => [item.name, item.color, total(item.values).toFixed(1) + ' ' + unit]))}
+      <svg viewBox="0 0 ${W} ${H}">${axis(max, unit)}${bars}${xLabels(n)}</svg></div>`;
+  };
+  const lineChart = (title, unit, list, fixedMax) => {
+    list = list.filter(item => item.values.some(v => v !== null));
+    if (!list.length) return '';
+    const n = st.data.starts.length, max = fixedMax || Math.max(1, ...list.flatMap(item => item.values.map(v => v || 0))) * 1.1;
+    const pt = (v, i) => `${(L + (i + 0.5) * (W - L) / n).toFixed(1)},${(T + (H - T - B) * (1 - v / max)).toFixed(1)}`;
+    const lines = list.map(item => {
+      const pts = item.values.map((v, i) => v === null ? null : pt(v, i)).filter(Boolean);
+      return item.band ? `<polygon points="${[...item.values.map((v, i) => v === null ? null : pt(v, i)), ...item.band.map((v, i) => v === null ? null : pt(v, i)).reverse()].filter(Boolean).join(' ')}" fill="${item.color}" fill-opacity=".18"/>`
+        : `<polyline points="${pts.join(' ')}" fill="none" stroke="${item.color}" stroke-width="2" stroke-linejoin="round"/>`;
+    }).join('');
+    return `<div class="ch"><div class="tt">${title}</div>${legend(list.filter(item => !item.band).map(item => [item.name, item.color]))}
+      <svg viewBox="0 0 ${W} ${H}">${axis(max, unit)}${lines}${xLabels(n)}</svg></div>`;
+  };
+  const render = () => {
+    const d = st.data;
+    const per = d?.period === 'hour' ? 'per hour' : 'per day';
+    const charts = !d ? `<div class="msg">Loading history…</div>` : d.error ? `<div class="msg">${esc(d.error)}</div>` : !d.starts.length ? `<div class="msg">No history for these dates.</div>` : [
+      barChart(`Solar and home, kWh ${per}`, 'kWh', [{name: 'Solar', color: '#f2c14e', values: d.energy.solar}, {name: 'Home', color: '#b9a3e3', values: d.energy.home}]),
+      barChart(`Battery and grid, kWh ${per}`, 'kWh', [{name: 'Charged', color: '#a8c49a', values: d.energy.charge}, {name: 'Discharged', color: '#6f9a6a', values: d.energy.discharge},
+        {name: 'From grid', color: '#8fb8d0', values: d.energy.import}, {name: 'To grid', color: '#5d8aa6', values: d.energy.export}]),
+      lineChart(`Solar and home power (W), average ${per}`, 'W', [{name: 'Solar', color: '#f2c14e', values: d.solarW}, {name: 'Home', color: '#b9a3e3', values: d.homeW}]),
+      lineChart('Battery level, %', '%', [{name: 'Low to high', color: '#a8c49a', values: d.socMax, band: d.socMin}, {name: 'Battery', color: '#a8c49a', values: d.soc}], 100)
+    ].join('') || `<div class="msg">No energy history yet.</div>`;
+    return `<div class="eh" data-key="${cfg.key}">
+      <div class="bar"><select class="rg" aria-label="Dates" onchange="event.stopPropagation();window.__dwellHistUi.pick(this)">${RANGES.map(([v, label]) => `<option value="${v}"${v === st.range ? ' selected' : ''}>${label}</option>`).join('')}</select>
+        <span class="custom"${st.range === 'custom' ? '' : ' hidden'}><input class="from" type="date" value="${st.from}" aria-label="From"><span class="to-word">to</span><input class="to" type="date" value="${st.to}" aria-label="To">
+        <button class="ok" onclick="event.stopPropagation();window.__dwellHistUi.apply(this)">Show</button></span>
+        ${st.loading && d ? '<span class="busy">Updating…</span>' : ''}</div>
+      <div class="charts">${charts}</div></div>`;
+  };
+  const style = `<style>
+    .eh{display:grid;gap:12px;text-align:left}
+    .bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+    .rg,.from,.to{font:inherit;font-size:14px;color:${cfg.c.text};background:#101820;border:1px solid ${cfg.c.line};border-radius:10px;height:38px;padding:0 10px;color-scheme:dark}
+    .custom{display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px}
+    .custom[hidden]{display:none}
+    .to-word,.busy{font-size:13px;color:${cfg.c.muted}}
+    .ok{all:unset;cursor:pointer;height:38px;padding:0 14px;border-radius:10px;background:rgba(213,167,76,.14);border:1px solid ${cfg.c.on};color:${cfg.c.onText};font-weight:600;font-size:14px;box-sizing:border-box;display:inline-flex;align-items:center}
+    .rg:focus-visible,.from:focus-visible,.to:focus-visible,.ok:focus-visible{outline:2px solid ${cfg.c.onText};outline-offset:2px}
+    .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+    .ch{padding:12px;border-radius:14px;background:rgba(0,0,0,.18);min-width:0}
+    .tt{font-size:15px;font-weight:600;color:${cfg.c.text}}
+    .lg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0 4px;font-size:12.5px;color:${cfg.c.muted}}
+    .lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+    .lg b{color:${cfg.c.text};font-weight:600}
+    .ch svg{display:block;width:100%;height:auto}
+    .ch text{font-size:11px;fill:${cfg.c.muted};font-family:inherit}
+    .msg{padding:24px;text-align:center;color:${cfg.c.muted};font-size:14px;grid-column:1/-1}
+  </style>`;
+  // Load when shown, and again every five minutes or when the day changes.
+  if (hass?.callWS) setTimeout(() => load(), 0);
+  return style + render();
+}
+
+function historyCard(setup) {
+  const cfg = {key: 'energy', totals: setup.total, power: {solar: setup.solar, home: setup.home}, soc: setup.soc,
+    c: {text: EN_C.text, muted: EN_C.muted, line: EN_C.line, on: EN_C.on, onText: EN_C.onText}};
+  return {
+    type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
+    tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
+    custom_fields: {history: `[[[ return (${dwellEnergyHistory.toString()})(this, hass, ${JSON.stringify(cfg)}); ]]]`},
+    styles: {
+      card: [{padding: '16px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${EN_C.surface},${EN_C.card})`}, {border: `1px solid ${EN_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
+      grid: [{'grid-template-areas': '"history"'}, {'grid-template-columns': '1fr'}],
+      custom_fields: {history: [{width: '100%'}, {'min-width': '0'}, {'pointer-events': 'auto'}]}
+    },
+    grid_options: {columns: 'full', rows: 'auto'}
+  };
+}
 
 function designEnergy(output, {config = {}, hass = {}}) {
   const view = output.views.find(item => item.path === 'energy');
@@ -2006,28 +2168,17 @@ function designEnergy(output, {config = {}, hass = {}}) {
   const flow = panel('flow', dwellEnergyFlow, {...setup, today: undefined, total: undefined, height: ENERGY_TOP - 32, c}, watched, ENERGY_TOP);
   const today = panel('today', dwellEnergyToday, {today: setup.today, c}, todayIds, ENERGY_TOP);
 
-  // Last 30 days: daily energy from the inverters' running totals when there are any; otherwise the page's
-  // own graphs, stretched to 30 days.
-  const daily = [];
-  if (setup.total.solar.length || setup.total.home.length) {
-    daily.push(monthGraph('Solar and home, kWh per day', [...named(setup.total.solar, hass, 'Solar'), ...named(setup.total.home, hass, 'Home')], ['change'], 'bar'));
-  }
-  if (setup.total.charge.length || setup.total.import.length) {
-    daily.push(monthGraph('Battery and grid, kWh per day', [...named(setup.total.charge, hass, 'Charged'), ...named(setup.total.discharge, hass, 'Discharged'),
-      ...named(setup.total.import, hass, 'From grid'), ...named(setup.total.export, hass, 'To grid')], ['change'], 'bar'));
-  }
-  const power = [...setup.solar, ...setup.home].length
-    ? [monthGraph('Solar and home power, daily average', [...named(setup.solar, hass, 'Solar'), ...named(setup.home, hass, 'Home')], ['mean'], 'line')] : [];
-  const battery = setup.soc.length ? [monthGraph('Battery level, daily low, average and high', setup.soc.slice(0, 1).map(entity => ({entity, name: 'Battery'})), ['min', 'mean', 'max'], 'line')] : [];
-  const fallback = daily.length || power.length ? [] : graphs.map(card => ({...card, hours_to_show: 720, points_per_hour: 0.25,
-    name: String(card.name || '').replace(/ · 24h$/, '').replace(/ now$/, '') + ' · 30 days', grid_options: {columns: 'full', rows: 'auto'}}));
+  // History with a date picker when there are sensors with statistics; otherwise the page's own graphs, at 30 days.
+  const hasHistory = Object.values(setup.total).some(list => list.length) || setup.solar.length || setup.home.length || setup.soc.length;
+  const history = hasHistory ? [historyCard(setup)] : graphs.map(card => ({...card, hours_to_show: 720, points_per_hour: 0.25,
+    name: String(card.name || '').replace(/ · 24h$/, '').replace(/ now$/, '') + ' · 30 days', grid_options: {columns: 18, rows: 'auto'}}));
 
   const section = (items, span) => ({type: 'grid', ...(span ? {column_span: span} : {}), cards: items});
   const sections = [
     section([enHeading('Power flow', 'mdi:transit-connection-variant'), flow], 2),
     section([enHeading('Today', 'mdi:calendar-today'), today]),
-    // One full-width section: graphs two across on a wide screen, one per row on a phone.
-    section([enHeading('Last 30 days', 'mdi:chart-bar'), ...[...daily, ...power, ...battery, ...fallback].map(card => ({...card, grid_options: {columns: 18, rows: 'auto'}}))], 3)
+    // One full-width section: charts two across on a wide screen, one per row on a phone.
+    section([enHeading('History', 'mdi:chart-bar'), ...history], 3)
   ];
   view.max_columns = 3;
   view.sections = sections.filter(item => item.cards.length > 1);
