@@ -66,6 +66,23 @@ const rank = (id, hass) => {
   return tvRemote(id, hass) ? 2 : 4;
 };
 
+// TV or sound system. A player says so itself (device_class tv, speaker or receiver), else its integration
+// decides, else a TV remote or "TV" in its name. A TV's group counts as a TV when any entry of it is one,
+// so a cast entry of a TV stays with the TV.
+const TV_PLATFORMS = ['androidtv', 'androidtv_remote', 'apple_tv', 'webostv', 'samsungtv', 'braviatv', 'philips_js', 'vizio', 'roku', 'panasonic_viera', 'lg_netcast', 'lg_thinq', 'hisense_tv', 'tcl'];
+const SPEAKER_PLATFORMS = ['music_assistant', 'sonos', 'squeezebox', 'linkplay', 'yamaha_musiccast', 'yamaha', 'denonavr', 'heos', 'bluesound', 'snapcast', 'mpd', 'volumio', 'dsppa', 'bose', 'onkyo', 'frontier_silicon', 'arcam_fmj', 'cambridge_audio', 'russound_rio', 'nad', 'openhome', 'spotify', 'forked_daapd', 'soundtouch', 'harman_kardon_avr', 'anthemav', 'monoprice', 'blackbird', 'xantech', 'dlna_dms'];
+const tvEntry = (id, hass) => {
+  const dc = hass.states?.[id]?.attributes?.device_class;
+  if (dc === 'tv') return true;
+  if (dc === 'speaker' || dc === 'receiver') return false;
+  const platform = hass.entities?.[id]?.platform;
+  if (TV_PLATFORMS.includes(platform)) return true;
+  if (SPEAKER_PLATFORMS.includes(platform)) return false;
+  if (tvRemote(id, hass)) return true;
+  return /\btv\b|television/i.test(`${playerName(id, hass)} ${id.split('.')[1].replaceAll('_', ' ')}`);
+};
+export const isTv = (id, hass) => tvGroup(id, hass).some(entry => tvEntry(entry, hass));
+
 // media_player supported_features bits.
 const FEATURE = {pause: 1, volumeSet: 4, turnOn: 128, turnOff: 256, volumeStep: 1024, play: 16384};
 const supports = (id, hass, bits) => (Number(hass.states?.[id]?.attributes?.supported_features) & bits) !== 0;
@@ -409,6 +426,8 @@ function dwellTvPanel(states, cfg) {
 export function tvCard(requested, hass) {
   const players = tvGroup(requested, hass);
   const id = players[0];
+  // A sound system gets the same card without TV wording.
+  const tv = players.some(entry => tvEntry(entry, hass));
   const name = playerName(id, hass);
   const remote = players.map(player => tvRemote(player, hass)).find(Boolean);
   const player = (action, target = id) => ({action: 'perform-action', perform_action: `media_player.${action}`, target: {entity_id: target}});
@@ -459,7 +478,7 @@ export function tvCard(requested, hass) {
   // One console line per TV, so a setup can be checked from the browser console (F12).
   const logged = typeof window !== 'undefined' ? (window.__dwellTvLogged ||= new Set()) : null;
   if (typeof document !== 'undefined' && typeof console !== 'undefined' && !logged?.has(id) && logged?.add(id)) {
-    console.info(`DwellDeck TV "${name}": entries ${players.join(', ')}; remote ${remote ? `${remote.id} (${remote.platform})` : 'none'}; ` +
+    console.info(`DwellDeck ${tv ? 'TV' : 'sound system'} "${name}": entries ${players.join(', ')}; remote ${remote ? `${remote.id} (${remote.platform})` : 'none'}; ` +
       `power ${power.perform_action} ${power.target?.entity_id}; volume ${volumePlayer}; play ${playPlayer}`);
   }
   const fields = {
@@ -492,7 +511,7 @@ export function tvCard(requested, hass) {
     const app = cur || a.app_name || '';
     const color = state === 'Playing' ? '${C.onText}' : state === 'Off' || state === 'Unavailable' ? '${C.muted}' : '${C.text}';
     const pill = '<span style="flex:none;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;color:' + color + ';border:1px solid ' + (state === 'Playing' ? '${C.on}' : '${C.line}') + '">' + state + '</span>';
-    if (off || (!title && !app)) return '<div style="display:flex;align-items:center;gap:10px;width:100%;color:${C.muted};font-size:13px;text-align:left">' + pill + '<span>' + (off ? 'The TV is off.' : 'Nothing playing.') + '</span></div>';
+    if (off || (!title && !app)) return '<div style="display:flex;align-items:center;gap:10px;width:100%;color:${C.muted};font-size:13px;text-align:left">' + pill + '<span>' + (off ? '${tv ? 'The TV is off.' : 'Off.'}' : 'Nothing playing.') + '</span></div>';
     const art = a.entity_picture ? '<div style="flex:none;width:56px;height:56px;border-radius:10px;background:${C.card} url(&quot;' + esc(a.entity_picture) + '&quot;) center/cover"></div>' : '';
     return '<div style="display:flex;align-items:center;gap:12px;width:100%;min-width:0;text-align:left">' + art
       + '<div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:8px;min-width:0">' + pill
@@ -512,7 +531,7 @@ export function tvCard(requested, hass) {
     const title = [m?.attributes?.media_title, m?.attributes?.media_artist].filter(Boolean).join(', ');
     return !m ? 'Unavailable' : off ? 'Off' : cur ? 'On, ' + cur : 'On'; ]]]`;
   return {
-    type: 'custom:button-card', entity: id, name, icon: 'mdi:television', show_name: true, show_icon: true, show_state: false, show_label: true, label: status,
+    type: 'custom:button-card', entity: id, name, icon: tv ? 'mdi:television' : 'mdi:speaker', show_name: true, show_icon: true, show_state: false, show_label: true, label: status,
     tap_action: {action: 'none'}, hold_action: {action: 'more-info'}, triggers_update: watched,
     grid_options: {columns: 12, rows: 'auto'},
     custom_fields: fields,

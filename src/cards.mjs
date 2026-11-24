@@ -2,7 +2,7 @@
 import {clone, entityPattern, walk, visit, changeLists} from './util.mjs';
 import {usableRegistryEntity, roomControlEntities, roomEntities, entityArea, entityLabels, cameraEntity} from './discovery.mjs';
 import {ORIGINAL_TEMPLATE} from './data.mjs';
-import {tvCard, withoutDuplicatePlayers} from './tv.mjs';
+import {tvCard, withoutDuplicatePlayers, isTv} from './tv.mjs';
 import {designRoomCard, roomStatusStrip} from './rooms.mjs';
 
 export function addRoomControls(card, room, hass) {
@@ -117,7 +117,8 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
   // Ordered by how a room is used: what you change most first, readings last (they also sit in the strip on top).
   const categories = [
     ['Climate', 'mdi:thermostat', ['climate']],
-    ['TV and media', 'mdi:television-play', ['media_player']],
+    ['TVs', 'mdi:television-play', ['media_player'], id => isTv(id, hass)],
+    ['Sound systems', 'mdi:speaker', ['media_player'], id => !isTv(id, hass)],
     ['Scenes', 'mdi:play-box-outline', ['scene']],
     ['Curtains', 'mdi:curtains', ['cover']],
     ['Switches', 'mdi:toggle-switch-outline', ['switch']],
@@ -125,8 +126,8 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
     ['Safety and presence', 'mdi:shield-home-outline', ['binary_sensor']],
     ['All sensors', 'mdi:thermometer', ['sensor']]
   ];
-  for (const [title, icon, domains] of categories) {
-    const selected = controls.filter(id => domains.includes(id.split('.')[0]));
+  for (const [title, icon, domains, only = () => true] of categories) {
+    const selected = controls.filter(id => domains.includes(id.split('.')[0]) && only(id));
     const grouped = groupedRoomTiles(selected, title, icon, tilePrototype, hass);
     if (title === 'Curtains' && selected.length) {
       content.push(grouped[0], ...curtainBulkControls(selected, prototype), ...grouped.slice(1));

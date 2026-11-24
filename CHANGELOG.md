@@ -6,6 +6,7 @@
 - **Rooms in use** shows the room cards only while something in the room is on (lights, a TV, air conditioning, a switch). When nothing is, one card says everything is off.
 - **Outside** keeps the weather hero top right, beside the glance card. **Safety** groups alerts, the outdoor alarm and the latest activity. **Energy and climate** shows solar, consumption and battery side by side, then air conditioning.
 - **Shortcuts**: the page buttons share one size and layout.
+- **TVs and sound systems are separate.** In a room, TVs and Sound systems have their own groups, and room cards show "TV on" and "Music playing" as separate chips. A sound system's card has a speaker icon and no TV wording. A player is a TV when it says so (`device_class`), when its integration is a TV integration (Android TV, Apple TV, webOS, Samsung, Bravia and others), when it has a TV remote, or when its name says TV; Sonos, Music Assistant, DSPPA, Denon, Yamaha and other audio integrations are sound systems. At a glance shows speakers playing when any are.
 - A room no longer counts as in use, or shows a Playing chip, because a cast or DLNA entry of its TV keeps playing; the TV's main entry decides.
 
 ## 0.9.25 — TV off means off

@@ -651,6 +651,23 @@ const rank = (id, hass) => {
   return tvRemote(id, hass) ? 2 : 4;
 };
 
+// TV or sound system. A player says so itself (device_class tv, speaker or receiver), else its integration
+// decides, else a TV remote or "TV" in its name. A TV's group counts as a TV when any entry of it is one,
+// so a cast entry of a TV stays with the TV.
+const TV_PLATFORMS = ['androidtv', 'androidtv_remote', 'apple_tv', 'webostv', 'samsungtv', 'braviatv', 'philips_js', 'vizio', 'roku', 'panasonic_viera', 'lg_netcast', 'lg_thinq', 'hisense_tv', 'tcl'];
+const SPEAKER_PLATFORMS = ['music_assistant', 'sonos', 'squeezebox', 'linkplay', 'yamaha_musiccast', 'yamaha', 'denonavr', 'heos', 'bluesound', 'snapcast', 'mpd', 'volumio', 'dsppa', 'bose', 'onkyo', 'frontier_silicon', 'arcam_fmj', 'cambridge_audio', 'russound_rio', 'nad', 'openhome', 'spotify', 'forked_daapd', 'soundtouch', 'harman_kardon_avr', 'anthemav', 'monoprice', 'blackbird', 'xantech', 'dlna_dms'];
+const tvEntry = (id, hass) => {
+  const dc = hass.states?.[id]?.attributes?.device_class;
+  if (dc === 'tv') return true;
+  if (dc === 'speaker' || dc === 'receiver') return false;
+  const platform = hass.entities?.[id]?.platform;
+  if (TV_PLATFORMS.includes(platform)) return true;
+  if (SPEAKER_PLATFORMS.includes(platform)) return false;
+  if (tvRemote(id, hass)) return true;
+  return /\btv\b|television/i.test(`${playerName(id, hass)} ${id.split('.')[1].replaceAll('_', ' ')}`);
+};
+const isTv = (id, hass) => tvGroup(id, hass).some(entry => tvEntry(entry, hass));
+
 // media_player supported_features bits.
 const FEATURE = {pause: 1, volumeSet: 4, turnOn: 128, turnOff: 256, volumeStep: 1024, play: 16384};
 const supports = (id, hass, bits) => (Number(hass.states?.[id]?.attributes?.supported_features) & bits) !== 0;
@@ -994,6 +1011,8 @@ function dwellTvPanel(states, cfg) {
 function tvCard(requested, hass) {
   const players = tvGroup(requested, hass);
   const id = players[0];
+  // A sound system gets the same card without TV wording.
+  const tv = players.some(entry => tvEntry(entry, hass));
   const name = playerName(id, hass);
   const remote = players.map(player => tvRemote(player, hass)).find(Boolean);
   const player = (action, target = id) => ({action: 'perform-action', perform_action: `media_player.${action}`, target: {entity_id: target}});
@@ -1044,7 +1063,7 @@ function tvCard(requested, hass) {
   // One console line per TV, so a setup can be checked from the browser console (F12).
   const logged = typeof window !== 'undefined' ? (window.__dwellTvLogged ||= new Set()) : null;
   if (typeof document !== 'undefined' && typeof console !== 'undefined' && !logged?.has(id) && logged?.add(id)) {
-    console.info(`DwellDeck TV "${name}": entries ${players.join(', ')}; remote ${remote ? `${remote.id} (${remote.platform})` : 'none'}; ` +
+    console.info(`DwellDeck ${tv ? 'TV' : 'sound system'} "${name}": entries ${players.join(', ')}; remote ${remote ? `${remote.id} (${remote.platform})` : 'none'}; ` +
       `power ${power.perform_action} ${power.target?.entity_id}; volume ${volumePlayer}; play ${playPlayer}`);
   }
   const fields = {
@@ -1077,7 +1096,7 @@ function tvCard(requested, hass) {
     const app = cur || a.app_name || '';
     const color = state === 'Playing' ? '${C.onText}' : state === 'Off' || state === 'Unavailable' ? '${C.muted}' : '${C.text}';
     const pill = '<span style="flex:none;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;color:' + color + ';border:1px solid ' + (state === 'Playing' ? '${C.on}' : '${C.line}') + '">' + state + '</span>';
-    if (off || (!title && !app)) return '<div style="display:flex;align-items:center;gap:10px;width:100%;color:${C.muted};font-size:13px;text-align:left">' + pill + '<span>' + (off ? 'The TV is off.' : 'Nothing playing.') + '</span></div>';
+    if (off || (!title && !app)) return '<div style="display:flex;align-items:center;gap:10px;width:100%;color:${C.muted};font-size:13px;text-align:left">' + pill + '<span>' + (off ? '${tv ? 'The TV is off.' : 'Off.'}' : 'Nothing playing.') + '</span></div>';
     const art = a.entity_picture ? '<div style="flex:none;width:56px;height:56px;border-radius:10px;background:${C.card} url(&quot;' + esc(a.entity_picture) + '&quot;) center/cover"></div>' : '';
     return '<div style="display:flex;align-items:center;gap:12px;width:100%;min-width:0;text-align:left">' + art
       + '<div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:8px;min-width:0">' + pill
@@ -1097,7 +1116,7 @@ function tvCard(requested, hass) {
     const title = [m?.attributes?.media_title, m?.attributes?.media_artist].filter(Boolean).join(', ');
     return !m ? 'Unavailable' : off ? 'Off' : cur ? 'On, ' + cur : 'On'; ]]]`;
   return {
-    type: 'custom:button-card', entity: id, name, icon: 'mdi:television', show_name: true, show_icon: true, show_state: false, show_label: true, label: status,
+    type: 'custom:button-card', entity: id, name, icon: tv ? 'mdi:television' : 'mdi:speaker', show_name: true, show_icon: true, show_state: false, show_label: true, label: status,
     tap_action: {action: 'none'}, hold_action: {action: 'more-info'}, triggers_update: watched,
     grid_options: {columns: 12, rows: 'auto'},
     custom_fields: fields,
@@ -1152,8 +1171,10 @@ function dwellRoomChips(states, cfg) {
     chip(action === 'heating' ? 'mdi:fire' : 'mdi:snowflake', `${label}${target ? ` ${target}°` : ''}`, 'on');
     break;
   }
-  const playing = cfg.media.filter(id => live(id) && !['off', 'standby', 'idle'].includes(states[id].state));
-  if (playing.length) chip('mdi:television-play', states[playing[0]].state === 'playing' ? 'Playing' : 'TV on', 'on');
+  const tvOn = cfg.media.filter(id => live(id) && !['off', 'standby', 'idle'].includes(states[id].state));
+  if (tvOn.length) chip('mdi:television-play', states[tvOn[0]].state === 'playing' ? 'TV playing' : 'TV on', 'on');
+  const music = cfg.speakers.filter(id => live(id) && ['playing', 'paused'].includes(states[id].state));
+  if (music.length) chip('mdi:speaker', states[music[0]].state === 'playing' ? 'Music playing' : 'Music paused', states[music[0]].state === 'playing' ? 'on' : undefined);
   const open = cfg.covers.filter(id => live(id) && ['open', 'opening'].includes(states[id].state)).length;
   if (open) chip('mdi:curtains', `${open} open`);
   const presence = cfg.binary.filter(id => live(id) && ['motion', 'occupancy', 'presence'].includes(states[id].attributes?.device_class));
@@ -1166,7 +1187,7 @@ function dwellRoomChips(states, cfg) {
   const color = tone => tone === 'on' ? cfg.c.onText : tone === 'active' ? cfg.c.active : tone === 'alert' ? cfg.c.alert : cfg.c.text;
   // Room cards show the most important chips first; the strip in a room shows them all.
   // On the card, the most important first: alerts and open doors, then temperature, air conditioning, TV, motion.
-  const rank = ({icon}) => ['mdi:alert', 'mdi:door-open', 'mdi:thermometer', 'mdi:snowflake', 'mdi:fire', 'mdi:television-play', 'mdi:motion-sensor', 'mdi:water-percent', 'mdi:curtains'].indexOf(icon);
+  const rank = ({icon}) => ['mdi:alert', 'mdi:door-open', 'mdi:thermometer', 'mdi:snowflake', 'mdi:fire', 'mdi:television-play', 'mdi:speaker', 'mdi:motion-sensor', 'mdi:water-percent', 'mdi:curtains'].indexOf(icon);
   const shown = cfg.strip ? chips : [...chips].sort((a, b) => rank(a) - rank(b));
   const items = shown.map(({icon, text, tone}) => `<span style="display:inline-flex;box-sizing:border-box;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:999px;
       background:rgba(0,0,0,.22);border:1px solid ${tone === 'alert' ? cfg.c.alert : cfg.c.line};color:${color(tone)};font-size:12.5px;font-weight:600;white-space:nowrap">
@@ -1184,7 +1205,8 @@ const chipsConfig = (controls, hass, strip = false, room = {}) => ({
   binary: controls.filter(id => id.startsWith('binary_sensor.')),
   climates: controls.filter(id => id.startsWith('climate.')),
   // Each TV by its main entry: a cast or DLNA entry that keeps playing does not count as the TV playing.
-  media: [...new Set(controls.filter(id => id.startsWith('media_player.')).map(id => tvGroup(id, hass)[0]))],
+  media: [...new Set(controls.filter(id => id.startsWith('media_player.') && isTv(id, hass)).map(id => tvGroup(id, hass)[0]))],
+  speakers: [...new Set(controls.filter(id => id.startsWith('media_player.') && !isTv(id, hass)).map(id => tvGroup(id, hass)[0]))],
   covers: controls.filter(id => id.startsWith('cover.')),
   strip, c: ROOM_COLORS
 });
@@ -1308,6 +1330,8 @@ function dwellGlance(states, hass, cfg) {
     {icon: 'mdi:air-conditioner', text: acOn ? plural(acOn, 'AC running', 'ACs running') : 'AC off', on: acOn > 0, path: cfg.paths.climate},
     {icon: 'mdi:curtains', text: coversOpen ? plural(coversOpen, 'curtain open', 'curtains open') : 'Curtains closed', on: coversOpen > 0, path: cfg.paths.curtains}
   ];
+  const music = (cfg.speakers || []).filter(id => states[id]?.state === 'playing').length;
+  if (music) pills.push({icon: 'mdi:speaker', text: plural(music, 'speaker playing', 'speakers playing'), on: true, path: cfg.paths.music});
   if (openings) pills.push({icon: 'mdi:door-open', text: plural(openings, 'door or window open', 'doors or windows open'), alert: true, path: cfg.paths.security});
   if (alarm) {
     const s = alarm.state;
@@ -1457,9 +1481,9 @@ function activeRooms(output, prefix) {
   return [heading('Rooms in use', 'mdi:home-lightning-bolt-outline'), ...cards, quiet];
 }
 
-const tvLeads = hass => [...new Set(Object.keys(hass.states || {}).filter(id => id.startsWith('media_player.') && !hass.entities?.[id]?.disabled_by)
+const playerLeads = hass => [...new Set(Object.keys(hass.states || {}).filter(id => id.startsWith('media_player.') && !hass.entities?.[id]?.disabled_by)
   .map(id => tvGroup(id, hass)[0]))]
-  .filter(id => hass.states?.[id]?.attributes?.device_class === 'tv' || /\btv\b|_tv/i.test(id + ' ' + (hass.states?.[id]?.attributes?.friendly_name || '')));
+
 
 // Rebuilds the Home view in order of importance. Every original card is kept; only the order and the
 // surfaces change. Runs before unselected entities become setup hints.
@@ -1487,8 +1511,8 @@ function designHome(output, {prefix, hass = {}}) {
   const alarmId = alarm[0]?.entity || alerts[0]?.triggers_update?.find?.(id => id.startsWith('alarm_control_panel.'));
   const glance = glanceCard({
     lights: (lightsShortcut?.triggers_update || []).filter(id => id.startsWith('light.') && !isPlaceholder(id)),
-    tvs: tvLeads(hass), alarm: isPlaceholder(alarmId) ? null : alarmId || null,
-    paths: {lights: path('lighting'), media: path('media'), climate: path('climate'), curtains: path('curtains'), security: path('security')},
+    tvs: playerLeads(hass).filter(id => isTv(id, hass)), speakers: playerLeads(hass).filter(id => !isTv(id, hass)), alarm: isPlaceholder(alarmId) ? null : alarmId || null,
+    paths: {lights: path('lighting'), media: path('media'), music: path('music-assistant'), climate: path('climate'), curtains: path('curtains'), security: path('security')},
     c: HOME_C
   });
   for (const card of [...alerts, ...alarm, ...climate, ...latest]) {
@@ -1633,7 +1657,8 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
   // Ordered by how a room is used: what you change most first, readings last (they also sit in the strip on top).
   const categories = [
     ['Climate', 'mdi:thermostat', ['climate']],
-    ['TV and media', 'mdi:television-play', ['media_player']],
+    ['TVs', 'mdi:television-play', ['media_player'], id => isTv(id, hass)],
+    ['Sound systems', 'mdi:speaker', ['media_player'], id => !isTv(id, hass)],
     ['Scenes', 'mdi:play-box-outline', ['scene']],
     ['Curtains', 'mdi:curtains', ['cover']],
     ['Switches', 'mdi:toggle-switch-outline', ['switch']],
@@ -1641,8 +1666,8 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
     ['Safety and presence', 'mdi:shield-home-outline', ['binary_sensor']],
     ['All sensors', 'mdi:thermometer', ['sensor']]
   ];
-  for (const [title, icon, domains] of categories) {
-    const selected = controls.filter(id => domains.includes(id.split('.')[0]));
+  for (const [title, icon, domains, only = () => true] of categories) {
+    const selected = controls.filter(id => domains.includes(id.split('.')[0]) && only(id));
     const grouped = groupedRoomTiles(selected, title, icon, tilePrototype, hass);
     if (title === 'Curtains' && selected.length) {
       content.push(grouped[0], ...curtainBulkControls(selected, prototype), ...grouped.slice(1));

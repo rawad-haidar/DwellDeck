@@ -1,6 +1,6 @@
 // Home: what needs you first, then the rooms in use, then outdoors, energy and shortcuts.
 import {clone} from './util.mjs';
-import {tvGroup} from './tv.mjs';
+import {tvGroup, isTv} from './tv.mjs';
 import {ROOM_COLORS} from './rooms.mjs';
 
 const HOME_C = ROOM_COLORS;
@@ -36,6 +36,8 @@ function dwellGlance(states, hass, cfg) {
     {icon: 'mdi:air-conditioner', text: acOn ? plural(acOn, 'AC running', 'ACs running') : 'AC off', on: acOn > 0, path: cfg.paths.climate},
     {icon: 'mdi:curtains', text: coversOpen ? plural(coversOpen, 'curtain open', 'curtains open') : 'Curtains closed', on: coversOpen > 0, path: cfg.paths.curtains}
   ];
+  const music = (cfg.speakers || []).filter(id => states[id]?.state === 'playing').length;
+  if (music) pills.push({icon: 'mdi:speaker', text: plural(music, 'speaker playing', 'speakers playing'), on: true, path: cfg.paths.music});
   if (openings) pills.push({icon: 'mdi:door-open', text: plural(openings, 'door or window open', 'doors or windows open'), alert: true, path: cfg.paths.security});
   if (alarm) {
     const s = alarm.state;
@@ -185,9 +187,9 @@ function activeRooms(output, prefix) {
   return [heading('Rooms in use', 'mdi:home-lightning-bolt-outline'), ...cards, quiet];
 }
 
-const tvLeads = hass => [...new Set(Object.keys(hass.states || {}).filter(id => id.startsWith('media_player.') && !hass.entities?.[id]?.disabled_by)
+const playerLeads = hass => [...new Set(Object.keys(hass.states || {}).filter(id => id.startsWith('media_player.') && !hass.entities?.[id]?.disabled_by)
   .map(id => tvGroup(id, hass)[0]))]
-  .filter(id => hass.states?.[id]?.attributes?.device_class === 'tv' || /\btv\b|_tv/i.test(id + ' ' + (hass.states?.[id]?.attributes?.friendly_name || '')));
+
 
 // Rebuilds the Home view in order of importance. Every original card is kept; only the order and the
 // surfaces change. Runs before unselected entities become setup hints.
@@ -215,8 +217,8 @@ export function designHome(output, {prefix, hass = {}}) {
   const alarmId = alarm[0]?.entity || alerts[0]?.triggers_update?.find?.(id => id.startsWith('alarm_control_panel.'));
   const glance = glanceCard({
     lights: (lightsShortcut?.triggers_update || []).filter(id => id.startsWith('light.') && !isPlaceholder(id)),
-    tvs: tvLeads(hass), alarm: isPlaceholder(alarmId) ? null : alarmId || null,
-    paths: {lights: path('lighting'), media: path('media'), climate: path('climate'), curtains: path('curtains'), security: path('security')},
+    tvs: playerLeads(hass).filter(id => isTv(id, hass)), speakers: playerLeads(hass).filter(id => !isTv(id, hass)), alarm: isPlaceholder(alarmId) ? null : alarmId || null,
+    paths: {lights: path('lighting'), media: path('media'), music: path('music-assistant'), climate: path('climate'), curtains: path('curtains'), security: path('security')},
     c: HOME_C
   });
   for (const card of [...alerts, ...alarm, ...climate, ...latest]) {

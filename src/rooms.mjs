@@ -1,7 +1,7 @@
 // Rooms page design: each room card is a glanceable summary with one quick action, and each room
 // opens with a compact status strip instead of rows of sensor tiles.
 
-import {tvGroup} from './tv.mjs';
+import {tvGroup, isTv} from './tv.mjs';
 export const ROOM_COLORS = {
   surface: '#1b2d40', surfaceEnd: '#172638', card: '#101c2b', text: '#edf5ff', muted: '#91a8bd',
   line: 'rgba(156,199,225,.12)', onBg: '#493b24', on: '#d5a74c', onText: '#efc875', active: '#39e2bc', alert: '#ff7885'
@@ -37,8 +37,10 @@ function dwellRoomChips(states, cfg) {
     chip(action === 'heating' ? 'mdi:fire' : 'mdi:snowflake', `${label}${target ? ` ${target}°` : ''}`, 'on');
     break;
   }
-  const playing = cfg.media.filter(id => live(id) && !['off', 'standby', 'idle'].includes(states[id].state));
-  if (playing.length) chip('mdi:television-play', states[playing[0]].state === 'playing' ? 'Playing' : 'TV on', 'on');
+  const tvOn = cfg.media.filter(id => live(id) && !['off', 'standby', 'idle'].includes(states[id].state));
+  if (tvOn.length) chip('mdi:television-play', states[tvOn[0]].state === 'playing' ? 'TV playing' : 'TV on', 'on');
+  const music = cfg.speakers.filter(id => live(id) && ['playing', 'paused'].includes(states[id].state));
+  if (music.length) chip('mdi:speaker', states[music[0]].state === 'playing' ? 'Music playing' : 'Music paused', states[music[0]].state === 'playing' ? 'on' : undefined);
   const open = cfg.covers.filter(id => live(id) && ['open', 'opening'].includes(states[id].state)).length;
   if (open) chip('mdi:curtains', `${open} open`);
   const presence = cfg.binary.filter(id => live(id) && ['motion', 'occupancy', 'presence'].includes(states[id].attributes?.device_class));
@@ -51,7 +53,7 @@ function dwellRoomChips(states, cfg) {
   const color = tone => tone === 'on' ? cfg.c.onText : tone === 'active' ? cfg.c.active : tone === 'alert' ? cfg.c.alert : cfg.c.text;
   // Room cards show the most important chips first; the strip in a room shows them all.
   // On the card, the most important first: alerts and open doors, then temperature, air conditioning, TV, motion.
-  const rank = ({icon}) => ['mdi:alert', 'mdi:door-open', 'mdi:thermometer', 'mdi:snowflake', 'mdi:fire', 'mdi:television-play', 'mdi:motion-sensor', 'mdi:water-percent', 'mdi:curtains'].indexOf(icon);
+  const rank = ({icon}) => ['mdi:alert', 'mdi:door-open', 'mdi:thermometer', 'mdi:snowflake', 'mdi:fire', 'mdi:television-play', 'mdi:speaker', 'mdi:motion-sensor', 'mdi:water-percent', 'mdi:curtains'].indexOf(icon);
   const shown = cfg.strip ? chips : [...chips].sort((a, b) => rank(a) - rank(b));
   const items = shown.map(({icon, text, tone}) => `<span style="display:inline-flex;box-sizing:border-box;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:999px;
       background:rgba(0,0,0,.22);border:1px solid ${tone === 'alert' ? cfg.c.alert : cfg.c.line};color:${color(tone)};font-size:12.5px;font-weight:600;white-space:nowrap">
@@ -69,7 +71,8 @@ const chipsConfig = (controls, hass, strip = false, room = {}) => ({
   binary: controls.filter(id => id.startsWith('binary_sensor.')),
   climates: controls.filter(id => id.startsWith('climate.')),
   // Each TV by its main entry: a cast or DLNA entry that keeps playing does not count as the TV playing.
-  media: [...new Set(controls.filter(id => id.startsWith('media_player.')).map(id => tvGroup(id, hass)[0]))],
+  media: [...new Set(controls.filter(id => id.startsWith('media_player.') && isTv(id, hass)).map(id => tvGroup(id, hass)[0]))],
+  speakers: [...new Set(controls.filter(id => id.startsWith('media_player.') && !isTv(id, hass)).map(id => tvGroup(id, hass)[0]))],
   covers: controls.filter(id => id.startsWith('cover.')),
   strip, c: ROOM_COLORS
 });

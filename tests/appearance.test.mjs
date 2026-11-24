@@ -365,8 +365,8 @@ test('room cards show a summary, status chips and a lights button; rooms open wi
  const content=card.tap_action.browser_mod.data.content.cards;
  assert(content[0].custom_fields?.chips,'status strip first');
  const headings=content.filter(c=>c.type==='heading').map(c=>c.heading);
- assert(headings.indexOf('Climate')<headings.indexOf('TV and media'));
- assert(headings.indexOf('TV and media')<headings.indexOf('All sensors'));
+ assert(headings.indexOf('Climate')<headings.indexOf('TVs'));
+ assert(headings.indexOf('TVs')<headings.indexOf('All sensors'));
 });
 test('room temperature averages the room\'s sensors, or the sensors chosen for the room',()=>{
  const st=(state,attributes)=>({state,attributes});
@@ -437,4 +437,20 @@ test('a room does not show Playing when only a cast entry of its TV is playing',
  const chips=card.custom_fields.chips;
  const cfg=JSON.parse(chips.slice(chips.lastIndexOf('(states, ')+9,chips.lastIndexOf(')')));
  assert.deepEqual(cfg.media,['media_player.saloon_tv']);
+});
+test('TVs and sound systems are separate in a room, with their own chips',()=>{
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([st('media_player.den_tv','on',{device_class:'tv',friendly_name:'Den TV'}),st('media_player.den_speaker','playing',{friendly_name:'Den Speaker',media_title:'Song'}),st('media_player.den_pa','off',{friendly_name:'Den PA'}),st('light.den_a','off')]);
+ const platform={'media_player.den_tv':'androidtv_remote','media_player.den_speaker':'sonos','media_player.den_pa':'dsppa','light.den_a':'x'};
+ const entities=Object.fromEntries(Object.keys(states).map(id=>[id,{entity_id:id,area_id:'den',platform:platform[id]}]));
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{den:{area_id:'den',name:'Den',labels:[]}},floors:{},labels:{},devices:{},entities};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const card=d.views.find(v=>v.path==='rooms').sections.flatMap(s=>s.cards).find(c=>c.name==='Den');
+ const content=card.tap_action.browser_mod.data.content.cards;
+ const headings=content.filter(c=>c.type==='heading').map(c=>c.heading);
+ assert(headings.includes('TVs')&&headings.includes('Sound systems'));
+ const html=Function('states',card.custom_fields.chips.trim().slice(3,-3))(states);
+ assert(html.includes('TV on')&&html.includes('Music playing'));
+ const speaker=JSON.stringify(content).includes('mdi:speaker');
+ assert(speaker);
 });
