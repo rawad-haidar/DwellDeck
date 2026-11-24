@@ -10,7 +10,7 @@ const root = new URL('../', import.meta.url);
 const read = path => fs.readFile(new URL(path, root), 'utf8');
 
 // Dependency order: each module only uses modules listed before it.
-const MODULES = ['util', 'dependencies', 'discovery', 'theme', 'design', 'cards', 'views', 'detection', 'generator', 'editor', 'strategy'];
+const MODULES = ['util', 'dependencies', 'discovery', 'theme', 'weather', 'design', 'cards', 'views', 'detection', 'generator', 'editor', 'strategy'];
 const DATA = {
   ORIGINAL_TEMPLATE: 'template', SLOTS: 'slots', ROOM_TEMPLATES: 'room-templates',
   LABELS: 'labels', BUILTIN_THEME: 'builtin-theme'
@@ -21,7 +21,7 @@ export async function build() {
   const {version} = JSON.parse(await read('package.json'));
   const index = await read('src/index.mjs');
   const publicNames = new Set([...index.matchAll(/^export \{([^}]*)\}/gm)].flatMap(m => m[1].split(',').map(s => s.trim())));
-  const parts = [`// DwellDeck ${version} — original design edition. MIT License.`];
+  const parts = [`// DwellDeck ${version} — original design edition. MIT License.`, `const DWELLDECK_VERSION = ${JSON.stringify(version)};`];
   for (const [name, file] of Object.entries(DATA)) {
     parts.push(`export const ${name} = ${JSON.stringify(JSON.parse(await read(`src/data/${file}.json`)))};`);
   }

@@ -205,8 +205,7 @@ ha-card {
 
 export function richEntityCard(id, hass) {
   const domain = id.split('.')[0];
-  if (domain === 'media_player') {
-    return {
+  if (domain === 'media_player') return mediaPlayerControls(id, hass, {
       type: 'media-control', entity: id,
       grid_options: {columns: 12, rows: 'auto'},
       card_mod: {style: stateCardStyle(id) + `
@@ -220,8 +219,7 @@ ha-card {
 {% endif %}
 ha-card { min-height: 180px; overflow: hidden; }
 `}
-    };
-  }
+    });
   if (domain === 'cover' || domain === 'climate') {
     const sourceView = ORIGINAL_TEMPLATE.views.find(view => view.path === (domain === 'cover' ? 'curtains' : 'climate'));
     let prototype;
@@ -250,6 +248,77 @@ ha-card { min-height: 180px; overflow: hidden; }
   }
   return null;
 }
+// Remote commands per integration. Both integrations create a remote entity on the TV's device.
+export const TV_REMOTES = {
+  androidtv_remote: {up: 'DPAD_UP', down: 'DPAD_DOWN', left: 'DPAD_LEFT', right: 'DPAD_RIGHT', ok: 'DPAD_CENTER', back: 'BACK', home: 'HOME', menu: 'MENU'},
+  apple_tv: {up: 'up', down: 'down', left: 'left', right: 'right', ok: 'select', back: 'menu', home: 'home', menu: 'top_menu'}
+};
+// The remote entity on the same device as the media player, if its integration is supported.
+export function tvRemote(id, hass) {
+  const device = hass.entities?.[id]?.device_id;
+  if (!device) return null;
+  const remote = Object.values(hass.entities || {}).find(entry => entry.device_id === device && entry.entity_id?.startsWith('remote.') && TV_REMOTES[entry.platform]);
+  return remote ? {id: remote.entity_id, commands: TV_REMOTES[remote.platform]} : null;
+}
+const padButton = (name, icon, action) => ({
+  type: 'button', name, icon, show_name: false, show_state: false, tap_action: action, hold_action: {action: 'none'},
+  card_mod: {style: 'ha-card{background:linear-gradient(135deg,#1b2d40,#172638);border:1px solid rgba(156,199,225,.12);border-radius:12px;box-shadow:none;min-height:56px;} ha-card:active{background:#493b24;}'}
+});
+const APP_ICONS = [[/netflix/i, 'mdi:netflix'], [/youtube/i, 'mdi:youtube'], [/spotify/i, 'mdi:spotify'], [/disney/i, 'mdi:movie-open-star'],
+  [/prime|amazon/i, 'mdi:movie-play'], [/apple ?tv|tv\+/i, 'mdi:apple'], [/music/i, 'mdi:music'], [/plex/i, 'mdi:plex'],
+  [/kodi/i, 'mdi:kodi'], [/twitch/i, 'mdi:twitch'], [/settings/i, 'mdi:cog-outline'], [/photo/i, 'mdi:image-multiple-outline']];
+// The apps on the TV, read when the dashboard is built: Apple TV and most players list them as sources;
+// Android TV Remote lists the apps configured in its options as remote activities.
+export function tvApps(id, hass, remote) {
+  const sources = hass.states?.[id]?.attributes?.source_list || [];
+  const activities = remote ? hass.states?.[remote.id]?.attributes?.activity_list || [] : [];
+  const useActivities = !sources.length && activities.length;
+  const list = (useActivities ? activities : sources).filter(name => typeof name === 'string' && name.trim()).slice(0, 24);
+  if (!list.length) return null;
+  const current = useActivities ? `state_attr('${remote.id}', 'current_activity')` : `state_attr('${id}', 'source')`;
+  return {type: 'vertical-stack', cards: [
+    {type: 'heading', heading: 'Apps', heading_style: 'subtitle', icon: 'mdi:apps'},
+    {type: 'grid', columns: 3, square: false, cards: list.map(name => ({
+      type: 'button', name, icon: APP_ICONS.find(([pattern]) => pattern.test(name))?.[1] || 'mdi:application-outline',
+      show_name: true, show_state: false, hold_action: {action: 'none'},
+      tap_action: useActivities
+        ? {action: 'perform-action', perform_action: 'remote.turn_on', target: {entity_id: remote.id}, data: {activity: name}}
+        : {action: 'perform-action', perform_action: 'media_player.select_source', target: {entity_id: id}, data: {source: name}},
+      card_mod: {style: `ha-card{border-radius:12px;box-shadow:none;padding:10px 4px;--mdc-icon-size:26px;font-size:13px;
+ background:{% if ${current} == ${JSON.stringify(name)} %}linear-gradient(135deg,#493b24,#202936){% else %}linear-gradient(135deg,#1b2d40,#172638){% endif %};
+ border:1px solid {% if ${current} == ${JSON.stringify(name)} %}#d5a74c{% else %}rgba(156,199,225,.12){% endif %};}`}
+    }))}
+  ]};
+}
+// TV and speaker controls: the media card, then playback, volume and apps, then a remote pad when the TV has a remote entity.
+export function mediaPlayerControls(id, hass, mediaCard) {
+  const attributes = hass.states?.[id]?.attributes || {};
+  const name = attributes.friendly_name || hass.entities?.[id]?.name || hass.entities?.[id]?.original_name || id.split('.')[1].replaceAll('_', ' ');
+  const features = [{type: 'media-player-playback'}, {type: 'media-player-volume-slider'}];
+  const remote = tvRemote(id, hass);
+  const apps = tvApps(id, hass, remote);
+  if (!apps && attributes.source_list?.length) features.push({type: 'media-player-source'});
+  const cards = [mediaCard, {
+    type: 'tile', entity: id, name, vertical: false, features_position: 'bottom', features,
+    state_content: ['state', 'source', 'media_title'],
+    tap_action: {action: 'more-info'}, icon_tap_action: {action: 'toggle'}, hold_action: {action: 'more-info'},
+    card_mod: {style: stateCardStyle(id)}
+  }];
+  if (apps) cards.push(apps);
+  if (remote) {
+    const send = command => ({action: 'perform-action', perform_action: 'remote.send_command', target: {entity_id: remote.id}, data: {command}});
+    const c = remote.commands;
+    cards.push({type: 'vertical-stack', cards: [{type: 'heading', heading: 'Remote', heading_style: 'subtitle', icon: 'mdi:remote-tv'}, {type: 'grid', columns: 3, square: false, cards: [
+      padButton('Back', 'mdi:arrow-left', send(c.back)), padButton('Up', 'mdi:chevron-up', send(c.up)), padButton('Home', 'mdi:home-outline', send(c.home)),
+      padButton('Left', 'mdi:chevron-left', send(c.left)), padButton('OK', 'mdi:circle-medium', send(c.ok)), padButton('Right', 'mdi:chevron-right', send(c.right)),
+      padButton('Power', 'mdi:power', {action: 'perform-action', perform_action: 'media_player.toggle', target: {entity_id: id}}),
+      padButton('Down', 'mdi:chevron-down', send(c.down)),
+      padButton('Apps and media', 'mdi:apps', {action: 'more-info'})
+    ].map(button => button.tap_action.action === 'more-info' ? {...button, entity: id} : button)}]});
+  }
+  return {type: 'vertical-stack', grid_options: mediaCard.grid_options, cards};
+}
+
 export function floorEntitySections(ids, hass, prototype, icon) {
   const floors = Object.values(hass.floors || {}).sort((a, b) =>
     (a.level ?? -1) - (b.level ?? -1) || a.name.localeCompare(b.name));
