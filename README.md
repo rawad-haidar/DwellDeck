@@ -14,7 +14,11 @@ Each camera appears as a tile that glows while something is detected. Tap a tile
 
 Use **Edit dashboard → Discover rooms and devices** to organize rooms from Home Assistant areas, floors and labels. The Rooms tab contains room controls; Lights keeps light-only popups with the names and count of lights currently on. Curtains, media and cameras have grouped layouts, and Climate history and activity stay together at the bottom.
 
-Under **Edit dashboard → Theme colour**, select Ocean Blue, Emerald, Amethyst, Rosewood or Graphite, then **Save**. Active lights retain their yellow status. Activity glows, gently animated icons and hover effects respond to entity states and respect reduced-motion preferences.
+Under **Edit dashboard → Theme colour**, select Lamplight (the default), Ocean Blue, Emerald, Amethyst, Rosewood or Graphite, then **Save**. Lamplight keeps the surfaces quiet and uses colour for state, with lamplight yellow for lights that are on; Ocean Blue is the original colour scheme. Every palette recolours all accents, not only the card backgrounds.
+
+Text uses Atkinson Hyperlegible Next, a typeface designed to stay readable at a distance, which suits wall tablets. It is loaded from Google Fonts; turn off **Use the Atkinson Hyperlegible font** in **Edit dashboard** (or set `font: system`) to use the Home Assistant font instead.
+
+DwellDeck is a dark design for wall displays, so it stays dark when Home Assistant is in light mode. Activity glows, gently animated icons and hover effects respond to entity states and respect reduced-motion preferences.
 
 ## What stays the same
 

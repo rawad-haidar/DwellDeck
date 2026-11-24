@@ -1,7 +1,8 @@
 // Original layout generator: one entity binding updates every reference.
 import {clone, entityPattern, listPattern, walk, visit, changeLists} from './util.mjs';
 import {discoverConfiguration, roomEntities} from './discovery.mjs';
-import {addBuiltinColors, applyDwellPalette, addLivingDesign} from './theme.mjs';
+import {addBuiltinColors, applyDwellPalette, addLivingDesign, DEFAULT_PALETTE} from './theme.mjs';
+import {applyDesignRefresh, skyFirst} from './design.mjs';
 import {addRoomControls, makeLightPopup, areaRoomSections, scenesOverview} from './cards.mjs';
 import {rebuildRichAreaViews} from './views.mjs';
 import {cameraDetectionSection} from './detection.mjs';
@@ -25,6 +26,7 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
     return result.replace(entityPattern, id => lookup.get(id) || id);
   });
   output.title = config.title || 'DwellDeck';
+  skyFirst(output);
   for (const view of output.views) if (view.theme) view.theme = config.theme || 'DwellDeck Midnight';
   const lighting = output.views.find(v => v.path === 'lighting');
   const lightPrototype = clone(lighting.sections[roomTemplates[0].section].cards[roomTemplates[0].card]);
@@ -127,5 +129,5 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
   });
   if(!config.theme && config.builtin_colors!==false)addBuiltinColors(output);
   addLivingDesign(output);
-  return applyDwellPalette(output, config.color_palette || 'ocean');
+  return applyDwellPalette(applyDesignRefresh(output, config), config.color_palette || DEFAULT_PALETTE);
 }

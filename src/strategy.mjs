@@ -1,6 +1,7 @@
 // Dashboard strategy and custom element registration.
 import {discoveryContext} from './discovery.mjs';
 import {generateOriginal} from './generator.mjs';
+import {loadDwellFont} from './design.mjs';
 import {DwellDeckOriginalEditor} from './editor.mjs';
 import {ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES} from './data.mjs';
 
@@ -9,6 +10,7 @@ class DwellDeckOriginalStrategy extends HTMLElement {
   static getConfigElement(){return document.createElement('dwelldeck-original-editor');}
   static getCreateSuggestions(){return {title:'DwellDeck',icon:'mdi:view-dashboard'};}
   static async generate(config, hass) {
+    loadDwellFont(config);
     const needsDiscovery = config.auto_discover || config.room_controls ||
       Object.values(config.rooms || {}).some(room => room.area) ||
       (config.extra_rooms || []).some(room => room.area);

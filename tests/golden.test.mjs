@@ -69,7 +69,7 @@ const lightSlot = SLOTS.find(s => s.domain === 'light');
 const cases = {
   default: [base],
   'title, theme and music app': [{...base, title: 'Villa', theme: 'Existing theme', music_app: 'music-assistant'}],
-  ...Object.fromEntries(['ocean', 'emerald', 'violet', 'rose', 'slate', 'unknown'].map(p => [`palette ${p}`, [{...base, color_palette: p}]])),
+  ...Object.fromEntries(['lamplight', 'ocean', 'emerald', 'violet', 'rose', 'slate', 'unknown'].map(p => [`palette ${p}`, [{...base, color_palette: p}]])),
   'entity binding': [{...base, entities: {[lightSlot.key]: 'light.living_ceiling'}}],
   'labels': [{...base, labels: {__DWELLDECK_LABEL_01__: 'Master suite'}}],
   'template room by entities': [{...base, rooms: {[room.key]: {name: 'My living room', entities: ['light.a', 'light.b']}}}],
@@ -81,6 +81,7 @@ const cases = {
     garden: {name: 'Garden', area: 'garden', discover_controls: false, controls: ['lock.front_door']}
   }}, hass],
   'auto discover': [{...base, auto_discover: true}, hass],
+  'system font': [{...base, font: 'system'}],
   'auto discover keeps bindings': [{...base, auto_discover: true, entities: {[lightSlot.key]: 'light.kitchen_main'}, color_palette: 'emerald'}, hass]
 };
 
