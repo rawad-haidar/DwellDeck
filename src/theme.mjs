@@ -117,3 +117,26 @@ export function addLivingDesign(dashboard) {
     }
   });
 }
+
+// The dashboard's own tab bar (Home Assistant draws it, outside every card): each tab a rounded pill,
+// the open one filled with the palette's accent, the others lighting up under the pointer.
+export function dwellTabsCss(key) {
+  const palette = DWELL_PALETTES[key] || DWELL_PALETTES[DEFAULT_PALETTE];
+  const roles = paletteRoles(palette);
+  const accent = roles.lamp || roles.accent || palette.colors[3], text = roles.text || '#edf5ff', muted = roles.muted || '#91a8bd', onAccent = roles.page || '#141a22';
+  return `
+ha-tab-group{--indicator-color:transparent;--track-color:transparent;--track-width:0px}
+ha-tab-group-tab{color:${muted};padding:0 2px;display:flex;align-items:center}
+ha-tab-group-tab::part(base){height:36px;padding:0 14px;border-radius:999px;font-weight:600;font-size:14px;gap:8px;box-sizing:border-box;
+  transition:color .2s ease,background-color .2s ease,box-shadow .25s ease}
+ha-tab-group-tab ha-icon{--mdc-icon-size:20px;transition:transform .2s ease}
+ha-tab-group-tab:hover{color:${text}}
+ha-tab-group-tab:hover::part(base){background-color:rgba(255,255,255,.07)}
+ha-tab-group-tab:hover ha-icon{transform:translateY(-1px)}
+ha-tab-group-tab[active]{color:${onAccent}}
+ha-tab-group-tab[active]::part(base){background-color:${accent};box-shadow:0 4px 16px color-mix(in srgb,${accent} 35%,transparent),inset 0 1px 0 rgba(255,255,255,.35)}
+ha-tab-group-tab[active]:hover ha-icon{transform:none}
+ha-tab-group-tab:focus-visible{outline:none}
+ha-tab-group-tab:focus-visible::part(base){outline:2px solid ${accent};outline-offset:2px}
+@media (prefers-reduced-motion:reduce){ha-tab-group-tab::part(base),ha-tab-group-tab ha-icon{transition:none}ha-tab-group-tab:hover ha-icon{transform:none}}`;
+}

@@ -737,3 +737,14 @@ test('a sound system card shows the artwork from its Music Assistant player whil
  const bg=card.styles.card.find(r=>r.background).background.trim().slice(3,-3);
  assert(Function('states',bg)(states).includes('url("/api/media_player_proxy/media_player.living_sound_system_2'),'artwork behind the card');
 });
+
+test('the dashboard tab bar: pill tabs, the open one in the palette accent, for every palette',async()=>{
+ const {dwellTabsCss,DWELL_PALETTES}=await import('../src/theme.mjs');
+ for(const key of Object.keys(DWELL_PALETTES)){
+  const css=dwellTabsCss(key);
+  const accent=DWELL_PALETTES[key].roles?.lamp||DWELL_PALETTES[key].roles?.accent||DWELL_PALETTES[key].colors[3];
+  assert(css.includes(`ha-tab-group-tab[active]::part(base){background-color:${accent}`),key);
+  assert(css.includes('--indicator-color:transparent')&&css.includes('border-radius:999px')&&css.includes('prefers-reduced-motion'),key);
+ }
+ assert.equal(dwellTabsCss('no-such-palette'),dwellTabsCss('lamplight'),'unknown palette falls back to the default');
+});
