@@ -353,7 +353,7 @@ function dwellTvPanel(states, cfg) {
   const off = cfg.players.every(p => ['off', 'standby', 'unavailable', 'unknown'].includes(states[p]?.state));
   const grid = (list, kind) => list.length
     ? `<div class="apps">${list.sort(byName).map(item => kind === 'apps' ? appBtn(item) : btn(icon(item.name), item.name, item.callData, 'app')).join('')}</div>${fallbackNote[kind] ? `<p class="empty">${fallbackNote[kind]}</p>` : ''}`
-    : `<p class="empty">${off ? `Turn the TV on to see its ${kind}.` : kind === 'sources' ? 'This TV doesn\'t list any inputs.' : 'This TV doesn\'t list any apps. For Android TV Remote, add apps in the integration\'s options.'}</p>`;
+    : `<p class="empty">${off ? `Turn ${cfg.tv === false ? 'it' : 'the TV'} on to see its ${kind}.` : kind === 'sources' ? (cfg.tv === false ? 'This sound system doesn\'t list any sources.' : 'This TV doesn\'t list any inputs.') : 'This TV doesn\'t list any apps. For Android TV Remote, add apps in the integration\'s options.'}</p>`;
 
   const tabs = [];
   const panes = [];
@@ -373,7 +373,11 @@ function dwellTvPanel(states, cfg) {
       <div class="row">${btn('mdi:arrow-left', 'Back', keyCall(k.back))}${btn('mdi:home-outline', 'Home', keyCall(k.home))}${btn('mdi:menu', 'Menu', keyCall(k.menu))}${k.mute ? btn('mdi:volume-off', 'Mute', keyCall(k.mute)) : ''}</div>
     </div>`);
   }
-  if (cfg.canSwitch || cfg.adb || cfg.inputKeys) {
+  // A sound system has no apps: only its sources (inputs, playlists, radio), when it lists any.
+  if (cfg.tv === false && cfg.canSwitch) {
+    tabs.push(['sources', 'mdi:speaker-multiple', 'Sources']);
+    panes.push(`<div class="pane sources">${grid(items, 'sources')}</div>`);
+  } else if (cfg.canSwitch || cfg.adb || cfg.inputKeys) {
     tabs.push(['apps', 'mdi:apps', 'Apps'], ['sources', 'mdi:video-input-hdmi', 'Sources']);
     const fetchCall = cfg.adb ? call('androidtv', 'adb_command', {entity_id: cfg.adb, command: cfg.fetchCommand}) : '';
     const refresh = cfg.adb ? `<button class="refresh" onclick="window.__dwellTv.call(this)" data-call="${fetchCall}"><ha-icon icon="mdi:refresh"></ha-icon><span>Refresh installed apps</span></button>` : '';
@@ -470,7 +474,7 @@ export function tvCard(requested, hass) {
   const canSwitch = remote?.platform === 'androidtv_remote' || players.some(p =>
     (Number(hass.states?.[p]?.attributes?.supported_features) & 2048) || hass.states?.[p]?.attributes?.source_list?.length);
   const cfg = {
-    lead: id, players, canSwitch, c: C, known: KNOWN_PACKAGES, inputPattern: SOURCE_PATTERN.source,
+    lead: id, players, canSwitch, tv, c: C, known: KNOWN_PACKAGES, inputPattern: SOURCE_PATTERN.source,
     icons: APP_ICONS.map(([pattern, icon, color]) => [pattern.source, icon, color || '']),
     activities: remote?.platform === 'androidtv_remote' ? remote.id : null,
     keyboard: !!remote?.commands?.keyboard,
@@ -545,10 +549,13 @@ export function tvCard(requested, hass) {
   return {
     type: 'custom:button-card', entity: id, name, icon: tv ? 'mdi:television' : 'mdi:speaker', show_name: true, show_icon: true, show_state: false, show_label: true, label: status,
     tap_action: {action: 'none'}, hold_action: {action: 'more-info'}, triggers_update: watched,
+    // The card fills its grid cell, so cards side by side end on one line.
+    extra_styles: ':host{display:block;height:100%}',
     grid_options: {columns: 12, rows: 'auto'},
     custom_fields: fields,
     styles: {
-      card: [{padding: '16px'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
+      // Cards in one row stretch to the same height.
+      card: [{padding: '16px'}, {height: '100%'}, {'box-sizing': 'border-box'}, {'align-content': 'start'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
         {background: `[[[ const p = entity?.attributes?.entity_picture; return entity?.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
       grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '40px minmax(0,1fr) 46px'}, {gap: '2px 12px'}, {'align-items': 'center'}],
       img_cell: [{'justify-content': 'flex-start'}, {width: '40px'}, {height: '40px'}],

@@ -524,3 +524,20 @@ test('curtain "all" buttons call real cover actions, and tiles have no invalid c
  assert(!/"perform_action":"[a-z_]+\.dwelldeck_slot_/.test(JSON.stringify(d)),'no action anywhere is an entity slot');
  assert(JSON.stringify(d).includes('"perform_action":"media_player.media_pause"'));
 });
+test('sound system cards show only Sources, cards fill their row, floor names start with a capital',()=>{
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([st('media_player.pool_sound_system','off',{friendly_name:'Pool Sound System',source_list:['Bluetooth','Line in'],supported_features:2048}),st('media_player.bbq_sound_system','off',{friendly_name:'BBQ Sound System'}),st('light.pool_a','off')]);
+ const entities=Object.fromEntries(Object.keys(states).map(id=>[id,{entity_id:id,area_id:'pool',platform:'dsppa'}]));
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{pool:{area_id:'pool',name:'Pool Area',floor_id:'out',labels:[]}},floors:{out:{floor_id:'out',name:'outdoor',level:0}},labels:{},devices:{},entities};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const media=d.views.find(v=>v.path==='media');
+ const text=JSON.stringify(media);
+ assert(text.includes('Outdoor · Pool Area'),'capital floor name');
+ const pool=media.sections.flatMap(s=>s.cards).find(c=>c.name==='Pool Sound System');
+ const panel=Function('states',pool.custom_fields.panel.trim().slice(3,-3))(states);
+ assert(panel.includes('aria-label="Sources"')&&!panel.includes('aria-label="Apps"'),'sources only');
+ const bbq=media.sections.flatMap(s=>s.cards).find(c=>c.name==='BBQ Sound System');
+ assert(!bbq.custom_fields.panel,'no tabs without sources');
+ assert(pool.styles.card.some(r=>r.height==='100%')&&pool.extra_styles.includes(':host{display:block;height:100%}'));
+ assert(!JSON.stringify(d).includes('pause-circle-multiple'));
+});

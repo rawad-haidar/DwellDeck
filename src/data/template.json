@@ -9218,7 +9218,7 @@
             {
               "type": "button",
               "name": "Pause all villa audio",
-              "icon": "mdi:pause-circle-multiple",
+              "icon": "mdi:pause-circle-outline",
               "icon_height": "24px",
               "show_state": false,
               "tap_action": {

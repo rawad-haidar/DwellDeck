@@ -1,6 +1,9 @@
 # Changelog
 
-## 0.9.28 — Curtain fixes
+## 0.9.28 — Curtain and media fixes
+
+- **Media**: sound systems show only a **Sources** tab, and only when they list sources (no Apps tab on a speaker). Player cards side by side end on the same line. **Pause all villa audio** has an icon again (the old one no longer exists in the icon set).
+- Floor names in headings start with a capital ("Ground · Kitchen").
 
 - **Curtains**: Open all, Stop all and Close all at the top of the page did nothing; they now open, stop and close every curtain. The same mistake broke the **Pause all audio** buttons on the Music page; they work again.
 - Curtain position sliders showed only a small bar: tiles carried a colour value Home Assistant no longer understands. Tiles now use their normal state colour, so sliders show their full track and fill.

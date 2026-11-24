@@ -4,6 +4,8 @@ import {usableRegistryEntity, roomControlEntities, roomEntities, entityArea, ent
 import {ORIGINAL_TEMPLATE} from './data.mjs';
 import {tvCard, withoutDuplicatePlayers, isTv} from './tv.mjs';
 import {designRoomCard, roomStatusStrip} from './rooms.mjs';
+// Floor names as headings start with a capital ("ground" → "Ground").
+const capitalFirst = text => String(text || '').charAt(0).toUpperCase() + String(text || '').slice(1);
 
 export function addRoomControls(card, room, hass) {
   const content = card.tap_action?.browser_mod?.data?.content;
@@ -153,7 +155,7 @@ export function areaRoomSections(config, hass, prototype, prototypeIds) {
   const rooms = Object.values(config.rooms || {});
   const floors = Object.values(hass.floors || {}).sort((a, b) =>
     (a.level ?? -1) - (b.level ?? -1) || a.name.localeCompare(b.name));
-  const groups = new Map(floors.map(floor => [floor.floor_id, {name: floor.name, icon: floor.icon || 'mdi:home-floor-0', rooms: []}]));
+  const groups = new Map(floors.map(floor => [floor.floor_id, {name: capitalFirst(floor.name), icon: floor.icon || 'mdi:home-floor-0', rooms: []}]));
   for (const room of rooms) {
     const floorId = hass.areas?.[room.area]?.floor_id || '';
     if (!groups.has(floorId)) groups.set(floorId, {name: 'Areas without a floor', icon: 'mdi:home-group', rooms: []});
@@ -185,7 +187,7 @@ export function scenesOverview(config, hass, prototype, prototypeIds) {
   for (const area of [...areas, {area_id: '', name: 'Unassigned scenes'}]) {
     const scenes = ids.filter(id => (entityArea(id, hass) || '') === area.area_id);
     const floor = hass.floors?.[area.floor_id];
-    content.push(...groupedRoomTiles(scenes, floor ? `${floor.name} · ${area.name}` : area.name, 'mdi:play-box-outline', tile, hass));
+    content.push(...groupedRoomTiles(scenes, floor ? `${capitalFirst(floor.name)} · ${area.name}` : area.name, 'mdi:play-box-outline', tile, hass));
   }
   const card = changeLists(clone(prototype), prototypeIds, []);
   card.name = 'Scenes'; card.icon = 'mdi:play-box-outline';
@@ -248,7 +250,7 @@ export function floorEntitySections(ids, hass, prototype, icon) {
     {name: 'Areas without a floor', areas: Object.values(hass.areas || {}).filter(area => !area.floor_id)}];
   const sections = [];
   for (const floor of groups) {
-    const cards = [{type: 'heading', heading: floor.name, icon: floor.icon || icon}];
+    const cards = [{type: 'heading', heading: capitalFirst(floor.name), icon: floor.icon || icon}];
     for (const area of floor.areas.sort((a, b) => a.name.localeCompare(b.name))) {
       const selected = withoutDuplicatePlayers(ids.filter(id => entityArea(id, hass) === area.area_id), hass);
       if (!selected.length) continue;
@@ -313,7 +315,7 @@ export function organizedEntitySections(ids, hass, prototype, icon, domain) {
     const selected = withoutDuplicatePlayers(ids.filter(id => (entityArea(id, hass) || '') === area.area_id), hass);
     if (!selected.length) continue;
     const floor = hass.floors?.[area.floor_id];
-    const cards = [{type: 'heading', heading: floor ? `${floor.name} · ${area.name}` : area.name, icon: area.icon || icon}];
+    const cards = [{type: 'heading', heading: floor ? `${capitalFirst(floor.name)} · ${area.name}` : area.name, icon: area.icon || icon}];
     if (domain === 'cover') cards.push(...curtainBulkControls(selected, prototype).map(card => setCardWidth(card, 24)));
     cards.push(...selected.map(id => setCardWidth(roomTile(id, tile, hass), selected.length > 1 ? 12 : 24)));
     sections.push({type: 'grid', column_span: 2, cards});
