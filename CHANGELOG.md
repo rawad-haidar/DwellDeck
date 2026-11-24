@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.35 — Page colours and the blur fix, for real
+
+- **The page background is DwellDeck's palette colour**, not the Home Assistant theme's (Alpine Morning's teal and amber glow): behind the cards, and on the browser page itself, so the strip a phone has not painted yet while scrolling no longer flashes the theme's colour.
+- **The theme's frosted-glass blur behind cards is really off now.** 0.9.34 set it on each view, but Home Assistant does not apply a style set on a sections view, so it never took effect (124 blurred elements were still on the Media page). The page colours, the palette's accent for Home Assistant's own cards and the blur setting now go into the dashboard's root, where the new tabs already go; measured live: 0 blurred elements. Other dashboards and the rest of Home Assistant keep the theme as it is.
+
 ## 0.9.34 — Smooth scrolling
 
 - **Button labels are centred with their icon again**: in Music player, Music Assistant, and the Remote, Apps, Sources and Keyboard tabs, the label was pushed to the far edge of the button (button-card gives every icon automatic margins, which took all the free space).

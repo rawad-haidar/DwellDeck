@@ -148,3 +148,19 @@ ha-tab-group-tab:focus-visible{outline:none}
 ha-tab-group-tab:focus-visible::part(base){outline:2px solid ${accent};outline-offset:2px}
 @media (prefers-reduced-motion:reduce){ha-tab-group-tab::part(base),ha-tab-group-tab ha-icon{transition:none}ha-tab-group-tab:hover ha-icon{transform:none}}`;
 }
+
+// The page's own colours. Home Assistant does not apply a style set on a sections view, so these go on the
+// dashboard's root (the tab bar's root, like the tabs) and the browser page: the palette's page colour shows
+// behind everything, also in the strip a phone has not painted yet while scrolling, and a theme's
+// frosted-glass blur behind cards is off (invisible on DwellDeck's solid cards, but costly while scrolling).
+export function dwellPageCss(key) {
+  const name = DWELL_PALETTES[key] ? key : DEFAULT_PALETTE;
+  const palette = DWELL_PALETTES[name];
+  const roles = paletteRoles(palette);
+  const accent = roles.accent || palette.colors[3];
+  const surface = name === 'lamplight' ? roles.page : `linear-gradient(135deg,${roles.page},${roles.popup})`;
+  return {
+    root: `:host{--primary-color:${accent};--accent-color:${accent};--lovelace-background:${surface};--primary-background-color:${roles.page};--ha-card-background:${roles.card};--card-background-color:${roles.card};--history-unavailable-color:${roles.unavailable};--ha-card-backdrop-filter:none}`,
+    page: `html,body{background-color:${roles.page}!important}`
+  };
+}
