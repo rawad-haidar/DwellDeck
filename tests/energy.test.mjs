@@ -135,3 +135,22 @@ test('each field adds up, averages or draws one line per sensor, as chosen', asy
   globalThis.window = {};
   assert(run(avg.sections[0].cards[1], 'flow').includes('>929 W<'), '(938 + 919) / 2');
 });
+
+test('charts show negative values below zero, a readout on hover, and open large with a table and CSV', async () => {
+  const view = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x'}, hass));
+  const body = view.sections[2].cards[1].custom_fields.history.trim().slice(3, -3);
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const fakeHass = {callWS: async msg => Object.fromEntries(msg.statistic_ids.map(id => [id, [0, 1, 2].map(i => ({start: start.getTime() - (2 - i) * 86400000,
+    change: id.includes('export') ? -3 : 5, mean: 400, min: 30, max: 90}))]))};
+  globalThis.window = {};
+  const shadow = {querySelector: () => null};
+  Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const html = Function('states', 'hass', body).call({shadowRoot: shadow}, {}, fakeHass);
+  assert(html.includes('class="hv"') && html.includes('class="tip"'), 'hover readout');
+  assert(/<text x="\d+" y="[\d.]+" text-anchor="end">-\d/.test(html), 'the scale goes below zero');
+  assert(html.includes('__dwellHistUi.open(this)'));
+  const big = window.__dwellHistBig.energy('flows');
+  assert(big.includes('Download CSV') && big.includes('<th>Average</th>') && big.includes('To grid'));
+  assert(big.includes('-9.0 kWh'), 'three days of -3 kWh exported');
+});

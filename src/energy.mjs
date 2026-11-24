@@ -271,6 +271,18 @@ function dwellEnergyHistory(card, hass, cfg) {
       box.querySelector('.custom').hidden = el.value !== 'custom';
       if (el.value !== 'custom') { s.asked = ''; window.__dwellHistLoad[box.dataset.key]?.(); }
     },
+    // The large view goes on the page itself, so no card around it can clip it.
+    open(el) {
+      const key = el.closest('.eh').dataset.key;
+      document.querySelectorAll('body > .dwh').forEach(old => old.remove());
+      const root = document.createElement('div');
+      root.className = 'dwh';
+      root.innerHTML = window.__dwellHistBig[key](el.dataset.chart);
+      document.body.appendChild(root);
+      const close = root.querySelector('.x'); close?.focus();
+      root.addEventListener('keydown', event => { if (event.key === 'Escape') window.__dwellHistUi.close(close); });
+    },
+    close(el) { el?.closest('.dwh')?.remove(); },
     apply(el) {
       const box = el.closest('.eh'); const s = window.__dwellHist[box.dataset.key];
       s.from = box.querySelector('.from').value; s.to = box.querySelector('.to').value || s.from;
@@ -286,55 +298,124 @@ function dwellEnergyHistory(card, hass, cfg) {
     const d = new Date(t);
     return st.data.period === 'hour' ? d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : d.toLocaleDateString([], {day: 'numeric', month: 'short'});
   };
-  const W = 600, H = 170, L = 40, B = 22, T = 8;
-  const axis = (max, unit) => [0, 0.5, 1].map(f => {
-    const y = T + (H - T - B) * (1 - f);
-    return `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="${cfg.c.line}"/><text x="${L - 6}" y="${y + 4}" text-anchor="end">${unit === '%' ? Math.round(max * f) : (max * f >= 10 ? Math.round(max * f) : (max * f).toFixed(1))}</text>`;
-  }).join('');
-  const xLabels = n => {
-    const step = Math.max(1, Math.ceil(n / 8));
-    return st.data.starts.map((t, i) => i % step ? '' : `<text x="${L + (i + 0.5) * (W - L) / n}" y="${H - 6}" text-anchor="middle">${fmtTime(t)}</text>`).join('');
+  const fmtFull = t => {
+    const d = new Date(t);
+    return d.toLocaleDateString([], {weekday: 'short', day: 'numeric', month: 'short'}) + (st.data.period === 'hour' ? ', ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '');
   };
   const total = values => values.reduce((a, v) => a + (v || 0), 0);
   // One colour per kind; several sensors of one kind get lighter shades (bars) or dashes (lines).
   const paint = (list, color) => list.map(item => ({...item, color}));
   const fade = item => Math.max(0.35, 1 - (item.shade || 0) * 0.3);
+  const num = (v, unit) => v === null || v === undefined ? '—' : (unit === '%' || Math.abs(v) >= 100 ? Math.round(v) : v.toFixed(1)) + ' ' + unit;
   const legend = items => `<div class="lg">${items.map(([name, color, extra, shade]) => `<span><i style="background:${color};opacity:${Math.max(0.35, 1 - (shade || 0) * 0.3)}"></i>${esc(name)}${extra ? ` <b>${extra}</b>` : ''}</span>`).join('')}</div>`;
-  const barChart = (title, unit, list) => {
-    list = list.filter(item => item.values.some(v => v));
-    if (!list.length) return '';
-    const n = st.data.starts.length, max = Math.max(0.1, ...list.flatMap(item => item.values.map(v => v || 0))) * 1.1;
-    const slot = (W - L) / n, bw = Math.max(1, slot * 0.8 / list.length);
-    const bars = list.map((item, k) => item.values.map((v, i) => {
-      if (!v) return '';
-      const h = (H - T - B) * v / max, x = L + i * slot + slot * 0.1 + k * bw;
-      return `<rect x="${x.toFixed(1)}" y="${(H - B - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${item.color}" fill-opacity="${fade(item)}"><title>${esc(item.name)} · ${fmtTime(st.data.starts[i])}: ${v.toFixed(1)} ${unit}</title></rect>`;
-    }).join('')).join('');
-    return `<div class="ch"><div class="tt">${title}</div>${legend(list.map(item => [item.name, item.color, total(item.values).toFixed(1) + ' ' + unit, item.shade]))}
-      <svg viewBox="0 0 ${W} ${H}">${axis(max, unit)}${bars}${xLabels(n)}</svg></div>`;
+  // The charts of the picked range, kept so a chart can be opened large.
+  const specs = d => {
+    const per = d.period === 'hour' ? 'per hour' : 'per day';
+    return [
+      {id: 'energy', kind: 'bar', unit: 'kWh', title: `Solar and home, kWh ${per}`, list: [...paint(d.solarE, '#f2c14e'), ...paint(d.homeE, '#b9a3e3')]},
+      {id: 'flows', kind: 'bar', unit: 'kWh', title: `Battery and grid, kWh ${per}`, list: [...paint(d.charge, '#a8c49a'), ...paint(d.discharge, '#6f9a6a'), ...paint(d.import, '#8fb8d0'), ...paint(d.export, '#5d8aa6')]},
+      {id: 'power', kind: 'line', unit: 'W', title: `Solar and home power (W), average ${per}`, list: [...paint(d.solarW, '#f2c14e'), ...paint(d.homeW, '#b9a3e3')]},
+      {id: 'soc', kind: 'line', unit: '%', title: 'Battery level, %', fixed: [0, 100],
+        list: [...(d.socMax[0] ? [{name: 'Low to high', color: '#a8c49a', values: d.socMax[0].values, band: d.socMin[0].values}] : []), ...paint(d.soc, '#a8c49a')]}
+    ].map(spec => ({...spec, list: spec.list.filter(item => item.values.some(v => v !== null && (spec.kind === 'line' || v)))})).filter(spec => spec.list.some(item => !item.band));
   };
-  const lineChart = (title, unit, list, fixedMax) => {
-    list = list.filter(item => item.values.some(v => v !== null));
-    if (!list.length) return '';
-    const n = st.data.starts.length, max = fixedMax || Math.max(1, ...list.flatMap(item => item.values.map(v => v || 0))) * 1.1;
-    const pt = (v, i) => `${(L + (i + 0.5) * (W - L) / n).toFixed(1)},${(T + (H - T - B) * (1 - v / max)).toFixed(1)}`;
-    const lines = list.map(item => {
-      const pts = item.values.map((v, i) => v === null ? null : pt(v, i)).filter(Boolean);
-      return item.band ? `<polygon points="${[...item.values.map((v, i) => v === null ? null : pt(v, i)), ...item.band.map((v, i) => v === null ? null : pt(v, i)).reverse()].filter(Boolean).join(' ')}" fill="${item.color}" fill-opacity=".18"/>`
-        : `<polyline points="${pts.join(' ')}" fill="none" stroke="${item.color}" stroke-opacity="${fade(item)}" stroke-width="2" stroke-linejoin="round"${item.shade ? ` stroke-dasharray="${item.shade === 1 ? '6 4' : '2 3'}"` : ''}/>`;
+  // Draws one chart. Negative values (export, discharge) go below a zero line; the scale covers all of it.
+  // Hovering a time shows every value at that time.
+  const chart = (spec, W, H) => {
+    const L = 44, B = 22, T = 10, R = 6;
+    const starts = st.data.starts, n = starts.length;
+    const values = spec.list.flatMap(item => [...item.values, ...(item.band || [])]).filter(v => v !== null);
+    let lo = spec.fixed ? spec.fixed[0] : Math.min(0, ...values), hi = spec.fixed ? spec.fixed[1] : Math.max(0, ...values);
+    if (!spec.fixed) { const pad = (hi - lo || 1) * 0.08; hi = hi > 0 ? hi + pad : hi; lo = lo < 0 ? lo - pad : lo; if (hi === lo) hi = lo + 1; }
+    const y = v => T + (H - T - B) * (hi - v) / (hi - lo);
+    const slot = (W - L - R) / n, cx = i => L + (i + 0.5) * slot;
+    const ticks = [...new Set([lo, hi, ...(lo < 0 && hi > 0 ? [0] : [(lo + hi) / 2])])].sort((a, b) => a - b);
+    const grid = ticks.map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="${cfg.c.line}"${v === 0 && lo < 0 ? ' stroke-width="1.5"' : ''}/><text x="${L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${num(v, '').trim()}</text>`).join('');
+    const step = Math.max(1, Math.ceil(n / Math.max(4, Math.floor(W / 90))));
+    const xl = starts.map((t, i) => i % step ? '' : `<text x="${cx(i).toFixed(1)}" y="${H - 6}" text-anchor="middle">${fmtTime(t)}</text>`).join('');
+    const marks = spec.kind === 'bar'
+      ? spec.list.map((item, k) => item.values.map((v, i) => {
+          if (!v) return '';
+          const bw = Math.max(1, slot * 0.8 / spec.list.length), x = L + i * slot + slot * 0.1 + k * bw, top = Math.min(y(v), y(0)), h = Math.abs(y(v) - y(0));
+          return `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0.5, h).toFixed(1)}" rx="1.5" fill="${item.color}" fill-opacity="${fade(item)}"/>`;
+        }).join('')).join('')
+      : spec.list.map(item => {
+          const pts = (vals) => vals.map((v, i) => v === null ? null : `${cx(i).toFixed(1)},${y(v).toFixed(1)}`);
+          if (item.band) return `<polygon points="${[...pts(item.values), ...pts(item.band).reverse()].filter(Boolean).join(' ')}" fill="${item.color}" fill-opacity=".16"/>`;
+          return `<polyline points="${pts(item.values).filter(Boolean).join(' ')}" fill="none" stroke="${item.color}" stroke-opacity="${fade(item)}" stroke-width="2" stroke-linejoin="round"${item.shade ? ` stroke-dasharray="${item.shade === 1 ? '6 4' : '2 3'}"` : ''}/>`;
+        }).join('');
+    // Hover: a column per time with a line, dots and a box listing the values.
+    const shown = spec.list.filter(item => !item.band);
+    const hover = starts.map((t, i) => {
+      const rows = [fmtFull(t), ...shown.map(item => `${item.name}: ${num(item.values[i], spec.unit)}`)];
+      if (spec.list.some(item => item.band)) rows.push(`Low to high: ${num(spec.list.find(item => item.band).band[i], '%')} – ${num(spec.list.find(item => item.band).values[i], '%')}`);
+      const bw = Math.max(...rows.map(r => r.length)) * 6.4 + 16, bh = rows.length * 15 + 10;
+      const bx = cx(i) + 10 + bw > W ? cx(i) - 10 - bw : cx(i) + 10;
+      const dots = spec.kind === 'line' ? shown.map(item => item.values[i] === null ? '' : `<circle cx="${cx(i).toFixed(1)}" cy="${y(item.values[i]).toFixed(1)}" r="3.5" fill="${item.color}"/>`).join('') : '';
+      return `<g class="hv"><rect class="hit" x="${(L + i * slot).toFixed(1)}" y="${T}" width="${slot.toFixed(1)}" height="${H - T - B}"/>
+        <g class="tip"><line x1="${cx(i).toFixed(1)}" x2="${cx(i).toFixed(1)}" y1="${T}" y2="${H - B}" stroke="${cfg.c.muted}" stroke-dasharray="3 3"/>${dots}
+        <rect x="${bx.toFixed(1)}" y="${T + 2}" width="${bw.toFixed(1)}" height="${bh}" rx="6" fill="#0d141c" stroke="${cfg.c.line}"/>
+        ${rows.map((r, j) => `<text class="${j ? 'tv' : 'th'}" x="${(bx + 8).toFixed(1)}" y="${T + 18 + j * 15}">${esc(r)}</text>`).join('')}</g></g>`;
     }).join('');
-    return `<div class="ch"><div class="tt">${title}</div>${legend(list.filter(item => !item.band).map(item => [item.name, item.color, '', item.shade]))}
-      <svg viewBox="0 0 ${W} ${H}">${axis(max, unit)}${lines}${xLabels(n)}</svg></div>`;
+    return `<svg viewBox="0 0 ${W} ${H}">${grid}${marks}${xl}${hover}</svg>`;
   };
+  const small = spec => `<div class="ch" role="button" tabindex="0" data-chart="${spec.id}" onclick="event.stopPropagation();window.__dwellHistUi.open(this)" onkeydown="if(event.key==='Enter')window.__dwellHistUi.open(this)">
+    <div class="tt">${spec.title}<span class="zoom">Open</span></div>${legend(spec.list.filter(item => !item.band).map(item => [item.name, item.color, spec.unit === 'kWh' ? num(total(item.values), 'kWh') : '', item.shade]))}${chart(spec, 600, 180)}</div>`;
+  // The large view: the chart, a summary per line, every value in a table, and a CSV download.
+  const big = id => {
+    const spec = specs(st.data).find(item => item.id === id);
+    if (!spec) return '';
+    const shown = spec.list.filter(item => !item.band);
+    const stats = shown.map(item => {
+      const v = item.values.filter(x => x !== null);
+      const avg = v.length ? total(v) / v.length : null;
+      return `<tr><td><i style="background:${item.color};opacity:${fade(item)}"></i>${esc(item.name)}</td>${spec.unit === 'kWh' ? `<td>${num(total(v), 'kWh')}</td>` : ''}<td>${num(avg, spec.unit)}</td><td>${num(v.length ? Math.min(...v) : null, spec.unit)}</td><td>${num(v.length ? Math.max(...v) : null, spec.unit)}</td></tr>`;
+    }).join('');
+    const rows = st.data.starts.map((t, i) => `<tr><td>${fmtFull(t)}</td>${shown.map(item => `<td>${num(item.values[i], spec.unit)}</td>`).join('')}</tr>`).reverse().join('');
+    const csv = ['Time,' + shown.map(item => `"${item.name}"`).join(','), ...st.data.starts.map((t, i) => [new Date(t).toISOString(), ...shown.map(item => item.values[i] ?? '')].join(','))].join('\n');
+    return `${bigStyle}<div class="ov" onclick="if(event.target===this)window.__dwellHistUi.close(this)"><div class="pn" role="dialog" aria-modal="true" aria-label="${esc(spec.title)}">
+      <div class="ph"><div class="pt">${spec.title}<div class="ps">${esc(RANGES.find(r => r[0] === st.range)?.[1] || '')}</div></div>
+        <a class="dl" download="dwelldeck-${spec.id}.csv" href="data:text/csv;charset=utf-8,${encodeURIComponent(csv)}">Download CSV</a>
+        <button class="x" aria-label="Close" onclick="event.stopPropagation();window.__dwellHistUi.close(this)">✕</button></div>
+      ${legend(shown.map(item => [item.name, item.color, '', item.shade]))}
+      <div class="bigc">${chart(spec, 1000, 340)}</div>
+      <table class="sum"><tr><th></th>${spec.unit === 'kWh' ? '<th>Total</th>' : ''}<th>Average</th><th>Lowest</th><th>Highest</th></tr>${stats}</table>
+      <div class="tw"><table class="dt"><tr><th>Time</th>${shown.map(item => `<th>${esc(item.name)}</th>`).join('')}</tr>${rows}</table></div>
+    </div></div>`;
+  };
+  const bigStyle = `<style>
+    .dwh{font-family:'Atkinson Hyperlegible Next','Atkinson Hyperlegible',Roboto,system-ui,sans-serif}
+.dwh .ov{position:fixed;inset:0;z-index:9999;background:rgba(3,8,16,.78);display:grid;place-items:center;padding:16px;cursor:default}
+.dwh .pn{width:min(1100px,100%);max-height:calc(100vh - 32px);overflow:auto;box-sizing:border-box;padding:18px;border-radius:20px;background:#141c26;border:1px solid ${cfg.c.line};display:grid;gap:12px}
+.dwh .ph{display:flex;align-items:flex-start;gap:12px}
+.dwh .pt{flex:1;font-size:18px;font-weight:600;color:${cfg.c.text}}
+.dwh .ps{font-size:13px;font-weight:400;color:${cfg.c.muted};margin-top:2px}
+.dwh .dl{font-size:14px;color:${cfg.c.onText};text-decoration:none;border:1px solid ${cfg.c.on};border-radius:10px;padding:8px 12px}
+.dwh .x{all:unset;cursor:pointer;width:36px;height:36px;display:grid;place-items:center;border-radius:10px;color:${cfg.c.text};background:rgba(255,255,255,.06)}
+.dwh .x:focus-visible,.dwh .dl:focus-visible{outline:2px solid ${cfg.c.onText};outline-offset:2px}
+.dwh .bigc svg{display:block;width:100%;height:auto}
+.dwh .bigc text{font-size:12px;fill:${cfg.c.muted};font-family:inherit}
+.dwh .sum,.dwh .dt{width:100%;border-collapse:collapse;font-size:13.5px;color:${cfg.c.text};font-variant-numeric:tabular-nums}
+.dwh .sum th,.dwh .dt th{text-align:left;font-weight:600;color:${cfg.c.muted};padding:6px 8px;border-bottom:1px solid ${cfg.c.line};position:sticky;top:0;background:#141c26}
+.dwh .sum td,.dwh .dt td{padding:6px 8px;border-bottom:1px solid ${cfg.c.line}}
+.dwh .sum i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px}
+.dwh .tw{max-height:280px;overflow:auto;border-radius:12px;background:rgba(0,0,0,.18)}
+
+    .dwh .hv .hit{fill:transparent}
+    .dwh .hv .tip{display:none;pointer-events:none}
+    .dwh .hv:hover .tip{display:inline}
+    .dwh .hv:hover .hit{fill:rgba(255,255,255,.04)}
+    .dwh svg .th{font-size:12.5px;font-weight:600;fill:${cfg.c.text}}
+    .dwh svg .tv{font-size:12.5px;fill:${cfg.c.text}}
+    .dwh .lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:${cfg.c.muted}}
+    .dwh .lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  </style>`;
+  window.__dwellHistBig = window.__dwellHistBig || {};
+  window.__dwellHistBig[cfg.key] = big;
   const render = () => {
     const d = st.data;
-    const per = d?.period === 'hour' ? 'per hour' : 'per day';
-    const charts = !d ? `<div class="msg">Loading history…</div>` : d.error ? `<div class="msg">${esc(d.error)}</div>` : !d.starts.length ? `<div class="msg">No history for these dates.</div>` : [
-      barChart(`Solar and home, kWh ${per}`, 'kWh', [...paint(d.solarE, '#f2c14e'), ...paint(d.homeE, '#b9a3e3')]),
-      barChart(`Battery and grid, kWh ${per}`, 'kWh', [...paint(d.charge, '#a8c49a'), ...paint(d.discharge, '#6f9a6a'), ...paint(d.import, '#8fb8d0'), ...paint(d.export, '#5d8aa6')]),
-      lineChart(`Solar and home power (W), average ${per}`, 'W', [...paint(d.solarW, '#f2c14e'), ...paint(d.homeW, '#b9a3e3')]),
-      lineChart('Battery level, %', '%', [...(d.socMax[0] ? [{name: 'Low to high', color: '#a8c49a', values: d.socMax[0].values, band: d.socMin[0].values}] : []), ...paint(d.soc, '#a8c49a')], 100)
-    ].join('') || `<div class="msg">No energy history yet.</div>`;
+    const charts = !d ? `<div class="msg">Loading history…</div>` : d.error ? `<div class="msg">${esc(d.error)}</div>` : !d.starts.length ? `<div class="msg">No history for these dates.</div>`
+      : specs(d).map(small).join('') || `<div class="msg">No energy history yet.</div>`;
     return `<div class="eh" data-key="${cfg.key}">
       <div class="bar"><select class="rg" aria-label="Dates" onchange="event.stopPropagation();window.__dwellHistUi.pick(this)">${RANGES.map(([v, label]) => `<option value="${v}"${v === st.range ? ' selected' : ''}>${label}</option>`).join('')}</select>
         <span class="custom"${st.range === 'custom' ? '' : ' hidden'}><input class="from" type="date" value="${st.from}" aria-label="From"><span class="to-word">to</span><input class="to" type="date" value="${st.to}" aria-label="To">
@@ -360,6 +441,16 @@ function dwellEnergyHistory(card, hass, cfg) {
     .ch svg{display:block;width:100%;height:auto}
     .ch text{font-size:11px;fill:${cfg.c.muted};font-family:inherit}
     .msg{padding:24px;text-align:center;color:${cfg.c.muted};font-size:14px;grid-column:1/-1}
+    .ch{cursor:pointer}
+    .ch:hover{background:rgba(0,0,0,.26)}
+    .ch:focus-visible{outline:2px solid ${cfg.c.onText};outline-offset:2px}
+    .zoom{float:right;font-size:12px;font-weight:500;color:${cfg.c.muted}}
+    .hv .hit{fill:transparent}
+    .hv .tip{display:none;pointer-events:none}
+    .hv:hover .tip{display:inline}
+    .hv:hover .hit{fill:rgba(255,255,255,.04)}
+    svg .th{font-size:11.5px;font-weight:600;fill:${cfg.c.text}}
+    svg .tv{font-size:11.5px;fill:${cfg.c.text}}
   </style>`;
   // Load when shown, and again every five minutes or when the day changes.
   if (hass?.callWS) setTimeout(() => load(), 0);
