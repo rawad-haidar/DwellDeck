@@ -13,10 +13,10 @@
   "template room by entities": "ef86bb3be2bc042d8f2df6f63d0361661977f38f0910374e9cc847a05868add5",
   "template room by area with controls": "e7cad84420db950a174fbd24457c202b57fce61bb036b30455b6d3073ae97aa4",
   "extra rooms": "3224a96feef26f403ea31fb3a459ac931c138938cfe02bf6ce84c110b1d87b41",
-  "area rooms": "315d6bad6c42bbe533ff7d0258eb9a16ef076e8f8c06f4286476fd318938f0ff",
-  "auto discover": "740cfb77ba47b55c0705adb0deba8c1ebad36d2589a39eed96c9335468a5c6a6",
+  "area rooms": "5e35c799f61487b0aef19625176795b04532216c69054409fbcdf12bea16682b",
+  "auto discover": "40adf42581f1e464872d4c0f1bbaa2b733a74cb0a6c919eaada3468ff1c8456f",
   "system font": "d152e22f12b1125d9e094e1da57c28af38f58cc9497dfc8c0236a13a133df624",
-  "auto discover keeps bindings": "201a87c21a6c77add761731170899440f62d46b0565cbe25e6e017ef03cdaf02",
+  "auto discover keeps bindings": "b63563e6df77349c5efed7ecd37432decc7f757cdab337c9d3f636abd42286af",
   "discoverConfiguration": "1ab7c63c028b940af6cdd253c40cfb16c6bf17c39ce2265c28444423fe0adabf",
-  "strategy generate with discovery": "740cfb77ba47b55c0705adb0deba8c1ebad36d2589a39eed96c9335468a5c6a6"
+  "strategy generate with discovery": "40adf42581f1e464872d4c0f1bbaa2b733a74cb0a6c919eaada3468ff1c8456f"
 }
