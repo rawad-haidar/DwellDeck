@@ -205,8 +205,7 @@ ha-card {
 
 export function richEntityCard(id, hass) {
   const domain = id.split('.')[0];
-  if (domain === 'media_player') {
-    return {
+  if (domain === 'media_player') return mediaPlayerControls(id, hass, {
       type: 'media-control', entity: id,
       grid_options: {columns: 12, rows: 'auto'},
       card_mod: {style: stateCardStyle(id) + `
@@ -220,8 +219,7 @@ ha-card {
 {% endif %}
 ha-card { min-height: 180px; overflow: hidden; }
 `}
-    };
-  }
+    });
   if (domain === 'cover' || domain === 'climate') {
     const sourceView = ORIGINAL_TEMPLATE.views.find(view => view.path === (domain === 'cover' ? 'curtains' : 'climate'));
     let prototype;
@@ -250,6 +248,49 @@ ha-card { min-height: 180px; overflow: hidden; }
   }
   return null;
 }
+// Remote commands per integration. Both integrations create a remote entity on the TV's device.
+export const TV_REMOTES = {
+  androidtv_remote: {up: 'DPAD_UP', down: 'DPAD_DOWN', left: 'DPAD_LEFT', right: 'DPAD_RIGHT', ok: 'DPAD_CENTER', back: 'BACK', home: 'HOME', menu: 'MENU'},
+  apple_tv: {up: 'up', down: 'down', left: 'left', right: 'right', ok: 'select', back: 'menu', home: 'home', menu: 'top_menu'}
+};
+// The remote entity on the same device as the media player, if its integration is supported.
+export function tvRemote(id, hass) {
+  const device = hass.entities?.[id]?.device_id;
+  if (!device) return null;
+  const remote = Object.values(hass.entities || {}).find(entry => entry.device_id === device && entry.entity_id?.startsWith('remote.') && TV_REMOTES[entry.platform]);
+  return remote ? {id: remote.entity_id, commands: TV_REMOTES[remote.platform]} : null;
+}
+const padButton = (name, icon, action) => ({
+  type: 'button', name, icon, show_name: false, show_state: false, tap_action: action, hold_action: {action: 'none'},
+  card_mod: {style: 'ha-card{background:linear-gradient(135deg,#1b2d40,#172638);border:1px solid rgba(156,199,225,.12);border-radius:12px;box-shadow:none;min-height:56px;} ha-card:active{background:#493b24;}'}
+});
+// TV and speaker controls: the media card, then playback, volume and apps, then a remote pad when the TV has a remote entity.
+export function mediaPlayerControls(id, hass, mediaCard) {
+  const attributes = hass.states?.[id]?.attributes || {};
+  const name = attributes.friendly_name || hass.entities?.[id]?.name || hass.entities?.[id]?.original_name || id.split('.')[1].replaceAll('_', ' ');
+  const features = [{type: 'media-player-playback'}, {type: 'media-player-volume-slider'}];
+  if (attributes.source_list?.length) features.push({type: 'media-player-source'});
+  const cards = [mediaCard, {
+    type: 'tile', entity: id, name, vertical: false, features_position: 'bottom', features,
+    state_content: ['state', 'source', 'media_title'],
+    tap_action: {action: 'more-info'}, icon_tap_action: {action: 'toggle'}, hold_action: {action: 'more-info'},
+    card_mod: {style: stateCardStyle(id)}
+  }];
+  const remote = tvRemote(id, hass);
+  if (remote) {
+    const send = command => ({action: 'perform-action', perform_action: 'remote.send_command', target: {entity_id: remote.id}, data: {command}});
+    const c = remote.commands;
+    cards.push({type: 'grid', columns: 3, square: false, cards: [
+      padButton('Back', 'mdi:arrow-left', send(c.back)), padButton('Up', 'mdi:chevron-up', send(c.up)), padButton('Home', 'mdi:home-outline', send(c.home)),
+      padButton('Left', 'mdi:chevron-left', send(c.left)), padButton('OK', 'mdi:circle-medium', send(c.ok)), padButton('Right', 'mdi:chevron-right', send(c.right)),
+      padButton('Power', 'mdi:power', {action: 'perform-action', perform_action: 'media_player.toggle', target: {entity_id: id}}),
+      padButton('Down', 'mdi:chevron-down', send(c.down)),
+      padButton('Apps and media', 'mdi:apps', {action: 'more-info'})
+    ].map(button => button.tap_action.action === 'more-info' ? {...button, entity: id} : button)});
+  }
+  return {type: 'vertical-stack', grid_options: mediaCard.grid_options, cards};
+}
+
 export function floorEntitySections(ids, hass, prototype, icon) {
   const floors = Object.values(hass.floors || {}).sort((a, b) =>
     (a.level ?? -1) - (b.level ?? -1) || a.name.localeCompare(b.name));

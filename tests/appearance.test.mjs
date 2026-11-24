@@ -81,3 +81,16 @@ test('Home weather is the live hero card spanning two columns',()=>{
  assert(!card.custom_fields.sky.slice(3,-3).includes(']]]'));
  assert(card.custom_fields.sky.includes('prefers-reduced-motion'));
 });
+test('TVs in discovered rooms get playback, volume, apps and a remote pad for their integration',()=>{
+ const st=(id,a={})=>({entity_id:id,state:'on',attributes:{friendly_name:id,...a}});
+ const ents=[['media_player.tv','androidtv_remote','d1',{}],['remote.tv','androidtv_remote','d1',{}],['media_player.atv','apple_tv','d2',{source_list:['Netflix']}],['remote.atv','apple_tv','d2',{}]];
+ const hass={states:Object.fromEntries(ents.map(([id,,,a])=>[id,st(id,a)])),services:{browser_mod:{popup:{}}},areas:{a:{area_id:'a',name:'Living room',labels:[]}},floors:{},labels:{},
+  devices:{d1:{id:'d1',area_id:'a'},d2:{id:'d2',area_id:'a'}},entities:Object.fromEntries(ents.map(([id,platform,device_id])=>[id,{entity_id:id,platform,device_id,area_id:'a'}]))};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const stacks=[];const find=x=>{if(x&&typeof x==='object'){if(x.type==='vertical-stack'&&x.cards?.[0]?.type==='media-control')stacks.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ const tv=stacks.find(s=>s.cards[0].entity==='media_player.tv');const atv=stacks.find(s=>s.cards[0].entity==='media_player.atv');
+ const commands=s=>s.cards[2].cards.map(b=>b.tap_action.data?.command).filter(Boolean);
+ assert(commands(tv).includes('DPAD_CENTER')&&commands(atv).includes('select'));
+ assert(atv.cards[1].features.some(f=>f.type==='media-player-source'));
+ assert(tv.cards[2].cards.every(b=>!b.tap_action.target||b.tap_action.target.entity_id));
+});
