@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.32 — Modern tabs
+
+- **The dashboard's tab bar** (Home, Rooms, Lights, …) is restyled: each tab is a rounded pill, the open tab is filled with the palette's accent (amber in Lamplight, cyan in Ocean blue, and so on) with a soft glow, and the other tabs light up under the pointer with their icon lifting slightly. The old underline is gone. It only applies on DwellDeck dashboards, follows the chosen palette, and respects reduced motion. Set `modern_tabs: false` in the dashboard's configuration to keep Home Assistant's own tabs.
+
 ## 0.9.31 — One card per Android TV, Recently played on top
 
 - **An Android TV added through both Android TV integrations is one TV**, even when they named it differently ("Living Tv" by Android Debug Bridge, "Living 2F TV Pro" by Android TV Remote): when a room has one TV of each, they are the same TV. The card keeps the name you gave the TV, and shows the app from Android TV Remote (ADB on newer Google TVs keeps reporting the home screen). Its remote, room chip and Recently played use both.
