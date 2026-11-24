@@ -342,9 +342,9 @@ test('room cards show a summary, status chips and a lights button; rooms open wi
  assert.equal(Function('states',card.label.trim().slice(3,-3))(states),'1 of 2 lights on');
  globalThis.window=globalThis.window||{};
  const chips=Function('states',card.custom_fields.chips.trim().slice(3,-3))(states).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
- for(const text of ['26.9°C','Cooling 22°','TV on'])assert(chips.includes(text),text);
- assert(!chips.includes('55%')&&!chips.includes('Motion'),'card shows three chips');
- assert.deepEqual(card.grid_options,{columns:6,rows:2});
+ for(const text of ['26.9°C','Cooling 22°','TV on','Motion'])assert(chips.indexOf(text)<chips.indexOf('55%'),text);
+ assert(card.styles.card.some(o=>o.height==='128px'));
+ assert(card.custom_fields.chips.includes('height:28px;overflow:hidden'));
  const strip=card.tap_action.browser_mod.data.content.cards[0];
  const stripText=Function('states',strip.custom_fields.chips.trim().slice(3,-3))(states).replace(/<[^>]+>/g,' ');
  for(const text of ['26.9°C','55%','Cooling 22°','TV on','Motion'])assert(stripText.includes(text),text);

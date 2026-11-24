@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.21 — Fixed room card height
+
+- Room cards have their own fixed height (128px), so cards with and without chips are identical even when the content would stretch the grid row.
+- The chip row is exactly one chip high: chips that don't fit whole are hidden instead of being cut off, most important first.
+
 ## 0.9.20 — Identical room cards
 
 - Every room card is the same size (two rows of the sections grid), with the icon, name, lights button and chips in the same place on every card.
