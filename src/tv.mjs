@@ -67,20 +67,27 @@ const FEATURE = {pause: 1, volumeSet: 4, turnOn: 128, turnOff: 256, volumeStep: 
 const supports = (id, hass, bits) => (Number(hass.states?.[id]?.attributes?.supported_features) & bits) !== 0;
 // The first entry of the TV (lead first) that supports an action, so each button reaches an entry that can do it.
 const playerFor = (players, hass, bits) => players.find(id => supports(id, hass, bits));
+// Hidden entries still join their TV (a hidden "Saloon TV" can lead the card); disabled ones and
+// entries without a state do not.
 export function tvGroup(id, hass) {
   const base = baseName(id, hass);
   const area = entityArea(id, hass);
-  const players = Object.keys(hass.entities || hass.states || {}).filter(other => other.startsWith('media_player.'));
-  const peers = base ? players.filter(other => other !== id && entityArea(other, hass) === area && baseName(other, hass) === base &&
-    !hass.entities?.[other]?.hidden_by && !hass.entities?.[other]?.disabled_by) : [];
+  const players = [...new Set([...Object.keys(hass.entities || {}), ...Object.keys(hass.states || {})])]
+    .filter(other => other.startsWith('media_player.') && hass.states?.[other] && !hass.entities?.[other]?.disabled_by);
+  const peers = base ? players.filter(other => other !== id && entityArea(other, hass) === area && baseName(other, hass) === base) : [];
   return [id, ...peers].sort((a, b) => rank(a, hass) - rank(b, hass) || a.localeCompare(b));
 }
-// Drops the extra players of a merged TV when the leading player is in the same list.
-export const withoutDuplicatePlayers = (ids, hass) => ids.filter(id => {
-  if (!id.startsWith('media_player.')) return true;
-  const lead = tvGroup(id, hass)[0];
-  return lead === id || !ids.includes(lead);
-});
+// One card per TV: keeps the first entry of each TV in the list and drops the rest.
+export const withoutDuplicatePlayers = (ids, hass) => {
+  const seen = new Set();
+  return ids.filter(id => {
+    if (!id.startsWith('media_player.')) return true;
+    const lead = tvGroup(id, hass)[0];
+    if (seen.has(lead)) return false;
+    seen.add(lead);
+    return true;
+  });
+};
 
 // Friendly names for common Android TV packages; other package names are system services and are hidden.
 const KNOWN_PACKAGES = {
@@ -314,7 +321,8 @@ export function tvCard(requested, hass) {
   };
 
   // One console line per TV, so a setup can be checked from the browser console (F12).
-  if (typeof document !== 'undefined' && typeof console !== 'undefined') {
+  const logged = typeof window !== 'undefined' ? (window.__dwellTvLogged ||= new Set()) : null;
+  if (typeof document !== 'undefined' && typeof console !== 'undefined' && !logged?.has(id) && logged?.add(id)) {
     console.info(`DwellDeck TV "${name}": entries ${players.join(', ')}; remote ${remote ? `${remote.id} (${remote.platform})` : 'none'}; ` +
       `power ${power.perform_action} ${power.target?.entity_id}; volume ${volumePlayer}; play ${playPlayer}`);
   }

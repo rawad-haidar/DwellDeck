@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.10 — Hidden TV entries lead their card
+
+- A TV entry hidden in Home Assistant still joins its TV and can lead the card. On the Saloon TV the real player was hidden, so the card fell back to the disconnected ADB entry.
+- A TV never produces two cards when several of its entries are in a room.
+- The browser console shows one line per TV with its entries and where Power, Volume and Play go.
+
 ## 0.9.9 — TV buttons reach an entry that supports them
 
 - Power goes to an entry of the TV that can turn on and off, else to the TV remote (`remote.toggle`), else to ADB's power key. Fixes "does not support action media_player.toggle" when a cast or speaker entry led the card.

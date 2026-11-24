@@ -218,3 +218,26 @@ test('power goes to an entry that can turn on and off, else to the TV remote',()
  const power=cards[0].custom_fields.power.card.tap_action;
  assert.equal(power.perform_action,'remote.toggle');assert.equal(power.target.entity_id,'remote.den_tv');
 });
+test('a hidden TV entry still leads its card, and a TV never gets two cards',()=>{
+ const E=(entity_id,platform,device_id,area_id,extra={})=>({entity_id,platform,device_id,area_id,...extra});
+ const st=(state,attributes)=>({state,attributes});
+ const states={
+  'media_player.saloon_saloon_tv':st('on',{app_name:'com.google.android.youtube.tv',device_class:'tv',friendly_name:'Saloon TV',supported_features:153529}),
+  'media_player.saloon_saloon_tv_adb':st('off',{device_class:'tv',friendly_name:'Saloon TV ADB',supported_features:23997}),
+  'media_player.saloon_tv_2':st('paused',{media_title:'Home Assistant',friendly_name:'Saloon TV(192.168.14.187) Saloon TV(192.168.14.246)',supported_features:479807}),
+  'remote.saloon_tv':st('on',{activity_list:[],current_activity:'com.google.android.youtube.tv',friendly_name:'Saloon TV'})};
+ const entities={
+  'media_player.saloon_saloon_tv':E('media_player.saloon_saloon_tv','x','dA','saloon',{hidden_by:'user'}),
+  'remote.saloon_tv':E('remote.saloon_tv','x','dA','saloon'),
+  'media_player.saloon_saloon_tv_adb':E('media_player.saloon_saloon_tv_adb','androidtv','dB','saloon'),
+  'media_player.saloon_tv_2':E('media_player.saloon_tv_2','dlna_dmr','dC','saloon')};
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{saloon:{area_id:'saloon',name:'Saloon',labels:[]}},floors:{},labels:{},devices:{},entities};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const cards=[];const find=x=>{if(x&&typeof x==='object'){if(x.custom_fields?.media&&x.entity)cards.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ assert.equal(cards.length,1);
+ const tv=cards[0];
+ assert.equal(tv.entity,'media_player.saloon_saloon_tv');
+ assert.equal(tv.custom_fields.power.card.tap_action.target.entity_id,'media_player.saloon_saloon_tv');
+ assert.equal(tv.custom_fields.media.card.custom_fields.play.card.tap_action.target.entity_id,'media_player.saloon_saloon_tv');
+ assert(panel(tv,states).calls.some(c=>c[2].entity_id==='remote.saloon_tv'&&c[2].command==='DPAD_UP'));
+});
