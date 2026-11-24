@@ -416,6 +416,8 @@ export function tvCard(requested, hass) {
     const m=(lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || live.find(p=>p.state==='playing') || lead;
     const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'};
     const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || live.map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
+  // One on/off rule for the status, the TV icon and the power button: the entry the status uses is on.
+  const isOn = `${current} const on = !!m && !OFFS.includes(m.state);`;
   const canSwitch = remote?.platform === 'androidtv_remote' || players.some(p =>
     (Number(hass.states?.[p]?.attributes?.supported_features) & 2048) || hass.states?.[p]?.attributes?.source_list?.length);
   const cfg = {
@@ -441,12 +443,16 @@ export function tvCard(requested, hass) {
       `power ${power.perform_action} ${power.target?.entity_id}; volume ${volumePlayer}; play ${playPlayer}`);
   }
   const fields = {
+    // Power follows the same on/off as the status line, and updates live (it watches every entry of the TV).
     power: {card: {
-      ...key('Power', 'mdi:power', power), entity: powerPlayer || id, triggers_update: [],
-      styles: {...key('Power', 'mdi:power').styles, card: [
-        {background: `[[[ return ${OFF}.includes(entity?.state) ? 'linear-gradient(135deg,${C.surface},${C.surfaceEnd})' : 'linear-gradient(135deg,${C.onBg},${C.surfaceEnd})'; ]]]`},
-        {border: `[[[ return ${OFF}.includes(entity?.state) ? '1px solid ${C.line}' : '1px solid ${C.on}'; ]]]`},
-        {'border-radius': '50%'}, {'box-shadow': 'none'}, {width: '46px'}, {height: '46px'}, {padding: '0'}]}
+      ...key('Power', 'mdi:power', power), entity: powerPlayer || id, triggers_update: watched, variables: {dwell_static: true},
+      styles: {...key('Power', 'mdi:power').styles,
+        icon: [{width: '24px'}, {color: `[[[ ${isOn} return on ? '${C.card}' : '${C.muted}'; ]]]`}],
+        card: [
+          {background: `[[[ ${isOn} return on ? '${C.on}' : 'transparent'; ]]]`},
+          {border: `[[[ ${isOn} return on ? '1px solid ${C.on}' : '1px solid ${C.line}'; ]]]`},
+          {'border-radius': '50%'}, {'box-shadow': `[[[ ${isOn} return on ? '0 0 14px rgba(213,167,76,.35)' : 'none'; ]]]`},
+          {width: '46px'}, {height: '46px'}, {padding: '0'}, {transition: 'background .3s ease, box-shadow .3s ease'}]}
     }},
     media: {card: group('"down play up"', 'repeat(3,1fr)', {
       down: key('Volume down', 'mdi:volume-minus', player('volume_down', volumePlayer)),
@@ -495,7 +501,7 @@ export function tvCard(requested, hass) {
         {background: `[[[ const p = entity?.attributes?.entity_picture; return entity?.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
       grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '40px minmax(0,1fr) 46px'}, {gap: '2px 12px'}, {'align-items': 'center'}],
       img_cell: [{'justify-content': 'flex-start'}, {width: '40px'}, {height: '40px'}],
-      icon: [{width: '28px'}, {color: `[[[ return ${OFF}.includes(entity?.state) ? '${C.muted}' : '${C.onText}'; ]]]`}],
+      icon: [{width: '28px'}, {color: `[[[ ${isOn} return on ? '${C.onText}' : '${C.muted}'; ]]]`}],
       name: [{'justify-self': 'start'}, {'align-self': 'end'}, {'font-size': '17px'}, {'font-weight': '600'}, {color: C.text}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: C.muted}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       custom_fields: {power: [{'justify-self': 'end'}], now: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {padding: '10px 12px'}, {'border-radius': '14px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${C.line}`}], media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}],

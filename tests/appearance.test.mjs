@@ -296,3 +296,16 @@ test('a real TCL Google TV app list from ADB gives readable apps and Live TV in 
  assert.deepEqual(p.names('sources'),['Home','Live TV','HDMI 1','HDMI 2','HDMI 3','HDMI 4','Inputs']);
  assert(p.calls.some(c=>c[0]==='androidtv'&&c[2].command.startsWith('monkey -p com.tcl.tv ')));
 });
+test('the power button is plain when the TV is off and orange when it is on, matching the status',()=>{
+ const make=state=>({'media_player.kitchen_tv':{state,attributes:{friendly_name:'Kitchen Tv',device_class:'tv',supported_features:153529}}});
+ const hass={states:make('off'),services:{browser_mod:{popup:{}}},areas:{k:{area_id:'k',name:'Kitchen',labels:[]}},floors:{},labels:{},devices:{},
+  entities:{'media_player.kitchen_tv':{entity_id:'media_player.kitchen_tv',platform:'cast',device_id:'d1',area_id:'k'}}};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const cards=[];const find=x=>{if(x&&typeof x==='object'){if(x.custom_fields?.media&&x.entity)cards.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ const power=cards[0].custom_fields.power.card;
+ const style=(states,key)=>{const t=power.styles.card.find(o=>key in o)[key];return Function('states','entity',t.trim().slice(3,-3))(states,states['media_player.kitchen_tv']);};
+ const label=states=>Function('states',cards[0].label.trim().slice(3,-3))(states);
+ assert.equal(style(make('off'),'background'),'transparent');assert.equal(label(make('off')),'Off');
+ assert.notEqual(style(make('on'),'background'),'transparent');assert.equal(label(make('on')),'On');
+ assert.deepEqual(power.triggers_update,['media_player.kitchen_tv']);
+});

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.16 — Power button follows the TV
+
+- The power button is plain with a grey icon when the TV is off, and filled orange when it is on.
+- It updates live and uses the same on/off as the status line and the TV icon; before, it kept the state it had when the page loaded.
+
 ## 0.9.15 — Readable apps on TCL Google TVs
 
 - App names for packages seen on TCL Google TVs (Disney+ MEA, Shahid TV, TOD, iQIYI, Yango Play and others); unknown packages split camelCase into words.
