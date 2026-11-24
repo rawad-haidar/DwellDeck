@@ -10,6 +10,7 @@ import {designHome} from './home.mjs';
 import {designSecurity} from './security.mjs';
 import {designEnergy} from './energy.mjs';
 import {designClimate} from './climate.mjs';
+import {designMusic} from './music.mjs';
 import {LABELS} from './data.mjs';
 
 export function inferDashboardPath(config, pathname = '') {
@@ -110,6 +111,7 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
   designSecurity(output, {prefix});
   designEnergy(output, {config, hass});
   designClimate(output, {hass});
+  designMusic(output, config);
   // Rows in entity lists (history graphs, mini graphs, entities cards) are not cards:
   // drop unselected rows, and hint only when a card has no selected rows left.
   const unselected = row => (typeof row === 'string' ? row : row?.entity)?.includes?.('.dwelldeck_slot_');
@@ -135,6 +137,9 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
       Object.assign(item,{type:'markdown',content:'### Music Assistant\nChoose your Music Assistant app path in DwellDeck setup.'});
     }
   });
+  // Tiles colour by state on their own; the old "state" value is no longer understood and leaves
+  // sliders (curtain position, light brightness) without a colour, so only their handle shows.
+  visit(output, item => { if (item.type === 'tile' && item.color === 'state') delete item.color; });
   if(!config.theme && config.builtin_colors!==false)addBuiltinColors(output);
   addLivingDesign(output);
   return applyDwellPalette(applyDesignRefresh(output, config), config.color_palette || DEFAULT_PALETTE);

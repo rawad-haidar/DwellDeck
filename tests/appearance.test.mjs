@@ -335,7 +335,7 @@ test('room cards show a summary, status chips and a lights button; rooms open wi
   'binary_sensor.saloon_motion':st('on',{device_class:'motion',friendly_name:'Saloon Motion'}),
   'climate.saloon_ac':st('cool',{hvac_action:'cooling',temperature:22,friendly_name:'Saloon AC',hvac_modes:['off','cool']}),
   'media_player.saloon_tv':st('on',{device_class:'tv',friendly_name:'Saloon TV'})};
- const E=id=>({entity_id:id,platform:'x',device_id:'d',area_id:'saloon'});
+ const E=id=>({entity_id:id,area_id:id.includes('kitchen_tv')||id.includes('kitchen_kitch')?'kitchen':undefined,platform:'x',device_id:'d',area_id:'saloon'});
  const hass={states,services:{browser_mod:{popup:{}}},areas:{saloon:{area_id:'saloon',name:'Saloon',labels:[]}},floors:{},labels:{},devices:{d:{id:'d',area_id:'saloon'}},
   entities:Object.fromEntries(Object.keys(states).map(id=>[id,E(id)]))};
  const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
@@ -374,7 +374,7 @@ test('room temperature averages the room\'s sensors, or the sensors chosen for t
   'sensor.den_t1':st('26',{device_class:'temperature',unit_of_measurement:'°C'}),'sensor.den_t2':st('22',{device_class:'temperature',unit_of_measurement:'°C'}),
   'sensor.den_t3':st('unavailable',{device_class:'temperature',unit_of_measurement:'°C'}),
   'sensor.hall_t':st('19',{device_class:'temperature',unit_of_measurement:'°C'})};
- const E=(id,area)=>({entity_id:id,platform:'x',area_id:area});
+ const E=(id,area)=>({entity_id:id,area_id:id.includes('kitchen_tv')||id.includes('kitchen_kitch')?'kitchen':undefined,platform:'x',area_id:area});
  const hass={states,services:{browser_mod:{popup:{}}},areas:{den:{area_id:'den',name:'Den',labels:[]},hall:{area_id:'hall',name:'Hall',labels:[]}},floors:{},labels:{},devices:{},
   entities:{'light.den_a':E('light.den_a','den'),'sensor.den_t1':E('sensor.den_t1','den'),'sensor.den_t2':E('sensor.den_t2','den'),'sensor.den_t3':E('sensor.den_t3','den'),'sensor.hall_t':E('sensor.hall_t','hall')}};
  const den=config=>{
@@ -514,4 +514,115 @@ test('cards with buttons inside take clicks (button-card turns them off on cards
  const fields=[];JSON.stringify(d,(k,v)=>{if(v&&v.type==='custom:button-card'&&v.tap_action?.action==='none'&&v.custom_fields)for(const [name,f] of Object.entries(v.custom_fields))if(typeof f==='string'&&/onclick=/.test(f))fields.push([name,v.styles?.custom_fields?.[name]]);return v;});
  assert(fields.length>=2);
  for(const [name,styles] of fields)assert((styles||[]).some(r=>r['pointer-events']==='auto'),name+' must accept clicks');
+});
+test('curtain "all" buttons call real cover actions, and tiles have no invalid colour',()=>{
+ const d=generate({});
+ const text=JSON.stringify(d.views.find(v=>v.path==='curtains'));
+ assert(!/"perform_action":"cover\.dwelldeck_slot_/.test(text),'actions are not entity slots');
+ for(const action of ['cover.open_cover','cover.stop_cover','cover.close_cover'])assert(text.includes(`"perform_action":"${action}"`),action);
+ assert(!JSON.stringify(d).includes('"color":"state"'));
+ assert(!/"perform_action":"[a-z_]+\.dwelldeck_slot_/.test(JSON.stringify(d)),'no action anywhere is an entity slot');
+ assert(JSON.stringify(d).includes('"perform_action":"media_player.media_pause"'));
+});
+test('sound system cards show only Sources, cards fill their row, floor names start with a capital',()=>{
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([st('media_player.pool_sound_system','off',{friendly_name:'Pool Sound System',source_list:['Bluetooth','Line in'],supported_features:2048}),st('media_player.bbq_sound_system','off',{friendly_name:'BBQ Sound System'}),st('light.pool_a','off')]);
+ const entities=Object.fromEntries(Object.keys(states).map(id=>[id,{entity_id:id,area_id:'pool',platform:'dsppa'}]));
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{pool:{area_id:'pool',name:'Pool Area',floor_id:'out',labels:[]}},floors:{out:{floor_id:'out',name:'outdoor',level:0}},labels:{},devices:{},entities};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const media=d.views.find(v=>v.path==='media');
+ const text=JSON.stringify(media);
+ assert(text.includes('Outdoor · Pool Area'),'capital floor name');
+ const pool=media.sections.flatMap(s=>s.cards).find(c=>c.name==='Pool Sound System');
+ const panel=Function('states',pool.custom_fields.panel.trim().slice(3,-3))(states);
+ assert(panel.includes('aria-label="Sources"')&&!panel.includes('aria-label="Apps"'),'sources only');
+ const bbq=media.sections.flatMap(s=>s.cards).find(c=>c.name==='BBQ Sound System');
+ assert(!bbq.custom_fields.panel,'no tabs without sources');
+ assert(pool.styles.card.some(r=>r.height==='100%')&&pool.extra_styles.includes(':host{display:block;height:100%}'));
+ assert(!JSON.stringify(d).includes('pause-circle-multiple'));
+});
+test('each sound system links to its Music Assistant player by name, and to the Music Assistant app',async()=>{
+ const {musicAssistantPlayer}=await import('../src/tv.mjs');
+ const st=(id,name,a={})=>[id,{entity_id:id,state:'idle',attributes:{friendly_name:name,...a}}];
+ const mass={mass_player_type:'player'};
+ const states=Object.fromEntries([st('media_player.dani_s_bedroom_daniel_dany_sound_system','Dany Sound System'),st('media_player.kitchen_kitch_kitchen_sound_system','Kitchen Sound System'),
+  st('media_player.mini_kitchen_m_kit_m_kitchen_sound_system','M.Kitchen Sound System'),st('media_player.saloon_saloon_sound_system','Saloon Sound System'),st('media_player.gym_gym_sound_system','Gym Sound System'),
+  st('media_player.dany','Dany',mass),st('media_player.dany_sound_system','Dany Sound System',mass),st('media_player.gym_sound_system','Gym Sound System',mass),st('media_player.kitchen','kitchen',mass),st('media_player.m_kitch','M.kitch',mass),st('media_player.saloon','saloon',mass),st('media_player.living','Living',mass),st('media_player.kitchen_tv','Kitchen TV(192.168.14.207)',mass)]);
+ const dsppa=id=>!states[id].attributes.mass_player_type||/_sound_system$/.test(id);
+ const entities=Object.fromEntries(Object.keys(states).map(id=>[id,{entity_id:id,area_id:id.includes('kitchen_tv')||id.includes('kitchen_kitch')?'kitchen':undefined,platform:states[id].attributes.mass_player_type?'music_assistant':'dsppa_am8328',device_id:id==='media_player.dani_s_bedroom_daniel_dany_sound_system'?'daniel':dsppa(id)?'zone':'streamer'}]));
+ const hass={states,entities,devices:{daniel:{name:'Daniel',manufacturer:'DSPPA'},zone:{manufacturer:'DSPPA'},streamer:{manufacturer:'Xspeed, Inc.'}},areas:{}};
+ const match=id=>musicAssistantPlayer([id],hass);
+ assert.equal(match('media_player.dani_s_bedroom_daniel_dany_sound_system'),'media_player.dany_sound_system','the same-name player, as used in Music Assistant');
+ assert.equal(match('media_player.kitchen_kitch_kitchen_sound_system'),'media_player.kitchen');
+ assert.equal(match('media_player.mini_kitchen_m_kit_m_kitchen_sound_system'),'media_player.m_kitch');
+ assert.equal(match('media_player.saloon_saloon_sound_system'),'media_player.saloon');
+ assert.equal(match('media_player.gym_gym_sound_system'),'media_player.gym_sound_system','no streamer: the zone in Music Assistant');
+ const {tvCard}=await import('../src/tv.mjs');
+ const card=tvCard('media_player.dani_s_bedroom_daniel_dany_sound_system',hass);
+ globalThis.window={};
+ const html=Function('states',card.custom_fields.ma.trim().slice(3,-3))(states);
+ assert(html.includes('data-entity="media_player.dany_sound_system"')&&html.includes('Music player')&&html.includes('Music Assistant</button>'));
+ assert(card.styles.grid[0]['grid-template-areas'].includes('"ma ma ma"'));
+ assert(card.styles.custom_fields.ma.some(r=>r['pointer-events']==='auto'));
+ assert.equal(typeof window.__dwellTvMa.app,'function');
+ assert(html.includes('data-name="Dany Sound System"'),'the app button carries the Music Assistant player name');
+ const pushed=[];globalThis.location={pathname:'/dashboard-dwelldeck/media'};globalThis.history={pushState:(a,b,path)=>pushed.push(path)};window.dispatchEvent=()=>{};globalThis.CustomEvent=class{};
+ window.__dwellTvMa.app({dataset:{}});
+ assert.deepEqual(pushed,['/dashboard-dwelldeck/music-assistant'],'DwellDeck\'s own Music Assistant page');
+});
+test('a sound system card shows what its Music Assistant player plays, with artwork; a TV is not linked to the room\'s speakers',async()=>{
+ const {tvCard,musicAssistantPlayer}=await import('../src/tv.mjs');
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([st('media_player.rest_living_sound_system','on',{friendly_name:'Living Sound System'}),
+  st('media_player.living','playing',{friendly_name:'Living',mass_player_type:'player',media_title:'Ya Habibi',media_artist:'Elissa',app_id:'music_assistant',entity_picture:'http://192.168.14.243:8095/imageproxy/1',entity_picture_local:'/api/art/1.jpg'}),
+  st('media_player.kitchen_tv','off',{friendly_name:'Kitchen Tv',device_class:'tv'}),st('media_player.kitchen','idle',{friendly_name:'kitchen',mass_player_type:'player'})]);
+ const entities={'media_player.rest_living_sound_system':{platform:'dsppa_am8328',device_id:'z'},'media_player.living':{platform:'music_assistant',device_id:'s'},
+  'media_player.kitchen_tv':{platform:'androidtv_remote'},'media_player.kitchen':{platform:'music_assistant',device_id:'s'}};
+ const hass={states,entities,devices:{z:{manufacturer:'DSPPA'},s:{manufacturer:'Xspeed, Inc.'}},areas:{}};
+ assert.equal(musicAssistantPlayer(['media_player.kitchen_tv'],hass),null,'Kitchen TV is not the kitchen speakers');
+ const card=tvCard('media_player.rest_living_sound_system',hass);
+ assert(card.triggers_update.includes('media_player.living'));
+ const now=Function('states','entity',card.custom_fields.now.trim().slice(3,-3))(states,states['media_player.rest_living_sound_system']);
+ assert(now.includes('Ya Habibi')&&now.includes('Elissa')&&now.includes('/api/art/1.jpg'),'title, artist and artwork through Home Assistant');
+ assert(now.includes('Music Assistant')&&!now.includes('music_assistant'),'readable app name');
+ const bg=card.styles.card.find(r=>typeof r.background==='string'&&r.background.includes('[[['));
+ assert(Function('states','entity',bg.background.trim().slice(3,-3))(states,states['media_player.rest_living_sound_system']).includes('/api/art/1.jpg'),'artwork behind the card');
+});
+test('player cards: previous, play and next buttons, and a volume slider on the player that sets the volume',async()=>{
+ const {tvCard}=await import('../src/tv.mjs');
+ const st=(id,state,a={})=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([st('media_player.rest_living_sound_system','on',{friendly_name:'Living Sound System',supported_features:4+8+1024}),
+  st('media_player.living_sound_system_2','playing',{friendly_name:'Living Sound System',mass_player_type:'player',supported_features:1+4+8+16+32+16384,volume_level:0.42})]);
+ const entities={'media_player.rest_living_sound_system':{platform:'dsppa_am8328',device_id:'z'},'media_player.living_sound_system_2':{platform:'music_assistant',device_id:'z'}};
+ const hass={states,entities,devices:{z:{manufacturer:'DSPPA'}},areas:{}};
+ const card=tvCard('media_player.rest_living_sound_system',hass);
+ const media=JSON.stringify(card.custom_fields.media);
+ assert(media.includes('media_previous_track')&&media.includes('media_next_track')&&!media.includes('volume_up'),'skip buttons, no volume buttons');
+ assert(card.styles.grid[0]['grid-template-areas'].includes('"vol vol vol"'));
+ globalThis.window={};
+ const html=Function('states',card.custom_fields.vol.trim().slice(3,-3))(states);
+ assert(html.includes('type="range"')&&html.includes('value="42"')&&html.includes('>42%<'));
+ const calls=[];globalThis.document={querySelector:()=>({hass:{callService:(...a)=>calls.push(a)}})};
+ window.__dwellVol.set({dataset:{entity:'media_player.rest_living_sound_system'},value:'60'});
+ assert.deepEqual(calls[0],['media_player','volume_set',{entity_id:'media_player.rest_living_sound_system',volume_level:0.6}]);
+ assert(card.styles.custom_fields.vol.some(r=>r['pointer-events']==='auto'));
+});
+
+test('the Media page buttons each do their own job: Music Assistant page, Home Assistant media browser, pause all',()=>{
+ const cards=generate({music_app:'d5369777_music_assistant'}).views.find(v=>v.path==='media').sections[0].cards;
+ const nav=name=>cards.find(c=>c.name===name)?.tap_action?.navigation_path;
+ assert.equal(nav('Music Assistant'),'/dashboard-test/music-assistant');
+ assert.equal(nav('Media browser'),'/media-browser/browser');
+ assert(!cards.some(c=>c.tap_action?.navigation_path==='/d5369777_music_assistant'));
+});
+test('the Music Assistant page carries a helper that gives the app DwellDeck\'s colours',()=>{
+ const view=generate({music_app:'d5369777_music_assistant'}).views.find(v=>v.path==='music-assistant');
+ const stack=view.cards[0];
+ assert.equal(stack.type,'vertical-stack');
+ assert.equal(stack.cards[1].type,'custom:addon-iframe-card');
+ const theme=stack.cards[0].custom_fields.theme;
+ assert(theme.includes('--v-theme-background')&&theme.includes('--v-theme-primary')&&theme.includes('dwelldeck-theme'));
+ assert(theme.includes('--sidebar:')&&theme.includes('--card:')&&theme.includes('html.dark')&&theme.includes('--v-theme-overlay'),'newer parts and the player bar too');
+ assert(stack.cards[0].extra_styles.includes('height:0'));
+ assert(stack.cards[1].card_mod.style.includes('iframe { opacity: 0'),'the app starts hidden, no flash of its own colours');
 });

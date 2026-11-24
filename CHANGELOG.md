@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.28 — Curtain and media fixes
+
+- **Media**: sound systems show only a **Sources** tab, and only when they list sources (no Apps tab on a speaker). Player cards side by side end on the same line. **Pause all villa audio** has an icon again (the old one no longer exists in the icon set).
+- **Music Assistant on sound system cards**: two buttons, **Music player** (this room's Music Assistant player: now playing, volume, browse music) and **Music Assistant** (DwellDeck's own Music Assistant page, opened with this room's player selected). The player is found by name: the Music Assistant player with the card's own name first ("Master Sound System"), then the room name, then a partial name.
+- Sound system cards show what their Music Assistant player plays: title, artist, and the artwork behind the card. Artwork comes through Home Assistant's own image link, so it shows from a phone, remotely or over https too (Music Assistant's own address only works at home over http). TV cards link only to their own Music Assistant player, never to the room's speakers.
+- **Player controls**: Previous, Play/Pause and Next instead of the volume buttons, and a **volume slider** under them with mute and the level in %. On a sound system, skipping and volume go to whichever of its players can do it (its Music Assistant player). Players that can only step the volume keep two volume buttons there.
+- The Media page's **Music library** button opened Music Assistant too; it is now **Media browser** and opens Home Assistant's media browser, next to the **Music Assistant** button.
+- **Music Assistant page in DwellDeck's colours**: the app's background, panels, accent colour, text and font follow the dashboard's palette (read from the page, so any palette works), and stay after the app reloads. The app stays hidden until it has the colours, so its own colours never flash.
+- Floor names in headings start with a capital ("Ground · Kitchen").
+
+- **Curtains**: Open all, Stop all and Close all at the top of the page did nothing; they now open, stop and close every curtain. The same mistake broke the **Pause all audio** buttons on the Music page; they work again.
+- Curtain position sliders showed only a small bar: tiles carried a colour value Home Assistant no longer understands. Tiles now use their normal state colour, so sliders show their full track and fill.
+
 ## 0.9.27 — Climate, Energy power flow, Security shortcuts
 
 - **Climate** follows Home's arrangement. **Climate now**: the average inside temperature (and outside), how many air conditioners are on, whether heating is on, and a list of everything heating or cooling with its mode and current → target temperature (tap for its controls). **Turn everything off** needs a second tap to confirm. **Heating** (boiler, hot water, valves) sits beside it at the same height. Then **AC scenes** in one row right above **Air conditioners**, then **Thermostats**.

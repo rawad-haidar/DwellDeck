@@ -7467,7 +7467,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_155",
+                    "perform_action": "cover.open_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_159",
@@ -7498,7 +7498,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_161",
+                    "perform_action": "cover.stop_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_159",
@@ -7529,7 +7529,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_147",
+                    "perform_action": "cover.close_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_159",
@@ -7590,7 +7590,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_155",
+                    "perform_action": "cover.open_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_159",
@@ -7610,7 +7610,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_161",
+                    "perform_action": "cover.stop_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_159",
@@ -7630,7 +7630,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_147",
+                    "perform_action": "cover.close_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_159",
@@ -7738,7 +7738,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_155",
+                    "perform_action": "cover.open_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_152",
@@ -7759,7 +7759,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_161",
+                    "perform_action": "cover.stop_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_152",
@@ -7780,7 +7780,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_147",
+                    "perform_action": "cover.close_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_152",
@@ -7918,7 +7918,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_155",
+                    "perform_action": "cover.open_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_156",
@@ -7940,7 +7940,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_161",
+                    "perform_action": "cover.stop_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_156",
@@ -7962,7 +7962,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_147",
+                    "perform_action": "cover.close_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_156",
@@ -8130,7 +8130,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_155",
+                    "perform_action": "cover.open_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_148",
@@ -8150,7 +8150,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_161",
+                    "perform_action": "cover.stop_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_148",
@@ -8170,7 +8170,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_147",
+                    "perform_action": "cover.close_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_148",
@@ -8278,7 +8278,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_155",
+                    "perform_action": "cover.open_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_158",
@@ -8298,7 +8298,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_161",
+                    "perform_action": "cover.stop_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_158",
@@ -8318,7 +8318,7 @@
                   "show_state": false,
                   "tap_action": {
                     "action": "perform-action",
-                    "perform_action": "cover.dwelldeck_slot_147",
+                    "perform_action": "cover.close_cover",
                     "target": {
                       "entity_id": [
                         "cover.dwelldeck_slot_158",
@@ -9200,12 +9200,12 @@
             },
             {
               "type": "button",
-              "name": "Music library",
-              "icon": "mdi:music-note",
+              "name": "Media browser",
+              "icon": "mdi:play-box-multiple-outline",
               "icon_height": "30px",
               "tap_action": {
                 "action": "navigate",
-                "navigation_path": "/__DWELLDECK_MUSIC_APP__"
+                "navigation_path": "/media-browser/browser"
               },
               "grid_options": {
                 "columns": 6,
@@ -9218,12 +9218,12 @@
             {
               "type": "button",
               "name": "Pause all villa audio",
-              "icon": "mdi:pause-circle-multiple",
+              "icon": "mdi:pause-circle-outline",
               "icon_height": "24px",
               "show_state": false,
               "tap_action": {
                 "action": "perform-action",
-                "perform_action": "media_player.dwelldeck_slot_275",
+                "perform_action": "media_player.media_pause",
                 "target": {
                   "entity_id": [
                     "media_player.dwelldeck_slot_283",
@@ -9268,7 +9268,7 @@
               "show_state": false,
               "tap_action": {
                 "action": "perform-action",
-                "perform_action": "media_player.dwelldeck_slot_275",
+                "perform_action": "media_player.media_pause",
                 "target": {
                   "entity_id": [
                     "media_player.dwelldeck_slot_283",
@@ -9453,7 +9453,7 @@
               "show_state": false,
               "tap_action": {
                 "action": "perform-action",
-                "perform_action": "media_player.dwelldeck_slot_275",
+                "perform_action": "media_player.media_pause",
                 "target": {
                   "entity_id": [
                     "media_player.dwelldeck_slot_269",

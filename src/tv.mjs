@@ -96,7 +96,7 @@ export function tvSignals(id, hass) {
 }
 
 // media_player supported_features bits.
-const FEATURE = {pause: 1, volumeSet: 4, turnOn: 128, turnOff: 256, volumeStep: 1024, play: 16384};
+const FEATURE = {pause: 1, volumeSet: 4, volumeMute: 8, previous: 16, next: 32, turnOn: 128, turnOff: 256, volumeStep: 1024, play: 16384};
 const supports = (id, hass, bits) => (Number(hass.states?.[id]?.attributes?.supported_features) & bits) !== 0;
 // The first entry of the TV (lead first) that supports an action, so each button reaches an entry that can do it.
 const playerFor = (players, hass, bits) => players.find(id => supports(id, hass, bits));
@@ -124,6 +124,7 @@ export const withoutDuplicatePlayers = (ids, hass) => {
 
 // Friendly names for common Android TV packages; other package names are system services and are hidden.
 const KNOWN_PACKAGES = {
+  'music_assistant': 'Music Assistant',
   'com.netflix.ninja': 'Netflix', 'com.google.android.youtube.tv': 'YouTube', 'com.google.android.youtube.tvmusic': 'YouTube Music',
   'com.disney.disneyplus': 'Disney+', 'com.amazon.amazonvideo.livingroom': 'Prime Video', 'com.spotify.tv.android': 'Spotify',
   'net.mbc.shahid.androidtv': 'Shahid', 'net.mbc.shahidtv': 'Shahid', 'com.tod.tv': 'TOD', 'com.bein.tod': 'TOD',
@@ -353,7 +354,7 @@ function dwellTvPanel(states, cfg) {
   const off = cfg.players.every(p => ['off', 'standby', 'unavailable', 'unknown'].includes(states[p]?.state));
   const grid = (list, kind) => list.length
     ? `<div class="apps">${list.sort(byName).map(item => kind === 'apps' ? appBtn(item) : btn(icon(item.name), item.name, item.callData, 'app')).join('')}</div>${fallbackNote[kind] ? `<p class="empty">${fallbackNote[kind]}</p>` : ''}`
-    : `<p class="empty">${off ? `Turn the TV on to see its ${kind}.` : kind === 'sources' ? 'This TV doesn\'t list any inputs.' : 'This TV doesn\'t list any apps. For Android TV Remote, add apps in the integration\'s options.'}</p>`;
+    : `<p class="empty">${off ? `Turn ${cfg.tv === false ? 'it' : 'the TV'} on to see its ${kind}.` : kind === 'sources' ? (cfg.tv === false ? 'This sound system doesn\'t list any sources.' : 'This TV doesn\'t list any inputs.') : 'This TV doesn\'t list any apps. For Android TV Remote, add apps in the integration\'s options.'}</p>`;
 
   const tabs = [];
   const panes = [];
@@ -373,7 +374,11 @@ function dwellTvPanel(states, cfg) {
       <div class="row">${btn('mdi:arrow-left', 'Back', keyCall(k.back))}${btn('mdi:home-outline', 'Home', keyCall(k.home))}${btn('mdi:menu', 'Menu', keyCall(k.menu))}${k.mute ? btn('mdi:volume-off', 'Mute', keyCall(k.mute)) : ''}</div>
     </div>`);
   }
-  if (cfg.canSwitch || cfg.adb || cfg.inputKeys) {
+  // A sound system has no apps: only its sources (inputs, playlists, radio), when it lists any.
+  if (cfg.tv === false && cfg.canSwitch) {
+    tabs.push(['sources', 'mdi:speaker-multiple', 'Sources']);
+    panes.push(`<div class="pane sources">${grid(items, 'sources')}</div>`);
+  } else if (cfg.canSwitch || cfg.adb || cfg.inputKeys) {
     tabs.push(['apps', 'mdi:apps', 'Apps'], ['sources', 'mdi:video-input-hdmi', 'Sources']);
     const fetchCall = cfg.adb ? call('androidtv', 'adb_command', {entity_id: cfg.adb, command: cfg.fetchCommand}) : '';
     const refresh = cfg.adb ? `<button class="refresh" onclick="window.__dwellTv.call(this)" data-call="${fetchCall}"><ha-icon icon="mdi:refresh"></ha-icon><span>Refresh installed apps</span></button>` : '';
@@ -435,6 +440,112 @@ function dwellTvPanel(states, cfg) {
 </div>`;
 }
 
+// Runs inside a button-card template: the volume as a slider, with mute and the level in %. When the player
+// only steps the volume, two buttons instead. Self-contained: serialised with toString.
+function dwellVolume(states, cfg) {
+  window.__dwellVol = window.__dwellVol || {
+    hass: () => document.querySelector('home-assistant')?.hass,
+    show(el) { el.closest('.vl').querySelector('.pc').textContent = el.value + '%'; },
+    set(el) { this.hass()?.callService('media_player', 'volume_set', {entity_id: el.dataset.entity, volume_level: Number(el.value) / 100}); },
+    mute(el) { this.hass()?.callService('media_player', 'volume_mute', {entity_id: el.dataset.entity, is_volume_muted: el.dataset.muted !== '1'}); },
+    step(el) { this.hass()?.callService('media_player', el.dataset.dir === 'up' ? 'volume_up' : 'volume_down', {entity_id: el.dataset.entity}); }
+  };
+  const btn = `all:unset;box-sizing:border-box;cursor:pointer;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:rgba(0,0,0,.18);border:1px solid ${cfg.c.line};color:${cfg.c.text}`;
+  const icon = name => `<ha-icon icon="${name}" style="--mdc-icon-size:20px;width:20px;height:20px;display:block"></ha-icon>`;
+  if (!cfg.entity) {
+    return `<div style="display:flex;align-items:center;gap:8px;justify-content:center">
+      <button style="${btn}" aria-label="Volume down" data-entity="${cfg.step}" data-dir="down" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-minus')}</button>
+      <span style="color:${cfg.c.muted};font-size:13px">Volume</span>
+      <button style="${btn}" aria-label="Volume up" data-entity="${cfg.step}" data-dir="up" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-plus')}</button></div>`;
+  }
+  const e = states[cfg.entity];
+  const level = Math.round((Number(e?.attributes?.volume_level) || 0) * 100);
+  const muted = !!e?.attributes?.is_volume_muted;
+  const off = !e || ['off', 'unavailable', 'unknown'].includes(e.state);
+  const fill = muted ? 0 : level;
+  return `<div class="vl" style="display:grid;grid-template-columns:36px 1fr 44px;align-items:center;gap:10px;opacity:${off ? 0.5 : 1}">
+    ${cfg.mute ? `<button style="${btn}" aria-label="${muted ? 'Unmute' : 'Mute'}" data-entity="${cfg.mute}" data-muted="${muted ? 1 : 0}" onclick="event.stopPropagation();window.__dwellVol.mute(this)">${icon(muted ? 'mdi:volume-off' : level < 35 ? 'mdi:volume-low' : level < 70 ? 'mdi:volume-medium' : 'mdi:volume-high')}</button>`
+      : `<span style="display:grid;place-items:center;color:${cfg.c.muted}">${icon('mdi:volume-high')}</span>`}
+    <input type="range" min="0" max="100" step="1" value="${level}" aria-label="Volume" data-entity="${cfg.entity}" ${off ? 'disabled' : ''}
+      style="width:100%;height:28px;margin:0;accent-color:${cfg.c.on};cursor:pointer;background:transparent;--fill:${fill}%"
+      onclick="event.stopPropagation()" oninput="event.stopPropagation();window.__dwellVol.show(this)" onchange="event.stopPropagation();window.__dwellVol.set(this)">
+    <span class="pc" style="font-size:13px;color:${cfg.c.text};text-align:right;font-variant-numeric:tabular-nums">${muted ? 'Muted' : level + '%'}</span></div>`;
+}
+
+// Runs inside a button-card template: two buttons, this room's Music Assistant player and the Music
+// Assistant app. Self-contained: serialised with toString.
+function dwellMaButtons(cfg) {
+  window.__dwellTvMa = window.__dwellTvMa || {
+    // The player's controls in Home Assistant: now playing, volume, and browse media for that room.
+    player(el) { el.dispatchEvent(new CustomEvent('hass-more-info', {detail: {entityId: el.dataset.entity}, bubbles: true, composed: true})); },
+    // DwellDeck's own Music Assistant page, with this room's player selected: once the app has loaded in
+    // the page, its address gets "#/home?player=<name>" and reloads, which is how Music Assistant picks a player.
+    app(el) {
+      const name = el.dataset.name;
+      const base = location.pathname.split('/').slice(0, 2).join('/');
+      history.pushState(null, '', base + '/music-assistant'); window.dispatchEvent(new CustomEvent('location-changed'));
+      if (!name) return;
+      const deep = root => { for (const node of root.querySelectorAll('*')) { if (node.tagName === 'IFRAME' && /hassio_ingress|music/i.test(node.src)) return node;
+        const hit = node.shadowRoot && deep(node.shadowRoot); if (hit) return hit; } return null; };
+      clearInterval(window.__dwellTvMaTimer);
+      const started = Date.now();
+      window.__dwellTvMaTimer = setInterval(() => {
+        if (Date.now() - started > 20000) return clearInterval(window.__dwellTvMaTimer);
+        const frame = deep(document);
+        try {
+          const win = frame?.contentWindow;
+          if (!win || win.document.readyState !== 'complete' || win.location.href === 'about:blank') return;
+          clearInterval(window.__dwellTvMaTimer);
+          // Hidden while it reloads; DwellDeck's colours are added before it shows again.
+          frame.style.opacity = '0';
+          win.location.hash = '#/home?player=' + encodeURIComponent(name);
+          win.location.reload();
+        } catch (e) { clearInterval(window.__dwellTvMaTimer); }
+      }, 300);
+    }
+  };
+  const style = `all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;height:40px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid ${cfg.c.line};color:${cfg.c.text};font-size:13.5px;font-weight:600`;
+  const icon = (name, color) => `<ha-icon icon="${name}" style="--mdc-icon-size:18px;width:18px;height:18px;display:block;color:${color}"></ha-icon>`;
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%">
+    <button style="${style}" data-entity="${cfg.player}" aria-label="Music Assistant player for this room" onclick="event.stopPropagation();window.__dwellTvMa.player(this)">${icon('mdi:music-box-outline', cfg.c.onText)}Music player</button>
+    <button style="${style}" data-name="${cfg.playerName}" aria-label="Open Music Assistant with this room's player" onclick="event.stopPropagation();window.__dwellTvMa.app(this)">${icon('mdi:open-in-app', cfg.c.muted)}Music Assistant</button></div>`;
+}
+
+// The Music Assistant player for a TV or sound system: one in the same group, or else the Music Assistant
+// player whose name matches the room's ("Dany Sound System" → "Dany", "M.Kitchen Sound System" → "M.kitch").
+const isMusicAssistant = (id, hass) => ['music_assistant', 'mass'].includes(hass.entities?.[id]?.platform) || 'mass_player_type' in (hass.states?.[id]?.attributes || {});
+export function musicAssistantPlayer(players, hass) {
+  const lead = players[0];
+  // The Music Assistant player with the card's own name comes first ("Master Sound System"): that is the
+  // player music is played to in Music Assistant.
+  const inGroup = players.find(id => isMusicAssistant(id, hass));
+  if (inGroup) return inGroup;
+  const clean = text => normalizeName(String(text || '').replace(/sound\s*system|speakers?|audio|amplifier|\bamp\b/gi, ' ')).replace(/\s+/g, ' ').trim();
+  const device = hass.devices?.[hass.entities?.[lead]?.device_id]?.name;
+  const tvLead = players.some(id => hass.states?.[id]?.attributes?.device_class === 'tv' || TV_PLATFORMS.includes(hass.entities?.[id]?.platform));
+  const wanted = [clean(playerName(lead, hass)), clean(device)].filter(name => name.length >= 3);
+  const area = entityArea(lead, hass);
+  const all = Object.keys(hass.states || {}).filter(id => id.startsWith('media_player.') && isMusicAssistant(id, hass) && !hass.entities?.[id]?.disabled_by);
+
+  const score = id => {
+    const name = clean(playerName(id, hass));
+    if (name.length < 3) return 0;
+    const sameArea = entityArea(id, hass) && entityArea(id, hass) === area ? 1 : 0;
+    // The very same name first ("Master Sound System"), then the room name ("Master"), then partial.
+    if (normalizeName(playerName(id, hass)) === normalizeName(playerName(lead, hass))) return 6 + sameArea;
+    if (wanted.includes(name)) return 4 + sameArea;
+    // Partial names ("M.kitch" for "M.Kitchen") only for sound systems: "Kitchen" is not the Kitchen TV.
+    if (!tvLead && wanted.some(w => w.startsWith(name) || name.startsWith(w))) return 2 + sameArea;
+    return 0;
+  };
+  const pick = candidates => {
+    const best = candidates.map(id => [id, score(id)]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    // Only a clear winner: two equally good matches link nothing rather than the wrong room.
+    return best.length && (best.length === 1 || best[0][1] > best[1][1]) ? best[0][0] : null;
+  };
+  return pick(all);
+}
+
 export function tvCard(requested, hass) {
   const players = tvGroup(requested, hass);
   const id = players[0];
@@ -450,19 +561,28 @@ export function tvCard(requested, hass) {
     : remote ? remote.send('POWER') : player('toggle');
   const volumePlayer = playerFor(players, hass, FEATURE.volumeStep | FEATURE.volumeSet) || id;
   const playPlayer = playerFor(players, hass, FEATURE.play | FEATURE.pause) || id;
-  const watched = [...new Set([...players, ...(remote ? [remote.id] : [])])];
+  // A sound system's Music Assistant player also counts: it skips tracks and sets the volume.
+  const ma = musicAssistantPlayer(players, hass);
+  const sources = ma && !players.includes(ma) ? [...players, ma] : players;
+  const skipPlayer = playerFor(sources, hass, FEATURE.next | FEATURE.previous) || playPlayer;
+  const sliderPlayer = playerFor(sources, hass, FEATURE.volumeSet);
+  // What plays on a sound system comes from its Music Assistant player: watch it for the title and artwork.
+  const watched = [...new Set([...sources, ...(remote ? [remote.id] : [])])];
   // Status comes from whichever entry is on: the TV's own player first, then anything playing.
   const current = `const OFFS=${OFF}; const known=${JSON.stringify(KNOWN_PACKAGES)};
     const nice = v => { if (!v) return ''; const t = String(v).trim(); if (known[t]) return known[t]; if (/launcher/i.test(t)) return 'Home';
       if (!/^[a-z][\\w]*(\\.[\\w:]+)+$/i.test(t)) return t;
       const part = t.split(/[.:]/).filter(w => !/^(com|net|org|tv|android|androidtv|google|app|apps|mobile|ninja|livingroom|leanback)$/i.test(w)).pop() || t;
       return part.charAt(0).toUpperCase() + part.slice(1); };
-    const all=${JSON.stringify(players)}.map(p=>states[p]).filter(Boolean); const live=all.filter(p=>!OFFS.includes(p.state));
+    const all=${JSON.stringify(sources)}.map(p=>states[p]).filter(Boolean); const live=all.filter(p=>!OFFS.includes(p.state));
     const lead=states[${JSON.stringify(id)}]; const tvs=live.filter(p=>p.attributes?.device_class==='tv');
     // When the card has real TV entries, they decide on or off: a cast or speaker entry that keeps "playing"
     // while the TV is off doesn't make the TV look on.
     const hasTv=all.some(p=>p.attributes?.device_class==='tv');
-    const m=(lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || (hasTv ? lead : live.find(p=>p.state==='playing') || lead);
+    // A sound system shows whichever of its players is playing something with a title or picture
+    // (its Music Assistant player), so the music and artwork appear on the card.
+    const withMedia=live.find(p=>['playing','paused'].includes(p.state)&&(p.attributes?.media_title||p.attributes?.entity_picture_local||p.attributes?.entity_picture));
+    const m=!hasTv && withMedia ? withMedia : (lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || (hasTv ? lead : live.find(p=>p.state==='playing') || lead);
     const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'};
     const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || live.map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
   // One on/off rule for the status, the TV icon and the power button: the entry the status uses is on.
@@ -470,7 +590,7 @@ export function tvCard(requested, hass) {
   const canSwitch = remote?.platform === 'androidtv_remote' || players.some(p =>
     (Number(hass.states?.[p]?.attributes?.supported_features) & 2048) || hass.states?.[p]?.attributes?.source_list?.length);
   const cfg = {
-    lead: id, players, canSwitch, c: C, known: KNOWN_PACKAGES, inputPattern: SOURCE_PATTERN.source,
+    lead: id, players, canSwitch, tv, c: C, known: KNOWN_PACKAGES, inputPattern: SOURCE_PATTERN.source,
     icons: APP_ICONS.map(([pattern, icon, color]) => [pattern.source, icon, color || '']),
     activities: remote?.platform === 'androidtv_remote' ? remote.id : null,
     keyboard: !!remote?.commands?.keyboard,
@@ -505,10 +625,11 @@ export function tvCard(requested, hass) {
           {'border-radius': '50%'}, {'box-shadow': `[[[ ${isOn} return on ? '0 0 14px rgba(213,167,76,.35)' : 'none'; ]]]`},
           {width: '46px'}, {height: '46px'}, {padding: '0'}, {transition: 'background .3s ease, box-shadow .3s ease'}]}
     }},
+    // Previous, play or pause, next; the volume is a slider below.
     media: {card: group('"down play up"', 'repeat(3,1fr)', {
-      down: key('Volume down', 'mdi:volume-minus', player('volume_down', volumePlayer)),
+      down: key('Previous', 'mdi:skip-previous', player('media_previous_track', skipPlayer)),
       play: key('Play or pause', 'mdi:play-pause', player('media_play_pause', playPlayer)),
-      up: key('Volume up', 'mdi:volume-plus', player('volume_up', volumePlayer))
+      up: key('Next', 'mdi:skip-next', player('media_next_track', skipPlayer))
     })}
   };
   // Now playing: status, artwork, title, artist or series, and the app.
@@ -524,7 +645,9 @@ export function tvCard(requested, hass) {
     const color = state === 'Playing' ? '${C.onText}' : state === 'Off' || state === 'Unavailable' ? '${C.muted}' : '${C.text}';
     const pill = '<span style="flex:none;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;color:' + color + ';border:1px solid ' + (state === 'Playing' ? '${C.on}' : '${C.line}') + '">' + state + '</span>';
     if (off || (!title && !app)) return '<div style="display:flex;align-items:center;gap:10px;width:100%;color:${C.muted};font-size:13px;text-align:left">' + pill + '<span>' + (off ? '${tv ? 'The TV is off.' : 'Off.'}' : 'Nothing playing.') + '</span></div>';
-    const art = a.entity_picture ? '<div style="flex:none;width:56px;height:56px;border-radius:10px;background:${C.card} url(&quot;' + esc(a.entity_picture) + '&quot;) center/cover"></div>' : '';
+    // Home Assistant's own link to the artwork works from anywhere; the player's own address may not.
+    const pic = a.entity_picture_local || a.entity_picture;
+    const art = pic ? '<div style="flex:none;width:56px;height:56px;border-radius:10px;background:${C.card} url(&quot;' + esc(pic) + '&quot;) center/cover"></div>' : '';
     return '<div style="display:flex;align-items:center;gap:12px;width:100%;min-width:0;text-align:left">' + art
       + '<div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:8px;min-width:0">' + pill
       + '<span style="font-size:12px;color:${C.muted};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(app) + '</span></div>'
@@ -533,6 +656,16 @@ export function tvCard(requested, hass) {
       + '</div></div>';
   ]]]`;
   const areas = ['"i n power"', '"i l power"', '"now now now"', '"media media media"'];
+  if (sliderPlayer || volumePlayer) {
+    fields.vol = `[[[ return (${dwellVolume.toString()})(states, ${JSON.stringify({entity: sliderPlayer, step: sliderPlayer ? null : volumePlayer,
+      mute: playerFor(sources, hass, FEATURE.volumeMute), c: {line: C.line, text: C.text, muted: C.muted, on: C.on, onText: C.onText, card: C.card}})}); ]]]`;
+    areas.push('"vol vol vol"');
+  }
+  if (ma) {
+    // Two buttons under the controls: this room's Music Assistant player, and the Music Assistant app.
+    fields.ma = `[[[ return (${dwellMaButtons.toString()})(${JSON.stringify({player: ma, playerName: String(playerName(ma, hass)).replace(/["<>&]/g, ''), c: {line: C.line, text: C.text, onText: C.onText, muted: C.muted}})}); ]]]`;
+    areas.push('"ma ma ma"');
+  }
   if (remote || canSwitch) {
     fields.panel = `[[[ return (${dwellTvPanel.toString()})(states, ${JSON.stringify(cfg)}); ]]]`;
     areas.push('"panel panel panel"');
@@ -545,18 +678,24 @@ export function tvCard(requested, hass) {
   return {
     type: 'custom:button-card', entity: id, name, icon: tv ? 'mdi:television' : 'mdi:speaker', show_name: true, show_icon: true, show_state: false, show_label: true, label: status,
     tap_action: {action: 'none'}, hold_action: {action: 'more-info'}, triggers_update: watched,
+    // The card fills its grid cell, so cards side by side end on one line.
+    extra_styles: ':host{display:block;height:100%}',
     grid_options: {columns: 12, rows: 'auto'},
     custom_fields: fields,
     styles: {
-      card: [{padding: '16px'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
-        {background: `[[[ const p = entity?.attributes?.entity_picture; return entity?.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
+      // Cards in one row stretch to the same height.
+      card: [{padding: '16px'}, {height: '100%'}, {'box-sizing': 'border-box'}, {'align-content': 'start'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
+        // The artwork of whatever plays fills the card behind a dark veil.
+        {background: `[[[ ${current} const p = m?.attributes?.entity_picture_local || m?.attributes?.entity_picture; return m && m.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
       grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '40px minmax(0,1fr) 46px'}, {gap: '2px 12px'}, {'align-items': 'center'}],
       img_cell: [{'justify-content': 'flex-start'}, {width: '40px'}, {height: '40px'}],
       icon: [{width: '28px'}, {color: `[[[ ${isOn} return on ? '${C.onText}' : '${C.muted}'; ]]]`}],
       name: [{'justify-self': 'start'}, {'align-self': 'end'}, {'font-size': '17px'}, {'font-weight': '600'}, {color: C.text}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: C.muted}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       custom_fields: {power: [{'justify-self': 'end'}], now: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {padding: '10px 12px'}, {'border-radius': '14px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${C.line}`}], media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}],
-        panel: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}]}
+        panel: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}],
+        ma: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}],
+        vol: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}]}
     }
   };
 }
