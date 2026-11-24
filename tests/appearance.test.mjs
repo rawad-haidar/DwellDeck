@@ -615,3 +615,12 @@ test('the Media page buttons each do their own job: Music Assistant page, Home A
  assert.equal(nav('Media browser'),'/media-browser/browser');
  assert(!cards.some(c=>c.tap_action?.navigation_path==='/d5369777_music_assistant'));
 });
+test('the Music Assistant page carries a helper that gives the app DwellDeck\'s colours',()=>{
+ const view=generate({music_app:'d5369777_music_assistant'}).views.find(v=>v.path==='music-assistant');
+ const stack=view.cards[0];
+ assert.equal(stack.type,'vertical-stack');
+ assert.equal(stack.cards[1].type,'custom:addon-iframe-card');
+ const theme=stack.cards[0].custom_fields.theme;
+ assert(theme.includes('--v-theme-background')&&theme.includes('--v-theme-primary')&&theme.includes('dwelldeck-theme'));
+ assert(stack.cards[0].extra_styles.includes('height:0'));
+});
