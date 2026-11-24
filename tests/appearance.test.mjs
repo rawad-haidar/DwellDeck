@@ -335,7 +335,7 @@ test('room cards show a summary, status chips and a lights button; rooms open wi
   'binary_sensor.saloon_motion':st('on',{device_class:'motion',friendly_name:'Saloon Motion'}),
   'climate.saloon_ac':st('cool',{hvac_action:'cooling',temperature:22,friendly_name:'Saloon AC',hvac_modes:['off','cool']}),
   'media_player.saloon_tv':st('on',{device_class:'tv',friendly_name:'Saloon TV'})};
- const E=id=>({entity_id:id,platform:'x',device_id:'d',area_id:'saloon'});
+ const E=id=>({entity_id:id,area_id:id.includes('kitchen_tv')||id.includes('kitchen_kitch')?'kitchen':undefined,platform:'x',device_id:'d',area_id:'saloon'});
  const hass={states,services:{browser_mod:{popup:{}}},areas:{saloon:{area_id:'saloon',name:'Saloon',labels:[]}},floors:{},labels:{},devices:{d:{id:'d',area_id:'saloon'}},
   entities:Object.fromEntries(Object.keys(states).map(id=>[id,E(id)]))};
  const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
@@ -374,7 +374,7 @@ test('room temperature averages the room\'s sensors, or the sensors chosen for t
   'sensor.den_t1':st('26',{device_class:'temperature',unit_of_measurement:'°C'}),'sensor.den_t2':st('22',{device_class:'temperature',unit_of_measurement:'°C'}),
   'sensor.den_t3':st('unavailable',{device_class:'temperature',unit_of_measurement:'°C'}),
   'sensor.hall_t':st('19',{device_class:'temperature',unit_of_measurement:'°C'})};
- const E=(id,area)=>({entity_id:id,platform:'x',area_id:area});
+ const E=(id,area)=>({entity_id:id,area_id:id.includes('kitchen_tv')||id.includes('kitchen_kitch')?'kitchen':undefined,platform:'x',area_id:area});
  const hass={states,services:{browser_mod:{popup:{}}},areas:{den:{area_id:'den',name:'Den',labels:[]},hall:{area_id:'hall',name:'Hall',labels:[]}},floors:{},labels:{},devices:{},
   entities:{'light.den_a':E('light.den_a','den'),'sensor.den_t1':E('sensor.den_t1','den'),'sensor.den_t2':E('sensor.den_t2','den'),'sensor.den_t3':E('sensor.den_t3','den'),'sensor.hall_t':E('sensor.hall_t','hall')}};
  const den=config=>{
@@ -540,4 +540,29 @@ test('sound system cards show only Sources, cards fill their row, floor names st
  assert(!bbq.custom_fields.panel,'no tabs without sources');
  assert(pool.styles.card.some(r=>r.height==='100%')&&pool.extra_styles.includes(':host{display:block;height:100%}'));
  assert(!JSON.stringify(d).includes('pause-circle-multiple'));
+});
+test('each sound system links to its Music Assistant player by name, and to the Music Assistant app',async()=>{
+ const {musicAssistantPlayer}=await import('../src/tv.mjs');
+ const st=(id,name,a={})=>[id,{entity_id:id,state:'idle',attributes:{friendly_name:name,...a}}];
+ const mass={mass_player_type:'player'};
+ const states=Object.fromEntries([st('media_player.dani_s_bedroom_daniel_dany_sound_system','Dany Sound System'),st('media_player.kitchen_kitch_kitchen_sound_system','Kitchen Sound System'),
+  st('media_player.mini_kitchen_m_kit_m_kitchen_sound_system','M.Kitchen Sound System'),st('media_player.saloon_saloon_sound_system','Saloon Sound System'),st('media_player.gym_gym_sound_system','Gym Sound System'),
+  st('media_player.dany','Dany',mass),st('media_player.dany_sound_system','Dany Sound System',mass),st('media_player.gym_sound_system','Gym Sound System',mass),st('media_player.kitchen','kitchen',mass),st('media_player.m_kitch','M.kitch',mass),st('media_player.saloon','saloon',mass),st('media_player.living','Living',mass),st('media_player.kitchen_tv','Kitchen TV(192.168.14.207)',mass)]);
+ const dsppa=id=>!states[id].attributes.mass_player_type||/_sound_system$/.test(id);
+ const entities=Object.fromEntries(Object.keys(states).map(id=>[id,{entity_id:id,area_id:id.includes('kitchen_tv')||id.includes('kitchen_kitch')?'kitchen':undefined,platform:states[id].attributes.mass_player_type?'music_assistant':'dsppa_am8328',device_id:id==='media_player.dani_s_bedroom_daniel_dany_sound_system'?'daniel':dsppa(id)?'zone':'streamer'}]));
+ const hass={states,entities,devices:{daniel:{name:'Daniel',manufacturer:'DSPPA'},zone:{manufacturer:'DSPPA'},streamer:{manufacturer:'Xspeed, Inc.'}},areas:{}};
+ const match=id=>musicAssistantPlayer([id],hass);
+ assert.equal(match('media_player.dani_s_bedroom_daniel_dany_sound_system'),'media_player.dany');
+ assert.equal(match('media_player.kitchen_kitch_kitchen_sound_system'),'media_player.kitchen');
+ assert.equal(match('media_player.mini_kitchen_m_kit_m_kitchen_sound_system'),'media_player.m_kitch');
+ assert.equal(match('media_player.saloon_saloon_sound_system'),'media_player.saloon');
+ assert.equal(match('media_player.gym_gym_sound_system'),'media_player.gym_sound_system','no streamer: the zone in Music Assistant');
+ const {tvCard}=await import('../src/tv.mjs');
+ const card=tvCard('media_player.dani_s_bedroom_daniel_dany_sound_system',hass);
+ globalThis.window={};
+ const html=Function('states',card.custom_fields.ma.trim().slice(3,-3))(states);
+ assert(html.includes('data-entity="media_player.dany"')&&html.includes('Music player')&&html.includes('Music Assistant</button>'));
+ assert(card.styles.grid[0]['grid-template-areas'].includes('"ma ma ma"'));
+ assert(card.styles.custom_fields.ma.some(r=>r['pointer-events']==='auto'));
+ assert.equal(typeof window.__dwellTvMa.app,'function');
 });

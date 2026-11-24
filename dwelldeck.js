@@ -1024,6 +1024,61 @@ function dwellTvPanel(states, cfg) {
 </div>`;
 }
 
+// Runs inside a button-card template: two buttons, this room's Music Assistant player and the Music
+// Assistant app. Self-contained: serialised with toString.
+function dwellMaButtons(cfg) {
+  window.__dwellTvMa = window.__dwellTvMa || {
+    // The player's controls in Home Assistant: now playing, volume, and browse media for that room.
+    player(el) { el.dispatchEvent(new CustomEvent('hass-more-info', {detail: {entityId: el.dataset.entity}, bubbles: true, composed: true})); },
+    // The Music Assistant app from the sidebar, or else the dashboard's Music Assistant page.
+    app(el) {
+      const hass = document.querySelector('home-assistant')?.hass;
+      const panel = Object.values(hass?.panels || {}).find(p => /music.?assistant/i.test(`${p.title || ''} ${p.url_path || ''}`));
+      const path = panel ? '/' + panel.url_path : location.pathname.split('/').slice(0, 2).join('/') + '/music-assistant';
+      history.pushState(null, '', path); window.dispatchEvent(new CustomEvent('location-changed'));
+    }
+  };
+  const style = `all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;height:40px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid ${cfg.c.line};color:${cfg.c.text};font-size:13.5px;font-weight:600`;
+  const icon = (name, color) => `<ha-icon icon="${name}" style="--mdc-icon-size:18px;width:18px;height:18px;display:block;color:${color}"></ha-icon>`;
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%">
+    <button style="${style}" data-entity="${cfg.player}" aria-label="Music Assistant player for this room" onclick="event.stopPropagation();window.__dwellTvMa.player(this)">${icon('mdi:music-box-outline', cfg.c.onText)}Music player</button>
+    <button style="${style}" aria-label="Open the Music Assistant app" onclick="event.stopPropagation();window.__dwellTvMa.app(this)">${icon('mdi:open-in-app', cfg.c.muted)}Music Assistant</button></div>`;
+}
+
+// The Music Assistant player for a TV or sound system: one in the same group, or else the Music Assistant
+// player whose name matches the room's ("Dany Sound System" → "Dany", "M.Kitchen Sound System" → "M.kitch").
+const isMusicAssistant = (id, hass) => ['music_assistant', 'mass'].includes(hass.entities?.[id]?.platform) || 'mass_player_type' in (hass.states?.[id]?.attributes || {});
+function musicAssistantPlayer(players, hass) {
+  const maker = id => hass.devices?.[hass.entities?.[id]?.device_id]?.manufacturer || '';
+  const lead = players[0];
+  // A Music Assistant player in the same card counts unless it is only the zone's own copy.
+  const inGroup = players.find(id => isMusicAssistant(id, hass) && (!maker(lead) || maker(id) !== maker(lead)));
+  if (inGroup) return inGroup;
+  const clean = text => normalizeName(String(text || '').replace(/sound\s*system|speakers?|audio|amplifier|\bamp\b/gi, ' ')).replace(/\s+/g, ' ').trim();
+  const device = hass.devices?.[hass.entities?.[lead]?.device_id]?.name;
+  const wanted = [clean(playerName(lead, hass)), clean(device)].filter(name => name.length >= 3);
+  const area = entityArea(lead, hass);
+  const all = Object.keys(hass.states || {}).filter(id => id.startsWith('media_player.') && isMusicAssistant(id, hass) && !hass.entities?.[id]?.disabled_by);
+  // Music Assistant also lists the zone itself (same maker, nothing to play from); the streamer that plays
+  // Music Assistant's queue into the zone comes first, the zone's own copy only when there is no streamer.
+  const streamers = all.filter(id => !maker(lead) || maker(id) !== maker(lead));
+  const score = id => {
+    const name = clean(playerName(id, hass));
+    if (name.length < 3) return 0;
+    const sameArea = entityArea(id, hass) && entityArea(id, hass) === area ? 1 : 0;
+    // An exact name beats a partial one even in the same room ("kitchen" over "Kitchen TV").
+    if (wanted.includes(name)) return 4 + sameArea;
+    if (wanted.some(w => w.startsWith(name) || name.startsWith(w))) return 2 + sameArea;
+    return 0;
+  };
+  const pick = candidates => {
+    const best = candidates.map(id => [id, score(id)]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    // Only a clear winner: two equally good matches link nothing rather than the wrong room.
+    return best.length && (best.length === 1 || best[0][1] > best[1][1]) ? best[0][0] : null;
+  };
+  return pick(streamers) || players.find(id => isMusicAssistant(id, hass)) || pick(all);
+}
+
 function tvCard(requested, hass) {
   const players = tvGroup(requested, hass);
   const id = players[0];
@@ -1122,6 +1177,12 @@ function tvCard(requested, hass) {
       + '</div></div>';
   ]]]`;
   const areas = ['"i n power"', '"i l power"', '"now now now"', '"media media media"'];
+  const ma = musicAssistantPlayer(players, hass);
+  if (ma) {
+    // Two buttons under the controls: this room's Music Assistant player, and the Music Assistant app.
+    fields.ma = `[[[ return (${dwellMaButtons.toString()})(${JSON.stringify({player: ma, c: {line: C.line, text: C.text, onText: C.onText, muted: C.muted}})}); ]]]`;
+    areas.push('"ma ma ma"');
+  }
   if (remote || canSwitch) {
     fields.panel = `[[[ return (${dwellTvPanel.toString()})(states, ${JSON.stringify(cfg)}); ]]]`;
     areas.push('"panel panel panel"');
@@ -1148,7 +1209,8 @@ function tvCard(requested, hass) {
       name: [{'justify-self': 'start'}, {'align-self': 'end'}, {'font-size': '17px'}, {'font-weight': '600'}, {color: C.text}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: C.muted}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       custom_fields: {power: [{'justify-self': 'end'}], now: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {padding: '10px 12px'}, {'border-radius': '14px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${C.line}`}], media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}],
-        panel: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}]}
+        panel: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}],
+        ma: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}]}
     }
   };
 }
