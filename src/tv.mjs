@@ -496,6 +496,8 @@ function dwellMaButtons(cfg) {
           const win = frame?.contentWindow;
           if (!win || win.document.readyState !== 'complete' || win.location.href === 'about:blank') return;
           clearInterval(window.__dwellTvMaTimer);
+          // Hidden while it reloads; DwellDeck's colours are added before it shows again.
+          frame.style.opacity = '0';
           win.location.hash = '#/home?player=' + encodeURIComponent(name);
           win.location.reload();
         } catch (e) { clearInterval(window.__dwellTvMaTimer); }

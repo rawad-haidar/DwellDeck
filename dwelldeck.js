@@ -1081,6 +1081,8 @@ function dwellMaButtons(cfg) {
           const win = frame?.contentWindow;
           if (!win || win.document.readyState !== 'complete' || win.location.href === 'about:blank') return;
           clearInterval(window.__dwellTvMaTimer);
+          // Hidden while it reloads; DwellDeck's colours are added before it shows again.
+          frame.style.opacity = '0';
           win.location.hash = '#/home?player=' + encodeURIComponent(name);
           win.location.reload();
         } catch (e) { clearInterval(window.__dwellTvMaTimer); }
@@ -2856,14 +2858,23 @@ function designClimate(output, {hass = {}} = {}) {
 // from the page and keeps a stylesheet in the Music Assistant app, again after every reload.
 // Self-contained: serialised with toString.
 function dwellMaTheme(card, cfg) {
+  const deep = root => { for (const node of root.querySelectorAll('*')) { if (node.tagName === 'IFRAME' && /hassio_ingress|music/i.test(node.src)) return node;
+    const hit = node.shadowRoot && deep(node.shadowRoot); if (hit) return hit; } return null; };
+  let frame = null, waiting = 0;
+  // The app starts hidden (see the page's style) and shows once it has DwellDeck's colours, so its own
+  // colours never flash. After 3 s it shows anyway.
+  const show = () => { if (frame) frame.style.opacity = '1'; };
   const apply = () => {
     if (!card?.isConnected) return false;
-    const deep = root => { for (const node of root.querySelectorAll('*')) { if (node.tagName === 'IFRAME' && /hassio_ingress|music/i.test(node.src)) return node;
-      const hit = node.shadowRoot && deep(node.shadowRoot); if (hit) return hit; } return null; };
-    const frame = deep(document);
+    if (!frame?.isConnected) frame = deep(document);
     let doc;
-    try { doc = frame?.contentDocument; } catch (e) { return true; }
-    if (!doc?.head || doc.getElementById('dwelldeck-theme')) return true;
+    try { doc = frame?.contentDocument; } catch (e) { show(); return true; }
+    if (!doc) return true;
+    if (doc.getElementById('dwelldeck-theme')) { show(); waiting = 0; return true; }
+    if (frame.style.opacity !== '0' && !waiting) { frame.style.opacity = '0'; }
+    waiting += 1;
+    if (waiting > 30) { show(); }
+    if (!doc.head) return true;
     const look = name => getComputedStyle(card).getPropertyValue(name).trim();
     // "r,g,b" for Music Assistant's colour settings, from any CSS colour.
     const rgb = (value, fallback) => {
@@ -2914,11 +2925,14 @@ function dwellMaTheme(card, cfg) {
       .v-card { border-radius: 16px; }
     `;
     doc.head.append(...(cfg.font ? [font] : []), style);
+    waiting = 0;
+    requestAnimationFrame(show);
     return true;
   };
-  // Every 1.5 s while this page is open: the app reloads when a room's player is chosen.
+  // Checked ten times a second while this page is open, so a reload (a room's player chosen) is caught
+  // as soon as the new page starts.
   clearInterval(window.__dwellMaThemeTimer);
-  window.__dwellMaThemeTimer = setInterval(() => { if (!card?.isConnected) clearInterval(window.__dwellMaThemeTimer); else apply(); }, 1500);
+  window.__dwellMaThemeTimer = setInterval(() => { if (!card?.isConnected) clearInterval(window.__dwellMaThemeTimer); else apply(); }, 100);
   setTimeout(apply, 0);
   return '';
 }
@@ -2938,6 +2952,9 @@ function designMusic(output, config = {}) {
     // Takes no room on the page.
     extra_styles: ':host{display:block;height:0;overflow:hidden;margin-bottom:-8px}'
   };
+  // The app is hidden until it has DwellDeck's colours (the helper shows it, or after 3 s).
+  const hide = 'iframe { opacity: 0; transition: opacity .25s ease; }';
+  app.card_mod = {...(app.card_mod || {}), style: typeof app.card_mod?.style === 'string' ? `${app.card_mod.style}\n${hide}` : hide};
   view.cards = [{type: 'vertical-stack', cards: [helper, app]}, ...view.cards.filter(card => card !== app)];
   return output;
 }

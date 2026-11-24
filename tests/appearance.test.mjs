@@ -624,4 +624,5 @@ test('the Music Assistant page carries a helper that gives the app DwellDeck\'s 
  assert(theme.includes('--v-theme-background')&&theme.includes('--v-theme-primary')&&theme.includes('dwelldeck-theme'));
  assert(theme.includes('--sidebar:')&&theme.includes('--card:')&&theme.includes('html.dark')&&theme.includes('--v-theme-overlay'),'newer parts and the player bar too');
  assert(stack.cards[0].extra_styles.includes('height:0'));
+ assert(stack.cards[1].card_mod.style.includes('iframe { opacity: 0'),'the app starts hidden, no flash of its own colours');
 });

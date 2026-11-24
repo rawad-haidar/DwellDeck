@@ -7,7 +7,7 @@
 - Sound system cards show what their Music Assistant player plays: title, artist, and the artwork behind the card. Artwork comes through Home Assistant's own image link, so it shows from a phone, remotely or over https too (Music Assistant's own address only works at home over http). TV cards link only to their own Music Assistant player, never to the room's speakers.
 - **Player controls**: Previous, Play/Pause and Next instead of the volume buttons, and a **volume slider** under them with mute and the level in %. On a sound system, skipping and volume go to whichever of its players can do it (its Music Assistant player). Players that can only step the volume keep two volume buttons there.
 - The Media page's **Music library** button opened Music Assistant too; it is now **Media browser** and opens Home Assistant's media browser, next to the **Music Assistant** button.
-- **Music Assistant page in DwellDeck's colours**: the app's background, panels, accent colour, text and font follow the dashboard's palette (read from the page, so any palette works), and stay after the app reloads.
+- **Music Assistant page in DwellDeck's colours**: the app's background, panels, accent colour, text and font follow the dashboard's palette (read from the page, so any palette works), and stay after the app reloads. The app stays hidden until it has the colours, so its own colours never flash.
 - Floor names in headings start with a capital ("Ground · Kitchen").
 
 - **Curtains**: Open all, Stop all and Close all at the top of the page did nothing; they now open, stop and close every curtain. The same mistake broke the **Pause all audio** buttons on the Music page; they work again.
