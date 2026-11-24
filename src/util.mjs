@@ -23,3 +23,18 @@ export function changeLists(value, before, after) {
   return value;
 }
 export const normalizeName = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+// Card code that many cards run is loaded once, not copied into every card: a template calls it as
+// __dwell.<name>(...). Each dashboard load rewrites it the same way as the cards (palette, text sizes).
+const SHARED = new Map();
+export const sharedCode = fn => {
+  if (!SHARED.has(fn.name)) { SHARED.set(fn.name, fn); (globalThis.__dwell ||= {})[fn.name] = fn; }
+  return `__dwell.${fn.name}`;
+};
+export const shareData = (name, value) => { (globalThis.__dwell ||= {})[name] = value; };
+export function installShared(transform) {
+  for (const [name, fn] of SHARED) {
+    const source = fn.toString(), rewritten = transform(source);
+    globalThis.__dwell[name] = rewritten === source ? fn : Function(`return (${rewritten});`)();
+  }
+}

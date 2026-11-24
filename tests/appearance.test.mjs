@@ -347,7 +347,7 @@ test('room cards show a summary, status chips and a lights button; rooms open wi
  const chips=Function('states',card.custom_fields.chips.trim().slice(3,-3))(states).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
  for(const text of ['26.9°C','Cooling 22°','TV on','Motion'])assert(chips.indexOf(text)<chips.indexOf('55%'),text);
  assert(card.styles.card.some(o=>o.height==='128px'));
- assert(card.custom_fields.chips.includes('height:28px;overflow:hidden'));
+ assert(Function('states',card.custom_fields.chips.trim().slice(3,-3))(states).includes('height:28px;overflow:hidden'));
  const strip=card.tap_action.browser_mod.data.content.cards[0];
  const stripText=Function('states',strip.custom_fields.chips.trim().slice(3,-3))(states).replace(/<[^>]+>/g,' ');
  for(const text of ['26.9°C','55%','Cooling 22°','TV on','Motion'])assert(stripText.includes(text),text);
@@ -747,4 +747,16 @@ test('the dashboard tab bar: pill tabs, the open one in the palette accent, for 
   assert(css.includes('--indicator-color:transparent')&&css.includes('border-radius:999px')&&css.includes('prefers-reduced-motion'),key);
  }
  assert.equal(dwellTabsCss('no-such-palette'),dwellTabsCss('lamplight'),'unknown palette falls back to the default');
+});
+
+test('player cards stay small: shared code is loaded once, not copied into every card',async()=>{
+ const {tvCard}=await import('../src/tv.mjs');
+ const hass=tvHass();
+ const card=tvCard('media_player.saloon_tv',hass);
+ const text=JSON.stringify(card);
+ assert(text.length<30000,`a TV card is ${text.length} characters`);
+ assert(!text.includes('com.tcl.t_solo'),'the full app name list is not in the card');
+ assert(card.custom_fields.panel.includes('__dwell.dwellTvPanel(')&&card.label.includes('__dwell.dwellTvState('));
+ assert.equal(typeof globalThis.__dwell.dwellTvPanel,'function');
+ assert.equal(Function('states',card.label.trim().slice(3,-3))(hass.states),'On, YouTube','and it still works');
 });

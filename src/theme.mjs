@@ -57,14 +57,20 @@ const paletteRoles = palette => {
 };
 // One spelling per colour: "rgba(156, 199, 225, 0.12)" and "rgba(156,199,225,.12)" become the same string.
 export const normalizeRgba = text => text.replace(/rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*0?(\.\d+)\s*\)/g, 'rgba($1,$2,$3,$4)');
-export function applyDwellPalette(dashboard, key) {
-  const name = DWELL_PALETTES[key] ? key : DEFAULT_PALETTE;
-  const palette = DWELL_PALETTES[name];
+// The palette as a text rewrite: every colour of a role becomes the palette's colour for that role.
+export function paletteText(key) {
+  const palette = DWELL_PALETTES[key] || DWELL_PALETTES[DEFAULT_PALETTE];
   const roles = paletteRoles(palette);
   const replacements = new Map();
   for (const [role, sources] of Object.entries(COLOR_ROLES)) if (roles[role]) for (const color of sources) replacements.set(color, roles[role]);
   const pattern = new RegExp([...replacements.keys()].map(c => c.replace(/[().|]/g, '\\$&')).join('|'), 'gi');
-  const themed = walk(dashboard, text => normalizeRgba(text).replace(pattern, color => replacements.get(color.toLowerCase()) || color));
+  return text => normalizeRgba(text).replace(pattern, color => replacements.get(color.toLowerCase()) || color);
+}
+export function applyDwellPalette(dashboard, key) {
+  const name = DWELL_PALETTES[key] ? key : DEFAULT_PALETTE;
+  const palette = DWELL_PALETTES[name];
+  const roles = paletteRoles(palette);
+  const themed = walk(dashboard, paletteText(name));
   const accent = roles.accent || palette.colors[3];
   const surface = name === 'lamplight' ? roles.page : `linear-gradient(135deg,${roles.page},${roles.popup})`;
   for (const view of themed.views) {
