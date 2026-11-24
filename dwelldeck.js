@@ -810,16 +810,17 @@ function rebuildRichAreaViews(output, config, hass, prototype, lightIds) {
 // Security view: live human and vehicle detection status and recent activity per camera.
 // Sensors are discovered by name, like the Activity view's detection status card.
 
-// Collects every human/vehicle binary sensor into ns.rows: {cam, kind, on, unavailable, t}.
+// Collects one row per human/vehicle binary sensor and kind into ns.rows: {cam, kind, on, unavailable, t}.
 // The camera name is the sensor name without its detection words, e.g. "Front Gate Smart Motion Human" -> "Front Gate".
 const DETECTION_SCAN = `{%- set ns = namespace(rows=[]) -%}
 {%- for s in states.binary_sensor -%}
   {%- set label = (s.entity_id ~ ' ' ~ s.name) | lower -%}
-  {%- set kind = 'human' if ('person' in label or 'human' in label) else ('vehicle' if ('vehicle' in label or 'car detection' in label) else '') -%}
-  {%- if kind -%}
-    {%- set cam = s.name | regex_replace('(?i)(smart motion|authorized|person|human|vehicle|car detection|detection)', '') | regex_replace(' +', ' ') | trim -%}
+  {#- A sensor named for both, like "Human Vehicle Detection", counts as both, as in the Activity view. -#}
+  {%- set kinds = (['human'] if ('person' in label or 'human' in label) else []) + (['vehicle'] if ('vehicle' in label or 'car detection' in label) else []) -%}
+  {%- set cam = s.name | regex_replace('(?i)(smart motion|authorized|person|human|vehicle|car detection|detection)', '') | regex_replace(' +', ' ') | trim -%}
+  {%- for kind in kinds -%}
     {%- set ns.rows = ns.rows + [{'cam': cam or s.name, 'kind': kind, 'on': s.state == 'on', 'unavailable': s.state in ['unavailable', 'unknown'], 't': s.last_changed}] -%}
-  {%- endif -%}
+  {%- endfor -%}
 {%- endfor -%}`;
 
 const NO_SENSORS = `No human or vehicle detection sensors found yet. Name your camera detection binary sensors with **person**, **human**, **vehicle** or **car detection**, for example *Front Gate Human*.`;
