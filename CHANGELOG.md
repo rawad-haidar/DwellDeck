@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.25 — TV off means off
+
+- When a TV card has real TV entries (`device_class: tv`), they decide whether it is on. A cast or speaker entry that keeps playing while the TV is off no longer makes the status, power button or Now playing show the TV as on.
+
 ## 0.9.24 — Air conditioners as room temperature
 
 - **Room temperature sensors** also lists air conditioners and thermostats; their current temperature is used and averaged with any sensors chosen.

@@ -428,7 +428,10 @@ export function tvCard(requested, hass) {
       return part.charAt(0).toUpperCase() + part.slice(1); };
     const all=${JSON.stringify(players)}.map(p=>states[p]).filter(Boolean); const live=all.filter(p=>!OFFS.includes(p.state));
     const lead=states[${JSON.stringify(id)}]; const tvs=live.filter(p=>p.attributes?.device_class==='tv');
-    const m=(lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || live.find(p=>p.state==='playing') || lead;
+    // When the card has real TV entries, they decide on or off: a cast or speaker entry that keeps "playing"
+    // while the TV is off doesn't make the TV look on.
+    const hasTv=all.some(p=>p.attributes?.device_class==='tv');
+    const m=(lead && !OFFS.includes(lead.state)) ? lead : tvs[0] || (hasTv ? lead : live.find(p=>p.state==='playing') || lead);
     const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'};
     const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || live.map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
   // One on/off rule for the status, the TV icon and the power button: the entry the status uses is on.

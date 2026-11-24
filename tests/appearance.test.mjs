@@ -388,3 +388,22 @@ test('room temperature averages the room\'s sensors, or the sensors chosen for t
  for(const id of ['sensor.den_t1','sensor.den_t2','sensor.den_t3']){delete states[id];delete hass.entities[id];}
  assert(den({}).includes('25'),'a room without sensors uses its air conditioner');
 });
+test('a TV that is off shows Off even when a cast entry of it keeps playing',()=>{
+ const E=(entity_id,platform,device_id,area_id)=>({entity_id,platform,device_id,area_id});
+ const st=(state,attributes)=>({state,attributes});
+ const states={
+  'media_player.saloon_saloon_tv':st('off',{device_class:'tv',friendly_name:'Saloon TV',assumed_state:true,supported_features:153529}),
+  'media_player.saloon_saloon_tv_adb':st('off',{device_class:'tv',friendly_name:'Saloon TV ADB',supported_features:23997}),
+  'media_player.saloon_tv_2':st('playing',{media_title:'Home Assistant',friendly_name:'Saloon TV(192.168.14.187) Saloon TV(192.168.14.246)',supported_features:479807}),
+  'remote.saloon_tv':st('off',{activity_list:[],current_activity:null,friendly_name:'Saloon TV'})};
+ const entities={'media_player.saloon_saloon_tv':E('media_player.saloon_saloon_tv','x','dA','saloon'),'remote.saloon_tv':E('remote.saloon_tv','x','dA','saloon'),
+  'media_player.saloon_saloon_tv_adb':E('media_player.saloon_saloon_tv_adb','androidtv','dB','saloon'),'media_player.saloon_tv_2':E('media_player.saloon_tv_2','dlna_dmr','dC','saloon')};
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{saloon:{area_id:'saloon',name:'Saloon',labels:[]}},floors:{},labels:{},devices:{},entities};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const cards=[];const find=x=>{if(x&&typeof x==='object'){if(x.custom_fields?.media&&x.entity)cards.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ const tv=cards[0];
+ assert.equal(Function('states',tv.label.trim().slice(3,-3))(states),'Off');
+ assert(runField(tv,'now',states).includes('The TV is off.'));
+ const bg=tv.custom_fields.power.card.styles.card.find(o=>'background' in o).background;
+ assert.equal(Function('states','entity',bg.trim().slice(3,-3))(states,states[tv.entity]),'transparent');
+});
