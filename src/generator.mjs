@@ -9,6 +9,7 @@ import {cameraDetectionSection} from './detection.mjs';
 import {designHome} from './home.mjs';
 import {designSecurity} from './security.mjs';
 import {designEnergy} from './energy.mjs';
+import {designClimate} from './climate.mjs';
 import {LABELS} from './data.mjs';
 
 export function inferDashboardPath(config, pathname = '') {
@@ -108,6 +109,7 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
   designHome(output, {prefix, hass});
   designSecurity(output, {prefix});
   designEnergy(output, {config, hass});
+  designClimate(output, {hass});
   // Rows in entity lists (history graphs, mini graphs, entities cards) are not cards:
   // drop unselected rows, and hint only when a card has no selected rows left.
   const unselected = row => (typeof row === 'string' ? row : row?.entity)?.includes?.('.dwelldeck_slot_');

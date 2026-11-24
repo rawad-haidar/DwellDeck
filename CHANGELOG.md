@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.9.27 — Energy power flow, Security shortcuts
+## 0.9.27 — Climate, Energy power flow, Security shortcuts
+
+- **Climate** follows Home's arrangement. **Climate now**: the average inside temperature (and outside), how many air conditioners are on, whether heating is on, and a list of everything heating or cooling with its mode and current → target temperature (tap for its controls). **Turn everything off** needs a second tap to confirm. **Heating** (boiler, hot water, valves) sits beside it at the same height. Then **Air conditioners** and **Thermostats** three across, **Scenes**, and the last 24 hours.
 
 - **Energy** follows Home's arrangement. Top row: a live **Power flow** (solar on top, grid left, house right, battery below, the inverter in the middle; moving dots show which way power flows and speed up with more power; tap a circle for its sensor) and **Today** (solar produced, home used, battery charged and discharged, from and to the grid).
 - Inverters are found by their sensor names (Solarman / Deye style) and added up, so two inverters in parallel show as one house. The house uses each inverter's output power.
