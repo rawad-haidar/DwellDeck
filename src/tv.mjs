@@ -281,8 +281,13 @@ function dwellTvPanel(states, cfg) {
     fallbackNote.apps = 'Turn the TV on and press Refresh to load the apps installed on it (needs the ADB connection).';
   }
   // Input keys for any Android TV (Android TV Remote or ADB) that lists no inputs of its own.
-  if (cfg.inputKeys && cfg.remote && !items.some(i => i.input)) {
-    cfg.inputKeys.forEach(([name, command], index) => items.push({name, callData: keyCallFor(cfg.remote.keyPrefix + command), input: true, order: index}));
+  // (The home screen is listed as a source by most TVs; it doesn't count as the TV listing its inputs.)
+  if (cfg.inputKeys && cfg.remote && !items.some(i => i.input && !/^home$/i.test(i.name))) {
+    cfg.inputKeys.forEach(([name, command], index) => {
+      const existing = items.find(i => i.name.toLowerCase() === name.toLowerCase());
+      if (existing) { existing.order = index; return; }
+      items.push({name, callData: keyCallFor(cfg.remote.keyPrefix + command), input: true, order: index});
+    });
     fallbackNote.sources = 'Input keys. Some TVs ignore the HDMI keys; Inputs opens the TV\'s own input menu.';
   }
   const byName = (a, b) => (a.order ?? 99) - (b.order ?? 99) || a.name.localeCompare(b.name, undefined, {numeric: true});
@@ -337,7 +342,7 @@ function dwellTvPanel(states, cfg) {
   }
   if (!tabs.length) return '';
   const paneClass = {remote: 'remote', apps: 'apps-pane', sources: 'sources', keys: 'keys'};
-  const open = tabs.map(([name]) => `.dw-tv[data-open="${name}"] .tab[data-tab="${name}"]{background:linear-gradient(135deg,${c.onBg},${c.surfaceEnd});border-color:${c.on}}
+  const open = tabs.map(([name]) => `.dw-tv[data-open="${name}"] .tab[data-tab="${name}"]{background:${c.onBg};color:${c.onText};box-shadow:inset 0 0 0 1px ${c.on}}
     .dw-tv[data-open="${name}"] .pane.${paneClass[name]}{display:grid}`).join('');
   const openTab = window.__dwellTv.open[cfg.lead] || '';
   return `<div class="dw-tv" data-tv="${esc(cfg.lead)}" data-open="${esc(openTab)}">
@@ -348,8 +353,10 @@ function dwellTvPanel(states, cfg) {
     .dw-tv button:active{transform:scale(.96)}
     .dw-tv button:focus-visible{outline:2px solid ${c.on};outline-offset:2px}
     .dw-tv ha-icon{--mdc-icon-size:24px}
-    .dw-tv .tabs{display:grid;grid-template-columns:repeat(${tabs.length},minmax(0,1fr));gap:10px}
-    .dw-tv .tab{min-height:68px;padding:8px 4px}
+    /* Tabs are a slim segmented bar, so they never look like the app tiles below them. */
+    .dw-tv .tabs{display:grid;grid-template-columns:repeat(${tabs.length},minmax(0,1fr));gap:4px;padding:4px;border-radius:999px;background:${c.card};border:1px solid ${c.line}}
+    .dw-tv .tab{flex-direction:row;gap:5px;min-height:40px;padding:0 6px;border:none;border-radius:999px;background:transparent;color:${c.muted};font-size:13px;font-weight:600}
+    .dw-tv .tab ha-icon{--mdc-icon-size:18px;flex:none}
     .dw-tv .pane{display:none;gap:12px}
     .dw-tv .pad{position:relative;display:grid;grid-template-areas:". up ." "left ok right" ". down .";grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);
       justify-content:center;align-items:center;justify-items:center;width:220px;height:220px;margin:4px auto 0;border-radius:50%;background:${c.surface}}

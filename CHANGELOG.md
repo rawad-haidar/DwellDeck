@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.14 — Tab bar and HDMI keys
+
+- The Remote, Apps, Sources and Keyboard tabs are a slim segmented bar with the icon beside the label, so they no longer look like the app tiles. The open tab is highlighted.
+- A TV that lists only its home screen as a source still gets Live TV, HDMI 1 to 4 and Inputs.
+
 ## 0.9.13 — Sources on every Android TV
 
 - **Sources** offers Home, **Live TV**, HDMI 1 to 4 and Inputs on every Android TV: as keys through Android TV Remote, or as `input keyevent` commands through ADB. ADB-only TVs such as Living Tv now get them too.

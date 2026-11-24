@@ -273,3 +273,11 @@ test('an ADB-only TV gets HDMI, Live TV and input keys as ADB key events',()=>{
  assert(p.calls.some(c=>c[0]==='androidtv'&&c[2].command==='input keyevent KEYCODE_TV_INPUT_HDMI_2'));
  assert(p.calls.some(c=>c[0]==='androidtv'&&c[2].command==='input keyevent KEYCODE_TV'));
 });
+test('a TV that lists only its home screen as a source still gets HDMI and Live TV keys',()=>{
+ const states={'media_player.den_tv':{state:'on',attributes:{friendly_name:'Den TV',device_class:'tv',supported_features:23997,source_list:['Google TV Launcher','Netflix']}}};
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{den:{area_id:'den',name:'Den',labels:[]}},floors:{},labels:{},devices:{},
+  entities:{'media_player.den_tv':{entity_id:'media_player.den_tv',platform:'androidtv',device_id:'d1',area_id:'den'}}};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const cards=[];const find=x=>{if(x&&typeof x==='object'){if(x.custom_fields?.media&&x.entity)cards.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ assert.deepEqual(panel(cards[0],states).names('sources'),['Home','Live TV','HDMI 1','HDMI 2','HDMI 3','HDMI 4','Inputs']);
+});
