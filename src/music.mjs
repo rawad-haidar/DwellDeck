@@ -1,6 +1,7 @@
 // Music Assistant page: the Music Assistant app takes DwellDeck's colours and font. The app is served by
 // Home Assistant on the same address (add-on ingress), so the dashboard can add a stylesheet to it.
 import {DWELL_FONT_URL, DWELL_FONT_STACK} from './design.mjs';
+import {touchSafe} from './util.mjs';
 import {KNOWN_PACKAGES, HIDDEN_PACKAGES} from './tv.mjs';
 import {ROOM_COLORS} from './rooms.mjs';
 
@@ -103,7 +104,10 @@ export function designMusic(output, config = {}) {
     extra_styles: ':host{display:block;height:0;overflow:hidden;margin-bottom:-8px}'
   };
   // The app is hidden until it has DwellDeck's colours (the helper shows it, or after 3 s).
-  const hide = 'iframe { opacity: 0; transition: opacity .25s ease; }';
+  // The card keeps a box whose height is 80% of its width; on a phone that is about 300px and cuts the app
+  // off. The app fills the screen's height instead, on any screen.
+  const fit = '#root { padding-top: 0 !important; height: calc(100dvh - 92px) !important; min-height: 420px !important; } iframe { height: 100% !important; min-height: 0 !important; }';
+  const hide = `${fit} iframe { opacity: 0; transition: opacity .25s ease; }`;
   app.card_mod = {...(app.card_mod || {}), style: typeof app.card_mod?.style === 'string' ? `${app.card_mod.style}\n${hide}` : hide};
   view.cards = [{type: 'vertical-stack', cards: [helper, app]}, ...view.cards.filter(card => card !== app)];
   return output;
@@ -291,8 +295,8 @@ export function designMediaHistory(output, {hass = {}} = {}) {
     {type: 'heading', heading: 'Recently played', icon: 'mdi:history'},
     {type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
       tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
-      custom_fields: {played: `[[[ return (${dwellPlayed.toString()})(this, hass, ${JSON.stringify({players, known: {...KNOWN_PACKAGES, ShahidTV: 'Shahid'}, hidden: `${HIDDEN_PACKAGES.source}|ttvs|service\\b|\\}`,
-        notPlayed: ['Home', 'Settings', 'Play Store', 'Music Assistant', 'Google Cast'], c})}); ]]]`},
+      custom_fields: {played: touchSafe(`(${dwellPlayed.toString()})(this, hass, ${JSON.stringify({players, known: {...KNOWN_PACKAGES, ShahidTV: 'Shahid'}, hidden: `${HIDDEN_PACKAGES.source}|ttvs|service\\b|\\}`,
+        notPlayed: ['Home', 'Settings', 'Play Store', 'Music Assistant', 'Google Cast'], c})})`)},
       styles: {
         card: [{padding: '16px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${ROOM_COLORS.surface},${ROOM_COLORS.card})`}, {border: `1px solid ${ROOM_COLORS.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
         grid: [{'grid-template-areas': '"played"'}, {'grid-template-columns': '1fr'}],

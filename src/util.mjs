@@ -38,3 +38,8 @@ export function installShared(transform) {
     globalThis.__dwell[name] = rewritten === source ? fn : Function(`return (${rewritten});`)();
   }
 }
+
+// A template whose HTML has its own buttons, menus or sliders. button-card listens for taps on the whole card
+// and cancels the end of every touch, so on a phone a button inside never gets its press; touches inside this
+// wrapper stay with the buttons. display:contents keeps the layout as it was.
+export const touchSafe = call => `[[[ return '<div class="dw-touch" style="display:contents" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()" ontouchcancel="event.stopPropagation()">' + ${call} + '</div>'; ]]]`;

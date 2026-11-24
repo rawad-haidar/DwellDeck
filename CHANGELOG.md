@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.36 — Phones and tablets
+
+- **Buttons inside cards work on a phone.** button-card listens for taps on the whole card and cancels the end of every touch on it, so on a touch screen the buttons, tabs, menus and sliders drawn inside DwellDeck's cards often never got their press (with a mouse they did). Affected: the player cards' Music player and Music Assistant buttons, Remote / Apps / Sources / Keyboard tabs and volume slider, Recently played, the Home pills and energy, Security status and shortcuts, Climate status and history, the Energy flow and history, and camera detections. Touches inside these areas now stay with the buttons. Measured: the touch was cancelled before, and is not now.
+- **The Music Assistant page fills the screen on a phone.** Its card kept a box 80% as tall as it is wide, about 300px on a phone, and cut the app off; the app now fills the screen's height on any screen.
+
 ## 0.9.35 — Page colours and the blur fix, for real
 
 - **The page background is DwellDeck's palette colour**, not the Home Assistant theme's (Alpine Morning's teal and amber glow): behind the cards, and on the browser page itself, so the strip a phone has not painted yet while scrolling no longer flashes the theme's colour.

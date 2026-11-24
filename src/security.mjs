@@ -1,6 +1,7 @@
 // Security: what needs you first (alarm, open doors, safety sensors, gates, offline cameras), then the alarm
 // panel, gates, cameras, detection and shortcuts.
 import {ROOM_COLORS} from './rooms.mjs';
+import {touchSafe} from './util.mjs';
 
 const SEC_C = ROOM_COLORS;
 // Height of the top row's cards, so status, alarm and gates line up at top and bottom.
@@ -103,7 +104,7 @@ function securityStatusCard(cfg) {
   return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, triggers_update: 'all', variables: {dwell_static: true},
-    custom_fields: {status: `[[[ return (${dwellSecurityStatus.toString()})(states, hass, ${JSON.stringify(cfg)}); ]]]`},
+    custom_fields: {status: touchSafe(`(${dwellSecurityStatus.toString()})(states, hass, ${JSON.stringify(cfg)})`)},
     styles: {
       // The top row (status, alarm, gates) shares one height; a long attention list scrolls inside.
       card: [{padding: '22px 24px'}, {height: `${TOP_ROW}px`}, {'box-sizing': 'border-box'}, {'overflow-y': 'auto'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${SEC_C.surface},${SEC_C.card})`},
@@ -154,7 +155,7 @@ function shortcutBar(cards) {
   return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
-    custom_fields: {bar: `[[[ return (${dwellShortcutBar.toString()})(states, ${JSON.stringify({items, c: SEC_C})}); ]]]`},
+    custom_fields: {bar: touchSafe(`(${dwellShortcutBar.toString()})(states, ${JSON.stringify({items, c: SEC_C})})`)},
     styles: {card: [{padding: '0'}, {background: 'transparent'}, {border: 'none'}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"bar"'}, {'grid-template-columns': '1fr'}],
       custom_fields: {bar: [{width: '100%'}, {'pointer-events': 'auto'}]}},

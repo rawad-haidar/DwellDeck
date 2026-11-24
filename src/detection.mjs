@@ -1,6 +1,6 @@
 // Security view: live human and vehicle detection status and recent activity per camera.
 // Sensors are discovered by name, like the Activity view's detection status card.
-import {normalizeName} from './util.mjs';
+import {normalizeName, touchSafe} from './util.mjs';
 
 // Collects one row per human/vehicle binary sensor and kind into ns.rows: {cam, kind, on, unavailable, t}.
 // The camera name is the sensor name without its detection words, e.g. "Front Gate Smart Motion Human" -> "Front Gate".
@@ -265,7 +265,7 @@ function snapshotViewer(group) {
   return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
-    custom_fields: {viewer: `[[[ return (${dwellSnapViewer.toString()})(this, hass, ${JSON.stringify(cfg)}); ]]]`},
+    custom_fields: {viewer: touchSafe(`(${dwellSnapViewer.toString()})(this, hass, ${JSON.stringify(cfg)})`)},
     styles: {card: [{padding: '0'}, {background: 'transparent'}, {border: 'none'}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"viewer"'}, {'grid-template-columns': '1fr'}],
       custom_fields: {viewer: [{width: '100%'}, {'min-width': '0'}, {'pointer-events': 'auto'}]}}
@@ -410,7 +410,7 @@ function detectionPanel(tiles, snapshotsPath) {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true, dwell_groups: groups},
     triggers_update: [...new Set(groups.flatMap(group => group.rows.map(row => row.id)))],
-    custom_fields: {list: `[[[ return (${dwellDetections.toString()})(states, ${JSON.stringify({groups, snapshots: snapshotsPath, c: {text: '#edf5ff', muted: '#91a8bd', on: '#d5a74c', onText: '#efc875'}})}); ]]]`},
+    custom_fields: {list: touchSafe(`(${dwellDetections.toString()})(states, ${JSON.stringify({groups, snapshots: snapshotsPath, c: {text: '#edf5ff', muted: '#91a8bd', on: '#d5a74c', onText: '#efc875'}})})`)},
     styles: {
       card: [{padding: '12px'}, {'border-radius': '20px'}, {background: 'linear-gradient(135deg, #1b2d40, #101c2b)'}, {border: '1px solid rgba(156,199,225,.12)'}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"list"'}, {'grid-template-columns': '1fr'}],
