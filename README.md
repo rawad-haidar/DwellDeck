@@ -4,6 +4,10 @@
 
 DwellDeck packages the original multi-view Home Assistant command center: its Home page, animated weather, dark navy styling, navigation tabs, status summaries, room controls, history graphs, security pages and popups. Version 0.8.1 builds on the original-design edition and replaces the simplified room-grid prototype.
 
+## Camera detection on the Security page
+
+The Security page shows live **human** and **vehicle** detection for your cameras: what is detected right now, the most recent activity, and a table with each camera's latest human and vehicle state. Active detections are listed first. Sensors are found by name, so no setup is needed: any binary sensor whose name contains *person*, *human*, *vehicle* or *car detection* is included, and the camera name is the sensor name without those words (for example *Front Gate Smart Motion Human* appears as *Front Gate*). Turn it off with **Show camera human and vehicle detection on the Security page** in **Edit dashboard**, or `camera_detection: false`.
+
 ## New in 0.8.1
 
 Use **Edit dashboard → Discover rooms and devices** to organize rooms from Home Assistant areas, floors and labels. The Rooms tab contains room controls; Lights keeps light-only popups with the names and count of lights currently on. Curtains, media and cameras have grouped layouts, and Climate history and activity stay together at the bottom.
@@ -121,6 +125,7 @@ Edit the sources in `src/`, never `dwelldeck.js` directly. `npm run build` bundl
 | `src/discovery.mjs` | Area, device and entity discovery from Home Assistant registries |
 | `src/cards.mjs` | Room tiles, light popups, area room cards and entity sections |
 | `src/views.mjs` | Rooms, lights, curtains, media, camera and climate view organisation |
+| `src/detection.mjs` | Security page camera human and vehicle detection section |
 | `src/theme.mjs` | Built-in colours, palettes and activity effects |
 | `src/generator.mjs` | `generateOriginal`, which applies bindings to the template |
 | `src/editor.mjs`, `src/strategy.mjs` | The Edit dashboard editor and the dashboard strategy |
