@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.9 — TV buttons reach an entry that supports them
+
+- Power goes to an entry of the TV that can turn on and off, else to the TV remote (`remote.toggle`), else to ADB's power key. Fixes "does not support action media_player.toggle" when a cast or speaker entry led the card.
+- Volume and play or pause go to the first entry that supports them.
+- Any TV player other than ADB leads the card ahead of cast and speaker entries with the same name.
+
 ## 0.9.8 — TV controls by what the TV reports
 
 - A remote that reports the current app is treated as an Android TV remote, whatever integration provides it. Remote keys, Keyboard and the common apps and inputs now work for it.

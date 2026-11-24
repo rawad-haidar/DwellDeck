@@ -56,12 +56,17 @@ export const baseName = (id, hass) => {
 // The TV's own integration leads (Android TV Remote, Apple TV), then ADB, then other TVs, then speakers.
 const rank = (id, hass) => {
   const platform = hass.entities?.[id]?.platform;
-  if (platform === 'androidtv') return 2;
-  const remote = tvRemote(id, hass);
+  if (platform === 'androidtv') return 3;
   const tv = hass.states?.[id]?.attributes?.device_class === 'tv';
-  if (['androidtv_remote', 'apple_tv'].includes(platform) || (remote && tv)) return 0;
-  return remote || tv ? 1 : 3;
+  if (['androidtv_remote', 'apple_tv'].includes(platform) || tv) return tvRemote(id, hass) ? 0 : 1;
+  return tvRemote(id, hass) ? 2 : 4;
 };
+
+// media_player supported_features bits.
+const FEATURE = {pause: 1, volumeSet: 4, turnOn: 128, turnOff: 256, volumeStep: 1024, play: 16384};
+const supports = (id, hass, bits) => (Number(hass.states?.[id]?.attributes?.supported_features) & bits) !== 0;
+// The first entry of the TV (lead first) that supports an action, so each button reaches an entry that can do it.
+const playerFor = (players, hass, bits) => players.find(id => supports(id, hass, bits));
 export function tvGroup(id, hass) {
   const base = baseName(id, hass);
   const area = entityArea(id, hass);
@@ -274,7 +279,14 @@ export function tvCard(requested, hass) {
   const id = players[0];
   const name = playerName(id, hass);
   const remote = players.map(player => tvRemote(player, hass)).find(Boolean);
-  const player = action => ({action: 'perform-action', perform_action: `media_player.${action}`, target: {entity_id: id}});
+  const player = (action, target = id) => ({action: 'perform-action', perform_action: `media_player.${action}`, target: {entity_id: target}});
+  // Power: an entry that can turn on and off, else the TV remote, else ADB's power key.
+  const powerPlayer = playerFor(players, hass, FEATURE.turnOn | FEATURE.turnOff);
+  const power = powerPlayer ? player('toggle', powerPlayer)
+    : remote && remote.platform !== 'androidtv' ? {action: 'perform-action', perform_action: 'remote.toggle', target: {entity_id: remote.id}}
+    : remote ? remote.send('POWER') : player('toggle');
+  const volumePlayer = playerFor(players, hass, FEATURE.volumeStep | FEATURE.volumeSet) || id;
+  const playPlayer = playerFor(players, hass, FEATURE.play | FEATURE.pause) || id;
   const watched = [...new Set([...players, ...(remote ? [remote.id] : [])])];
   // Status comes from whichever entry is on: the TV's own player first, then anything playing.
   const current = `const OFFS=${OFF}; const known=${JSON.stringify(KNOWN_PACKAGES)};
@@ -303,16 +315,16 @@ export function tvCard(requested, hass) {
 
   const fields = {
     power: {card: {
-      ...key('Power', 'mdi:power', player('toggle')), entity: id, triggers_update: [],
+      ...key('Power', 'mdi:power', power), entity: powerPlayer || id, triggers_update: [],
       styles: {...key('Power', 'mdi:power').styles, card: [
         {background: `[[[ return ${OFF}.includes(entity?.state) ? 'linear-gradient(135deg,${C.surface},${C.surfaceEnd})' : 'linear-gradient(135deg,${C.onBg},${C.surfaceEnd})'; ]]]`},
         {border: `[[[ return ${OFF}.includes(entity?.state) ? '1px solid ${C.line}' : '1px solid ${C.on}'; ]]]`},
         {'border-radius': '50%'}, {'box-shadow': 'none'}, {width: '46px'}, {height: '46px'}, {padding: '0'}]}
     }},
     media: {card: group('"down play up"', 'repeat(3,1fr)', {
-      down: key('Volume down', 'mdi:volume-minus', player('volume_down')),
-      play: key('Play or pause', 'mdi:play-pause', player('media_play_pause')),
-      up: key('Volume up', 'mdi:volume-plus', player('volume_up'))
+      down: key('Volume down', 'mdi:volume-minus', player('volume_down', volumePlayer)),
+      play: key('Play or pause', 'mdi:play-pause', player('media_play_pause', playPlayer)),
+      up: key('Volume up', 'mdi:volume-plus', player('volume_up', volumePlayer))
     })}
   };
   // Now playing: status, artwork, title, artist or series, and the app.

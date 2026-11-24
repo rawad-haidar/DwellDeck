@@ -176,9 +176,9 @@ test('a TV whose integration is unknown still gets its remote, keyboard and stat
  const E=(entity_id,platform,device_id,area_id)=>({entity_id,platform,device_id,area_id});
  const st=(state,attributes)=>({state,attributes});
  const states={
-  'media_player.saloon_saloon_tv':st('on',{app_id:'com.google.android.youtube.tv',app_name:'com.google.android.youtube.tv',device_class:'tv',friendly_name:'Saloon TV'}),
-  'media_player.saloon_saloon_tv_adb':st('off',{device_class:'tv',friendly_name:'Saloon TV ADB'}),
-  'media_player.saloon_tv_2':st('paused',{media_title:'Home Assistant',friendly_name:'Saloon TV(192.168.14.187) Saloon TV(192.168.14.246)'}),
+  'media_player.saloon_saloon_tv':st('on',{app_id:'com.google.android.youtube.tv',app_name:'com.google.android.youtube.tv',device_class:'tv',friendly_name:'Saloon TV',supported_features:153529}),
+  'media_player.saloon_saloon_tv_adb':st('off',{device_class:'tv',friendly_name:'Saloon TV ADB',supported_features:23997}),
+  'media_player.saloon_tv_2':st('paused',{media_title:'Home Assistant',friendly_name:'Saloon TV(192.168.14.187) Saloon TV(192.168.14.246)',supported_features:479807}),
   'remote.saloon_saloon_tv_adb':st('unknown',{friendly_name:'Saloon TV ADB'}),
   'remote.saloon_tv':st('on',{activity_list:[],current_activity:'com.google.android.youtube.tv',friendly_name:'Saloon TV',supported_features:4})};
  const entities={
@@ -204,4 +204,17 @@ test('a TV whose integration is unknown still gets its remote, keyboard and stat
  const now=runField(tv,'now',states);
  assert(now.includes('YouTube')&&!now.includes('Paused')&&!now.includes('Home Assistant'));
  assert(tv.custom_fields.media.card.custom_fields.up.card.tap_action.target.entity_id==='media_player.saloon_saloon_tv');
+ const power=tv.custom_fields.power.card.tap_action;
+ assert.equal(power.perform_action,'media_player.toggle');assert.equal(power.target.entity_id,'media_player.saloon_saloon_tv');
+});
+test('power goes to an entry that can turn on and off, else to the TV remote',()=>{
+ const E=(entity_id,platform,device_id,area_id)=>({entity_id,platform,device_id,area_id});
+ const states={'media_player.den_tv':{state:'on',attributes:{friendly_name:'Den TV',supported_features:479807}},
+  'remote.den_tv':{state:'on',attributes:{friendly_name:'Den TV',current_activity:'x'}}};
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{den:{area_id:'den',name:'Den',labels:[]}},floors:{},labels:{},devices:{},
+  entities:{'media_player.den_tv':E('media_player.den_tv','dlna_dmr','d1','den'),'remote.den_tv':E('remote.den_tv','x','d2','den')}};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const cards=[];const find=x=>{if(x&&typeof x==='object'){if(x.custom_fields?.media&&x.entity)cards.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ const power=cards[0].custom_fields.power.card.tap_action;
+ assert.equal(power.perform_action,'remote.toggle');assert.equal(power.target.entity_id,'remote.den_tv');
 });
