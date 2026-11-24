@@ -24,7 +24,8 @@ test('security view gets a camera detection section with status and recent activ
 });
 
 test('detection history button opens the Activity view under the dashboard path', () => {
-  const button = detectionSection(generate({})).cards.find(c => c.type === 'button');
+  // The button lives with the other Security shortcuts.
+  const button = generate({}).views.find(v => v.path === 'security').sections.flatMap(s => s.cards).find(c => c.name === 'Detection history');
   assert.equal(button.tap_action.navigation_path, '/dashboard-test/notifications');
 });
 

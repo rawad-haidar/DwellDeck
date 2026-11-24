@@ -1,5 +1,119 @@
 # Changelog
 
+## 0.9.26 — Home and Security in order of importance
+
+- **Security** opens with one status card: the alarm state in large type, pills for safety alerts, open doors and windows, motion, gates and cameras, and a **Needs attention** list (alarm triggered, safety alerts, unlocked gates, open doors and windows, offline cameras, most serious first; each opens its entity). When nothing needs you, it says all clear.
+- **Camera detection** is one folding card instead of a tile per camera: folded, it shows how many cameras have detection and what was detected now or last; open, it lists every camera newest detection first (live, not only when the page loads), and each row opens that camera's detection popup. It remembers being open on each device.
+- **Snapshot history per camera**: each detection now also saves a dated snapshot in a folder per camera (`media/dwelldeck/snapshots/<camera>/`). The detection popup shows the newest one large with a strip of earlier ones under it, newest first; tap one to see it large. Press **Update detection snapshots** in the dashboard editor once to update the automation.
+- **30 days per camera**: the strip shows the last 30 days of snapshots. A nightly automation (03:17) deletes dated snapshots older than 30 days, so each camera keeps a rolling month. Home Assistant cannot delete files on its own, so this needs a `shell_command` in configuration.yaml; the setup button shows it, and creates the cleanup automation once it exists.
+- **Detection snapshots**: a row in the detection card and a shortcut open the snapshot folder (`media/dwelldeck/snapshots`) in the Media browser.
+- Then the alarm panel top right, **Gates** with each gate's status and its **Unlock** button on one row (the confirmation stays), **Entrance cameras** two across, **Camera detection**, and **Shortcuts** (sensor activity, recent history, all cameras, detection history) in the same style as Home.
+
+- **At a glance** replaces the clock card: greeting, time and date, and status pills for lights, TVs, air conditioning, curtains, open doors and windows, and the alarm. Each pill opens its page; an open door or a triggered alarm shows in red.
+- **Rooms in use** shows the room cards only while something in the room is on (lights, a TV, air conditioning, a switch). When nothing is, one card says everything is off.
+- **Outside** keeps the weather hero top right, beside the glance card. **Safety** groups alerts, the outdoor alarm and the latest activity. **Energy and climate** shows solar, consumption and battery side by side, then air conditioning.
+- **Shortcuts**: the page buttons share one size and layout.
+- **TVs and sound systems are separate.** In a room, TVs and Sound systems have their own groups, and room cards show "TV on" and "Music playing" as separate chips. A sound system's card has a speaker icon and no TV wording. A player is a TV when it says so (`device_class`), when its integration is a TV integration (Android TV, Apple TV, webOS, Samsung, Bravia and others), when it has a TV remote, or when its name says TV; Sonos, Music Assistant, DSPPA, Denon, Yamaha and other audio integrations are sound systems. At a glance shows speakers playing when any are.
+- Names decide first: a player with "Sound system", "Speaker", "Soundbar" or "Audio" in its name is a sound system; "TV" in the name makes it a TV.
+- A TV that is on but not playing (Android TV over ADB reports "idle") shows **TV on**, counts the room as in use and counts in At a glance. Its real TV entries and its remote decide, not a cast entry named after it.
+- A room no longer counts as in use, or shows a Playing chip, because a cast or DLNA entry of its TV keeps playing; the TV's main entry decides.
+
+## 0.9.25 — TV off means off
+
+- When a TV card has real TV entries (`device_class: tv`), they decide whether it is on. A cast or speaker entry that keeps playing while the TV is off no longer makes the status, power button or Now playing show the TV as on.
+
+## 0.9.24 — Air conditioners as room temperature
+
+- **Room temperature sensors** also lists air conditioners and thermostats; their current temperature is used and averaged with any sensors chosen.
+- A room with no temperature sensor uses its air conditioners' current temperature.
+
+## 0.9.23 — Room temperature
+
+- A room's temperature is the average of its temperature sensors; unavailable sensors are skipped.
+- **Edit dashboard → Home Assistant areas and controls → (room) → Room temperature sensors** chooses the sensors for a room, from any area. Chosen sensors replace the room's own and are averaged when there are several.
+
+## 0.9.22 — Room lights button targets
+
+- The room card's lights button sends off only to lights that are on, and on only to lights that are reachable, so an already-off or unreachable device can't fail the whole action.
+
+## 0.9.21 — Fixed room card height
+
+- Room cards have their own fixed height (128px), so cards with and without chips are identical even when the content would stretch the grid row.
+- The chip row is exactly one chip high: chips that don't fit whole are hidden instead of being cut off, most important first.
+
+## 0.9.20 — Identical room cards
+
+- Every room card is the same size (two rows of the sections grid), with the icon, name, lights button and chips in the same place on every card.
+- The name stays on one line; cards show one row of the three most important chips (alerts and open doors, then temperature, air conditioning, TV, motion). The status strip inside the room still shows them all.
+
+## 0.9.19 — Room card layout fix
+
+- The room's lights button sits top right in every card: the off and on buttons share one slot and Home Assistant's conditional cards show the one that applies. Before, the on button fell into an extra row and squeezed the room name to a few letters.
+- Long room names wrap onto a second line instead of being cut off.
+
+## 0.9.18 — Rooms redesign
+
+- Room cards: icon, name and "3 of 9 lights on", a round lights button (turns the room off, or on when all is off), and status chips for temperature, humidity, air conditioning, TV, open curtains, motion, open doors and alerts. Status uses an icon and text, not colour alone.
+- A room card glows only when something in it is switched on (lights, TV, running air conditioning, switches); doors, curtains and sensors show as chips instead.
+- Two room cards per row in each floor.
+- Rooms open with a compact status strip, then Lights, Climate, TV and media, Scenes, Curtains, Switches and Cameras; safety and all sensor tiles move to the end.
+
+## 0.9.17 — TCL HDMI inputs
+
+- On TCL TVs, HDMI 1 to 3 open with TCL's passthrough links (HW15, HW16, HW17): through Android TV Remote (`remote.turn_on`) or ADB (`am start`). Live TV opens TCL's TV app. A TV counts as TCL by its device manufacturer or its installed TCL apps.
+- A room with exactly one TV remote pairs it with the room's TV even when their names differ.
+
+## 0.9.16 — Power button follows the TV
+
+- The power button is plain with a grey icon when the TV is off, and filled orange when it is on.
+- It updates live and uses the same on/off as the status line and the TV icon; before, it kept the state it had when the page loaded.
+
+## 0.9.15 — Readable apps on TCL Google TVs
+
+- App names for packages seen on TCL Google TVs (Disney+ MEA, Shahid TV, TOD, iQIYI, Yango Play and others); unknown packages split camelCase into words.
+- TCL system tools (instructions, suspension, dashboard, exhibit, guard, partner customizer, TCL home) are hidden from Apps.
+- TCL's Live TV app goes to Sources; HDMI and Inputs keys stay next to it unless the TV lists HDMI inputs of its own.
+
+## 0.9.14 — Tab bar and HDMI keys
+
+- The Remote, Apps, Sources and Keyboard tabs are a slim segmented bar with the icon beside the label, so they no longer look like the app tiles. The open tab is highlighted.
+- A TV that lists only its home screen as a source still gets Live TV, HDMI 1 to 4 and Inputs.
+- The remote pad's arrows and OK are centred in their circle.
+
+## 0.9.13 — Sources on every Android TV
+
+- **Sources** offers Home, **Live TV**, HDMI 1 to 4 and Inputs on every Android TV: as keys through Android TV Remote, or as `input keyevent` commands through ADB. ADB-only TVs such as Living Tv now get them too.
+- TVs that list inputs of their own (for example HDMI in a source list) show those instead.
+
+## 0.9.12 — App icons
+
+- Apps show their brand icon on the brand colour (Netflix, YouTube, Spotify, Play Store, Plex, Kodi, Twitch, Apple TV and more), using icons built into Home Assistant, so nothing is downloaded. Apps without a brand icon get a tile with their first letter on a colour that stays the same for each app.
+
+## 0.9.11 — Installed TV apps from ADB
+
+- **Apps** lists the apps installed on the TV. Opening the tab (at most once a minute) or pressing **Refresh installed apps** asks ADB for the TV's launchable apps and user-installed apps. The list is remembered in the browser until a newer answer replaces it, so an app drops out only once it is uninstalled.
+- ADB's running-apps list no longer feeds Apps, so apps no longer disappear when you open one. It is still used for inputs.
+- Apps open with Android TV Remote (`remote.turn_on` with the package) when the TV has it, otherwise through ADB.
+- The open tab stays open when the card redraws.
+
+## 0.9.10 — Hidden TV entries lead their card
+
+- A TV entry hidden in Home Assistant still joins its TV and can lead the card. On the Saloon TV the real player was hidden, so the card fell back to the disconnected ADB entry.
+- A TV never produces two cards when several of its entries are in a room.
+- The browser console shows one line per TV with its entries and where Power, Volume and Play go.
+
+## 0.9.9 — TV buttons reach an entry that supports them
+
+- Power goes to an entry of the TV that can turn on and off, else to the TV remote (`remote.toggle`), else to ADB's power key. Fixes "does not support action media_player.toggle" when a cast or speaker entry led the card.
+- Volume and play or pause go to the first entry that supports them.
+- Any TV player other than ADB leads the card ahead of cast and speaker entries with the same name.
+
+## 0.9.8 — TV controls by what the TV reports
+
+- A remote that reports the current app is treated as an Android TV remote, whatever integration provides it. Remote keys, Keyboard and the common apps and inputs now work for it.
+- The TV's own player leads the card (name, volume, power and status) ahead of an ADB entry; ADB is used only when nothing else can control the TV.
+- Now playing shows the TV itself, not a paused stream on another entry with the same name.
+
 ## 0.9.7 — TV status from the entry that is on
 
 - A TV's status and Now playing come from whichever of its entries is on: the TV's own player first, then anything playing. An ADB entry that has lost its connection no longer makes the TV look off.

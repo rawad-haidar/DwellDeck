@@ -1,0 +1,98 @@
+29 activities found:
+  Activity #0:
+    priority=3 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.android.tv.settings/.MainSettings
+  Activity #1:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+    com.android.vending/com.google.android.finsky.tvmainactivity.TvMainActivity
+  Activity #2:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+    com.google.android.youtube.tv/com.google.android.apps.youtube.tv.activity.ShellActivity
+  Activity #3:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+    com.google.android.youtube.tvmusic/com.google.android.apps.youtube.tvmusic.activity.MainActivity
+  Activity #4:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+    com.tcl.ocean.instructions/.portal.home.HomeActivity
+  Activity #5:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+    com.tcl.suspension/.ui.main.MainActivity
+  Activity #6:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+    com.tcl.t_solo/com.tcl.bluetoothlistenalone.ListenAloneActivity
+  Activity #7:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+    com.tcl.tv/com.tcl.player.TVActivity
+  Activity #8:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true
+    com.todtv.tod/.MainActivity
+  Activity #9:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.amazon.amazonvideo.livingroom/com.amazon.ignition.IgnitionActivity
+  Activity #10:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.google.android.play.games/com.google.android.apps.play.games.app.atv.features.home.HomeActivity
+  Activity #11:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.google.android.videos/.tv.presenter.activity.TvLauncherActivity
+  Activity #12:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.netflix.ninja/.MainActivity
+  Activity #13:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.tcl.dashboard/.MainActivity
+  Activity #14:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.tcl.exhibit/.portal.view.activity.MainActivity
+  Activity #15:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.tcl.guard/.mainmenu.splashpage.activity.StartActivity
+  Activity #16:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.tcl.magiconnectfree/com.tcl.multiscreeninteractiontv.UI.activity.SplashActivity
+  Activity #17:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.tcl.partnercustomizer/.tkey.WithIcon
+  Activity #18:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.tcl.ui_mediaCenter/.main.MainActivity
+  Activity #19:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.tcl.waterfall.overseas/.main.MainActivity
+  Activity #20:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.CV.CablevisionPlus/tv.alphanetworks.gecko.androidtv.SplashScreenActivity
+  Activity #21:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.disneyplus.mea/com.hotstar.MainActivity
+  Activity #22:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.fadaatmediagroup.live.tv/com.eurisko.tv.ui.splashscreen.SplashActivity
+  Activity #23:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.iqiyi.i18n.tv/.launch.LaunchActivity
+  Activity #24:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.onplus/.MainActivity
+  Activity #25:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.samaitv/.SplashScreen
+  Activity #26:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.spotify.tv.android/com.spotify.app.androidtv.MainActivity
+  Activity #27:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    com.yango.saft.tv/ru.kinopoisk.tv.presentation.splash.SplashActivity
+  Activity #28:
+    priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=false
+    net.mbc.shahidTV/.MainActivity
+package:com.todtv.tod
+package:com.fadaatmediagroup.live.tv
+package:com.disneyplus.mea
+package:com.samaitv
+package:com.spotify.tv.android
+package:net.mbc.shahidTV
+package:com.CV.CablevisionPlus
+package:com.iqiyi.i18n.tv
+package:com.yango.saft.tv
+package:com.onplus

@@ -3,7 +3,7 @@ import {clone} from './util.mjs';
 import {dependencyStatus} from './dependencies.mjs';
 import {ROOM_CONTROL_DOMAINS, discoveryContext, discoverConfiguration} from './discovery.mjs';
 import {DWELL_PALETTES, DEFAULT_PALETTE} from './theme.mjs';
-import {detectionSensors, snapshotAutomation, SNAPSHOT_DIR} from './detection.mjs';
+import {detectionSensors, snapshotAutomation, cleanupAutomation, SNAPSHOT_DIR, SNAPSHOT_DAYS, CLEANUP_YAML} from './detection.mjs';
 import {SLOTS, ROOM_TEMPLATES} from './data.mjs';
 
 export class DwellDeckOriginalEditor extends HTMLElement {
@@ -119,8 +119,14 @@ export class DwellDeckOriginalEditor extends HTMLElement {
         }
         this.change({...this.config, detection_snapshots: true});
         const unlinked = sensors.filter(sensor => !sensor.camera).map(sensor => sensor.cam);
+        // Keep 30 days per camera: a nightly cleanup, when the shell command for it exists.
+        const canClean = !!this._hass.services?.shell_command?.dwelldeck_snapshot_cleanup;
+        if (canClean) await this._hass.callApi('POST', 'config/automation/config/dwelldeck_snapshot_cleanup', cleanupAutomation());
         snapshotStatus.textContent = `Snapshots set up for ${linked.length} sensors on ${automation.triggers.length} cameras.` +
-          (unlinked.length ? ` No camera found for: ${[...new Set(unlinked)].join(', ')}.` : '') + ' Save the dashboard to show them.';
+          (unlinked.length ? ` No camera found for: ${[...new Set(unlinked)].join(', ')}.` : '') + ' Save the dashboard to show them. ' +
+          (canClean ? `Snapshots older than ${SNAPSHOT_DAYS} days are deleted every night.`
+            : `To keep only the last ${SNAPSHOT_DAYS} days, add this to configuration.yaml, restart, and press this button again:\n${CLEANUP_YAML}`);
+        snapshotStatus.style.whiteSpace = 'pre-wrap';
         snapshots.textContent = 'Update detection snapshots';
       } catch (error) {
         snapshotStatus.textContent = `Could not set up snapshots: ${error.message || error.body?.message || 'administrator access is required'}`;
@@ -154,15 +160,15 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     for(const room of editorRooms){
       const details=document.createElement('details');const title=document.createElement('summary');title.textContent=this.config.rooms?.[room.key]?.name||room.name;details.append(title);
       details.append(this.form([
-        {name:'name',selector:{text:{}}},{name:'area',selector:{area:{}}},{name:'entities',selector:{entity:{multiple:true,filter:{domain:['light','switch']}}}},{name:'exclude',selector:{entity:{multiple:true}}},{name:'discover_controls',selector:{boolean:{}}},{name:'controls',selector:{entity:{multiple:true,filter:{domain:ROOM_CONTROL_DOMAINS}}}},{name:'discover_lighting',selector:{boolean:{}}}
-      ],this.config.rooms?.[room.key]||{entities:room.placeholders.map(id=>{const slot=SLOTS.find(s=>s.placeholder===id);return this.config.entities?.[slot?.key];}).filter(Boolean)},value=>this.change({...this.config,rooms:{...this.config.rooms,[room.key]:value}}),{name:'Room title',area:'Discover lights and switches from area',entities:'Lights and switches',exclude:'Excluded entities',discover_controls:'Discover room controls and sensors',controls:'Additional room controls and sensors',discover_lighting:'Filter automatic lighting discovery to lights and lighting switches'}));roomDetails.append(details);
+        {name:'name',selector:{text:{}}},{name:'area',selector:{area:{}}},{name:'entities',selector:{entity:{multiple:true,filter:{domain:['light','switch']}}}},{name:'exclude',selector:{entity:{multiple:true}}},{name:'discover_controls',selector:{boolean:{}}},{name:'controls',selector:{entity:{multiple:true,filter:{domain:ROOM_CONTROL_DOMAINS}}}},{name:'discover_lighting',selector:{boolean:{}}},{name:'temperature_sensors',selector:{entity:{multiple:true,filter:[{domain:'sensor',device_class:'temperature'},{domain:'climate'}]}}}
+      ],this.config.rooms?.[room.key]||{entities:room.placeholders.map(id=>{const slot=SLOTS.find(s=>s.placeholder===id);return this.config.entities?.[slot?.key];}).filter(Boolean)},value=>this.change({...this.config,rooms:{...this.config.rooms,[room.key]:value}}),{name:'Room title',area:'Discover lights and switches from area',entities:'Lights and switches',exclude:'Excluded entities',discover_controls:'Discover room controls and sensors',controls:'Additional room controls and sensors',discover_lighting:'Filter automatic lighting discovery to lights and lighting switches',temperature_sensors:'Room temperature: temperature sensors or air conditioners (their current temperature); averaged when there are several, empty uses the room\'s own'}));roomDetails.append(details);
     }
     (this.config.extra_rooms||[]).forEach((room,index)=>{
       const details=document.createElement('details');details.open=true;
       const title=document.createElement('summary');title.textContent=room.name||'New room';details.append(title);
-      details.append(this.form([{name:'name',selector:{text:{}}},{name:'area',selector:{area:{}}},{name:'entities',selector:{entity:{multiple:true,filter:{domain:['light','switch']}}}},{name:'exclude',selector:{entity:{multiple:true}}},{name:'discover_controls',selector:{boolean:{}}},{name:'controls',selector:{entity:{multiple:true,filter:{domain:ROOM_CONTROL_DOMAINS}}}},{name:'discover_lighting',selector:{boolean:{}}}],room,value=>{
+      details.append(this.form([{name:'name',selector:{text:{}}},{name:'area',selector:{area:{}}},{name:'entities',selector:{entity:{multiple:true,filter:{domain:['light','switch']}}}},{name:'exclude',selector:{entity:{multiple:true}}},{name:'discover_controls',selector:{boolean:{}}},{name:'controls',selector:{entity:{multiple:true,filter:{domain:ROOM_CONTROL_DOMAINS}}}},{name:'discover_lighting',selector:{boolean:{}}},{name:'temperature_sensors',selector:{entity:{multiple:true,filter:[{domain:'sensor',device_class:'temperature'},{domain:'climate'}]}}}],room,value=>{
         const extra_rooms=[...this.config.extra_rooms];extra_rooms[index]=value;this.change({...this.config,extra_rooms});
-      },{name:'Room title',area:'Discover lights and switches from area',entities:'Lights and switches',exclude:'Excluded entities',discover_controls:'Discover room controls and sensors',controls:'Additional room controls and sensors',discover_lighting:'Filter automatic lighting discovery to lights and lighting switches'}));
+      },{name:'Room title',area:'Discover lights and switches from area',entities:'Lights and switches',exclude:'Excluded entities',discover_controls:'Discover room controls and sensors',controls:'Additional room controls and sensors',discover_lighting:'Filter automatic lighting discovery to lights and lighting switches',temperature_sensors:'Room temperature: temperature sensors or air conditioners (their current temperature); averaged when there are several, empty uses the room\'s own'}));
       const remove=document.createElement('button');remove.textContent='Remove room';remove.onclick=()=>{this.change({...this.config,extra_rooms:this.config.extra_rooms.filter((_,i)=>i!==index)});this.render();};details.append(remove);roomDetails.append(details);
     });
     const add=document.createElement('button');add.textContent='+ Add room';add.onclick=()=>{this.change({...this.config,extra_rooms:[...(this.config.extra_rooms||[]),{name:'New room',entities:[]}]});this.render();};roomDetails.append(add);
