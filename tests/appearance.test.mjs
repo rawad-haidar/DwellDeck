@@ -671,3 +671,21 @@ test('the Media page ends with Recently played: what each player played, from th
  assert(one.includes('Netflix')&&!one.includes('Blue in Green'),'filtered to one player');
  } finally { globalThis.Date=RealDate; }
 });
+
+test('player cards are all one size: one width in every room, one height, rows at the top',async()=>{
+ const {tvCard}=await import('../src/tv.mjs');
+ const {organizedEntitySections}=await import('../src/cards.mjs');
+ const st=(id,a={})=>[id,{entity_id:id,state:'off',attributes:{friendly_name:a.name,supported_features:4+16384+1}}];
+ const states=Object.fromEntries([st('media_player.bbq',{name:'BBQ Sound System'}),st('media_player.bar',{name:'Bar Sound System'}),st('media_player.spotify',{name:'Spotify'})]);
+ const entities={'media_player.bbq':{area_id:'pool',platform:'dsppa_am8328'},'media_player.bar':{area_id:'pool',platform:'dsppa_am8328'},'media_player.spotify':{area_id:'hall',platform:'spotify'}};
+ const hass={states,entities,devices:{},floors:{},areas:{pool:{area_id:'pool',name:'Pool'},hall:{area_id:'hall',name:'Hall'}}};
+ const prototype={tap_action:{browser_mod:{data:{content:{cards:[{type:'grid',cards:[{type:'tile'}]}]}}}}};
+ const sections=organizedEntitySections(Object.keys(states),hass,prototype,'mdi:play','media_player');
+ const pool=sections.find(s=>s.cards[0].heading==='Pool'),hall=sections.find(s=>s.cards[0].heading==='Hall');
+ assert.equal(pool.column_span,2);assert.equal(hall.column_span,1,'a room with one player takes one column');
+ assert(pool.cards.slice(1).every(c=>c.grid_options.columns===12)&&hall.cards[1].grid_options.columns===12,'so every player card is one column wide');
+ const card=tvCard('media_player.bbq',hass);
+ assert(card.styles.card.some(r=>r['min-height']==='400px'),'one height');
+ assert(card.styles.grid.some(r=>r['align-content']==='start'),'rows at the top, not spread over a stretched card');
+ assert(card.styles.custom_fields.now.some(r=>r['min-height']==='78px'),'now playing keeps its size with or without artwork');
+});

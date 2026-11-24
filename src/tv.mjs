@@ -692,15 +692,18 @@ export function tvCard(requested, hass) {
     custom_fields: fields,
     styles: {
       // Cards in one row stretch to the same height.
-      card: [{padding: '16px'}, {height: '100%'}, {'box-sizing': 'border-box'}, {'align-content': 'start'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
+      // One size for every player card: as tall as a card with artwork, music buttons and tabs.
+      card: [{padding: '16px'}, {height: '100%'}, {'min-height': '400px'}, {'box-sizing': 'border-box'}, {'align-content': 'start'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
         // The artwork of whatever plays fills the card behind a dark veil.
         {background: `[[[ ${current} const p = m?.attributes?.entity_picture_local || m?.attributes?.entity_picture; return m && m.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
-      grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '40px minmax(0,1fr) 46px'}, {gap: '2px 12px'}, {'align-items': 'center'}],
+      // Rows stay at the top, so every card has its header, now playing, buttons and volume at the same height.
+      grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '40px minmax(0,1fr) 46px'}, {'grid-template-rows': 'auto'},
+        {gap: '2px 12px'}, {'align-items': 'center'}, {'align-content': 'start'}],
       img_cell: [{'justify-content': 'flex-start'}, {width: '40px'}, {height: '40px'}],
       icon: [{width: '28px'}, {color: `[[[ ${isOn} return on ? '${C.onText}' : '${C.muted}'; ]]]`}],
       name: [{'justify-self': 'start'}, {'align-self': 'end'}, {'font-size': '17px'}, {'font-weight': '600'}, {color: C.text}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
       label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: C.muted}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
-      custom_fields: {power: [{'justify-self': 'end'}], now: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {padding: '10px 12px'}, {'border-radius': '14px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${C.line}`}], media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}],
+      custom_fields: {power: [{'justify-self': 'end'}], now: [{'justify-self': 'stretch'}, {'margin-top': '12px'}, {padding: '10px 12px'}, {'min-height': '78px'}, {'box-sizing': 'border-box'}, {display: 'flex'}, {'align-items': 'center'}, {'border-radius': '14px'}, {background: 'rgba(0,0,0,.18)'}, {border: `1px solid ${C.line}`}], media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}],
         panel: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}],
         ma: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}],
         vol: [{'justify-self': 'stretch'}, {'margin-top': '10px'}, {width: '100%'}, {'pointer-events': 'auto'}]}

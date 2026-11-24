@@ -317,8 +317,10 @@ export function organizedEntitySections(ids, hass, prototype, icon, domain) {
     const floor = hass.floors?.[area.floor_id];
     const cards = [{type: 'heading', heading: floor ? `${capitalFirst(floor.name)} · ${area.name}` : area.name, icon: area.icon || icon}];
     if (domain === 'cover') cards.push(...curtainBulkControls(selected, prototype).map(card => setCardWidth(card, 24)));
-    cards.push(...selected.map(id => setCardWidth(roomTile(id, tile, hass), selected.length > 1 ? 12 : 24)));
-    sections.push({type: 'grid', column_span: 2, cards});
+    // Players are all one width: two side by side in a room with several, one column for a room with one.
+    const media = domain === 'media_player';
+    cards.push(...selected.map(id => setCardWidth(roomTile(id, tile, hass), media || selected.length > 1 ? 12 : 24)));
+    sections.push({type: 'grid', column_span: media && selected.length === 1 ? 1 : 2, cards});
   }
   return sections;
 }
