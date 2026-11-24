@@ -1,6 +1,9 @@
 # Changelog
 
-## 0.9.26 — Home in order of importance
+## 0.9.26 — Home and Security in order of importance
+
+- **Security** opens with one status card: the alarm state in large type, pills for safety alerts, open doors and windows, motion, gates and cameras, and a **Needs attention** list (alarm triggered, safety alerts, unlocked gates, open doors and windows, offline cameras, most serious first; each opens its entity). When nothing needs you, it says all clear.
+- Then the alarm panel top right, **Gates** with each gate's status and its **Unlock** button on one row (the confirmation stays), **Entrance cameras** two across, **Camera detection**, and **Shortcuts** (sensor activity, recent history, all cameras, detection history) in the same style as Home.
 
 - **At a glance** replaces the clock card: greeting, time and date, and status pills for lights, TVs, air conditioning, curtains, open doors and windows, and the alarm. Each pill opens its page; an open door or a triggered alarm shows in red.
 - **Rooms in use** shows the room cards only while something in the room is on (lights, a TV, air conditioning, a switch). When nothing is, one card says everything is off.

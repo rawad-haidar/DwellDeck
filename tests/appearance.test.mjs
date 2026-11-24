@@ -472,3 +472,22 @@ test('a TV that is on but idle shows TV on, and players named Sound system are s
  const quiet=Function('states',card.custom_fields.chips.trim().slice(3,-3))(off);
  assert(!quiet.includes('TV on')&&!quiet.includes('Music'));
 });
+test('security opens with status and what needs attention, then alarm, gates, cameras, detection and shortcuts',()=>{
+ const d=generate({});
+ const v=d.views.find(x=>x.path==='security');
+ assert(v.sections[0].cards[0].custom_fields.status.includes('Needs attention'));
+ assert.equal(v.sections[0].column_span,2);
+ assert.deepEqual(v.sections.slice(1).map(s=>s.cards[0].heading),['Alarm','Gates','Entrance cameras','Camera detection','Shortcuts']);
+ const gates=v.sections[2].cards;
+ const unlock=gates.find(c=>c.name==='Unlock');
+ assert.equal(unlock.tap_action.perform_action,'lock.unlock');
+ assert(unlock.tap_action.confirmation);
+ assert.equal(gates[gates.indexOf(unlock)-1].type,'tile');
+ const shortcuts=v.sections.at(-1).cards.slice(1);
+ assert(shortcuts.length>=4&&shortcuts.every(c=>c.type==='custom:button-card'&&c.tap_action.action==='navigate'));
+ const st=(state,a={})=>({state,attributes:a,last_changed:new Date().toISOString()});
+ const html=Function('states','hass',v.sections[0].cards[0].custom_fields.status.trim().slice(3,-3))({'binary_sensor.smoke':st('on',{device_class:'smoke',friendly_name:'Kitchen smoke'})},{entities:{}});
+ assert(html.includes('Kitchen smoke')&&html.includes('1 safety alert'));
+ const clear=Function('states','hass',v.sections[0].cards[0].custom_fields.status.trim().slice(3,-3))({},{entities:{}});
+ assert(clear.includes('All clear'));
+});
