@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.5 — Live TV apps and one card per TV
+
+- **Apps** and **Sources** popups read the TV's lists when you open them, so they work even if the TV was off when the dashboard loaded. When the TV is off, the popup says to turn it on.
+- Apps and Sources buttons appear for every TV that can switch apps or inputs.
+- TVs whose names include IP addresses in brackets, or repeat the name ("Saloon TV(192.168.14.187) Saloon TV(192.168.14.246)"), now merge with the other entries for the same TV.
+- The card header uses button-card's own icon, name and status, so it lines up on the left.
+
 ## 0.9.4 — Compact TV card with popups
 
 - The TV card is compact again: what's on, power, volume and play or pause, and buttons for **Remote**, **Apps**, **Sources** and **Keyboard**. Each opens its own popup.

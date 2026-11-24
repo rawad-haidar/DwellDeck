@@ -89,18 +89,21 @@ const tvHass=()=>{
   ['media_player.saloon_tv_adb','androidtv','d4',{friendly_name:'Saloon TV ADB',source_list:['com.android.systemui','Google TV Launcher','Netflix','com.netflix.tokenmanager','com.mbc.unknown.app','Google Cast']}],
   ['media_player.bedroom_adb','androidtv','d5',{friendly_name:'Bedroom TV',source_list:['com.google.android.youtube.tv','com.tcl.airplay2']}],
   ['media_player.atv','apple_tv','d2',{friendly_name:'Apple TV',source_list:['Netflix','Shahid']}],['remote.atv','apple_tv','d2',{}],
-  ['media_player.speaker','cast','d3',{friendly_name:'Kitchen speaker'}]];
+  ['media_player.speaker','cast','d3',{friendly_name:'Kitchen speaker'}],
+  ['media_player.saloon_cast','cast','d6',{friendly_name:'Saloon TV(192.168.14.187) Saloon TV(192.168.14.246)'}]];
  return {states:Object.fromEntries(ents.map(([id,,,a])=>[id,st(id,a)])),services:{browser_mod:{popup:{}}},areas:{a:{area_id:'a',name:'Saloon',labels:[]},b:{area_id:'b',name:'Bedroom',labels:[]}},floors:{},labels:{},
-  devices:{d1:{id:'d1',area_id:'a'},d2:{id:'d2',area_id:'a'},d3:{id:'d3',area_id:'a'},d4:{id:'d4',area_id:'a'},d5:{id:'d5',area_id:'b'}},entities:Object.fromEntries(ents.map(([id,platform,device_id])=>[id,{entity_id:id,platform,device_id}]))};
+  devices:{d1:{id:'d1',area_id:'a'},d2:{id:'d2',area_id:'a'},d3:{id:'d3',area_id:'a'},d4:{id:'d4',area_id:'a'},d5:{id:'d5',area_id:'b'},d6:{id:'d6',area_id:'a'}},entities:Object.fromEntries(ents.map(([id,platform,device_id])=>[id,{entity_id:id,platform,device_id}]))};
 };
 const tvCards=()=>{
  const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},tvHass());
- const cards={};const find=x=>{if(x&&typeof x==='object'){if(x.type==='custom:button-card'&&x.entity?.startsWith('media_player.')&&x.custom_fields?.head)cards[x.entity]=x;Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ const cards={};const find=x=>{if(x&&typeof x==='object'){if(x.type==='custom:button-card'&&x.entity?.startsWith('media_player.')&&x.custom_fields?.media)cards[x.entity]=x;Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
  return cards;
 };
 const launch=(card,name)=>card.custom_fields.launch?.card.custom_fields[name]?.card?.tap_action;
 const popupActions=action=>{const out=[];const walk=x=>{if(x&&typeof x==='object'){if(x.tap_action?.perform_action)out.push(x.tap_action);Object.values(x).forEach(walk);}};walk(action?.browser_mod?.data?.content);return out;};
-const popupNames=action=>{const out=[];const walk=x=>{if(x&&typeof x==='object'){if(x.show_name&&x.tap_action?.perform_action)out.push(x.name);Object.values(x).forEach(walk);}};walk(action?.browser_mod?.data?.content);return out;};
+// Apps and Sources popups render live from states; run their template like button-card does.
+const popupHtml=(action,states)=>{globalThis.window=globalThis.window||{};const t=action.browser_mod.data.content.custom_fields.list.trim().slice(3,-3);return Function('states',t)(states);};
+const popupNames=(action,states=tvHass().states)=>[...popupHtml(action,states).matchAll(/<span[^>]*>([^<]*)<\/span>/g)].map(m=>m[1].replace('&amp;','&'));
 test('each TV is one compact card with Remote, Apps and Sources popups',()=>{
  const cards=tvCards();
  assert.deepEqual(Object.keys(cards).sort(),['media_player.atv','media_player.bedroom_adb','media_player.saloon_tv','media_player.speaker']);
@@ -116,9 +119,16 @@ test('each TV is one compact card with Remote, Apps and Sources popups',()=>{
  assert(adb.every(a=>a.perform_action!=='remote.send_command'));
  assert(adb.some(a=>a.perform_action==='androidtv.adb_command'&&a.data.command==='CENTER'));
  assert.deepEqual(popupNames(launch(bedroom,'apps')),['YouTube']);
+ const off=tvHass().states;off['media_player.bedroom_adb'].state='off';off['media_player.bedroom_adb'].attributes.source_list=[];
+ assert(popupHtml(launch(bedroom,'apps'),off).includes('Turn the TV on'));
+ const live=tvHass().states;live['media_player.bedroom_adb'].attributes.source_list=['com.netflix.ninja','HDMI 4'];
+ assert.deepEqual(popupNames(launch(bedroom,'apps'),live),['Netflix']);
+ assert.deepEqual(popupNames(launch(bedroom,'sources'),live),['HDMI 4']);
+ assert(popupHtml(launch(bedroom,'apps'),live).includes('data-service="select_source"'));
  assert(!launch(bedroom,'keys'));
  const atv=cards['media_player.atv'];
  assert(popupActions(launch(atv,'remote')).some(a=>a.data?.command==='select'));
  assert(!launch(atv,'keys'));
  assert(!cards['media_player.speaker'].custom_fields.launch);
+ assert.equal(saloon.name,'Saloon TV');assert.equal(saloon.icon,'mdi:television');
 });

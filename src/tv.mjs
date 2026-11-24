@@ -33,7 +33,12 @@ export function tvRemote(id, hass) {
 // One TV can appear through several integrations ("Saloon TV" and "Saloon TV ADB").
 // Players in the same area with the same base name become one card; the best-controlled one leads.
 const playerName = (id, hass) => hass.states?.[id]?.attributes?.friendly_name || hass.entities?.[id]?.name || hass.entities?.[id]?.original_name || id.split('.')[1].replaceAll('_', ' ');
-const baseName = (id, hass) => normalizeName(playerName(id, hass)).replace(/\b(adb|remote|cast|chromecast)\b/g, ' ').replace(/\s+/g, ' ').trim();
+// "Saloon TV(192.168.14.187) Saloon TV(192.168.14.246)", "Saloon TV ADB" and "Saloon TV" all become "saloon tv".
+export const baseName = (id, hass) => {
+  const words = normalizeName(playerName(id, hass).replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').replace(/\b\d{1,3}(\.\d{1,3}){3}\b/g, ' '))
+    .split(' ').filter(word => word && !/^(adb|remote|cast|chromecast|\d+)$/.test(word));
+  return [...new Set(words)].join(' ');
+};
 const rank = (id, hass) => {
   const remote = tvRemote(id, hass);
   return remote && remote.platform !== 'androidtv' ? 0 : remote ? 1 : 2;
@@ -80,25 +85,6 @@ export function appName(entry) {
   return text;
 }
 
-// Apps and inputs, each with the action that opens it. Inputs are HDMI, TV, the home screen and similar.
-export function tvLaunchers(players, hass, remote) {
-  const activities = remote?.platform === 'androidtv_remote' ? hass.states?.[remote.id]?.attributes?.activity_list || [] : [];
-  const seen = new Set();
-  const items = [];
-  const add = (raw, open) => {
-    const name = appName(raw);
-    if (!name || seen.has(name.toLowerCase())) return;
-    seen.add(name.toLowerCase());
-    items.push({name, raw, open, input: SOURCE_PATTERN.test(name)});
-  };
-  for (const raw of activities) add(raw, {action: 'perform-action', perform_action: 'remote.turn_on', target: {entity_id: remote.id}, data: {activity: raw}});
-  for (const player of players) for (const raw of hass.states?.[player]?.attributes?.source_list || []) {
-    add(raw, {action: 'perform-action', perform_action: 'media_player.select_source', target: {entity_id: player}, data: {source: raw}});
-  }
-  const sort = list => list.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
-  return {apps: sort(items.filter(item => !item.input)).slice(0, 40), inputs: sort(items.filter(item => item.input)).slice(0, 16)};
-}
-
 const C = {
   surface: '#1b2d40', surfaceEnd: '#172638', card: '#101c2b', text: '#edf5ff', muted: '#91a8bd',
   line: 'rgba(156,199,225,.12)', onBg: '#493b24', on: '#d5a74c', onText: '#efc875'
@@ -138,20 +124,67 @@ const rows = (names, perRow) => {
 };
 const popup = (title, content) => ({action: 'fire-dom-event', browser_mod: {service: 'browser_mod.popup', data: {title, content}}});
 
-// A grid of launch tiles; the one in use is highlighted.
-function launcherGrid(items, current, watched) {
-  const tiles = Object.fromEntries(items.map((item, index) => {
-    const tile = key(item.name, appIcon(item.name), item.open, {label: true, size: 30, height: 84});
-    const active = `[[[ ${current} return cur === ${JSON.stringify(item.raw)} || cur === ${JSON.stringify(item.name)}`;
-    tile.triggers_update = watched;
-    // Only the tile in use lights up; the dashboard's activity glow stays off.
-    tile.variables = {dwell_static: true};
-    tile.styles.card = [{background: `${active} ? 'linear-gradient(135deg,${C.onBg},${C.surfaceEnd})' : 'linear-gradient(135deg,${C.surface},${C.surfaceEnd})'; ]]]`},
-      {border: `${active} ? '1px solid ${C.on}' : '1px solid ${C.line}'; ]]]`},
-      {'border-radius': '14px'}, {'box-shadow': 'none'}, {padding: '12px 6px 10px'}, {'min-height': '84px'}];
-    return [`t${index}`, tile];
-  }));
-  return group(rows(Object.keys(tiles), 3), 'repeat(3,minmax(0,1fr))', tiles);
+// Runs inside a button-card template when a popup opens, so the lists are always the TV's current ones.
+// Self-contained: serialised with toString.
+function dwellTvLaunchers(states, cfg) {
+  window.__dwellLaunch = window.__dwellLaunch || (el => {
+    const hass = document.querySelector('home-assistant')?.hass;
+    const d = el.dataset;
+    if (hass) hass.callService(d.domain, d.service, {entity_id: d.target, [d.key]: d.value});
+  });
+  const known = cfg.known;
+  const nameOf = raw => {
+    const text = String(raw || '').trim();
+    if (!text) return null;
+    if (known[text]) return known[text];
+    if (/launcher/i.test(text)) return 'Home';
+    if (/^[a-z][\w]*(\.[\w:]+)+$/i.test(text)) return null;
+    return text;
+  };
+  const isInput = new RegExp(cfg.inputPattern, 'i');
+  const seen = new Set();
+  const items = [];
+  const add = (raw, domain, service, target, keyName) => {
+    const name = nameOf(raw);
+    if (!name || seen.has(name.toLowerCase())) return;
+    seen.add(name.toLowerCase());
+    items.push({name, raw, domain, service, target, keyName, input: isInput.test(name)});
+  };
+  const remote = cfg.remote ? states[cfg.remote] : undefined;
+  if (cfg.activities) for (const raw of remote?.attributes?.activity_list || []) add(raw, 'remote', 'turn_on', cfg.remote, 'activity');
+  for (const player of cfg.players) for (const raw of states[player]?.attributes?.source_list || []) add(raw, 'media_player', 'select_source', player, 'source');
+  const list = items.filter(item => item.input === (cfg.kind === 'inputs')).sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+  const cur = remote?.attributes?.current_activity || cfg.players.map(p => states[p]?.attributes?.app_name || states[p]?.attributes?.source).find(Boolean);
+  const esc = value => String(value).replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+  const icon = name => (cfg.icons.find(([pattern]) => new RegExp(pattern, 'i').test(name)) || [0, 'mdi:application-outline'])[1];
+  if (!list.length) {
+    const off = cfg.players.every(p => ['off', 'standby', 'unavailable', 'unknown'].includes(states[p]?.state));
+    return `<div style="padding:18px 6px;color:${cfg.c.muted};font-size:14px;line-height:1.5;text-align:left">${off
+      ? `Turn the TV on to see its ${cfg.kind === 'inputs' ? 'sources' : 'apps'}.`
+      : cfg.kind === 'inputs' ? 'This TV doesn\'t list any inputs.' : 'This TV doesn\'t list any apps. For Android TV Remote, add apps in the integration\'s options.'}</div>`;
+  }
+  const tiles = list.map(item => {
+    const on = cur && (cur === item.raw || cur === item.name);
+    return `<button onclick="window.__dwellLaunch(this)" data-domain="${item.domain}" data-service="${item.service}" data-target="${esc(item.target)}" data-key="${item.keyName}" data-value="${esc(item.raw)}"
+      style="all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:84px;padding:12px 6px 10px;border-radius:14px;
+      background:linear-gradient(135deg,${on ? cfg.c.onBg : cfg.c.surface},${cfg.c.surfaceEnd});border:1px solid ${on ? cfg.c.on : cfg.c.line};color:${cfg.c.text};font-size:13px;text-align:center">
+      <ha-icon icon="${icon(item.name)}" style="--mdc-icon-size:30px"></ha-icon>
+      <span style="max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.name)}</span></button>`;
+  }).join('');
+  return `<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%">${tiles}</div>`;
+}
+
+// The popup body for apps or inputs: one button-card that renders the live list.
+function launcherPopup(kind, players, remote, watched) {
+  const cfg = {kind, players, remote: remote?.id?.startsWith('remote.') ? remote.id : null, activities: remote?.platform === 'androidtv_remote',
+    known: KNOWN_PACKAGES, inputPattern: SOURCE_PATTERN.source, icons: APP_ICONS.map(([pattern, icon]) => [pattern.source, icon]), c: C};
+  return {
+    type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, tap_action: {action: 'none'}, hold_action: {action: 'none'},
+    triggers_update: watched, variables: {dwell_static: true},
+    custom_fields: {list: `[[[ return (${dwellTvLaunchers.toString()})(states, ${JSON.stringify(cfg)}); ]]]`},
+    styles: {card: [{background: 'transparent'}, {border: 'none'}, {'box-shadow': 'none'}, {padding: '0'}],
+      grid: [{'grid-template-areas': '"list"'}, {'grid-template-columns': '1fr'}], custom_fields: {list: [{width: '100%'}]}}
+  };
 }
 
 export function tvCard(requested, hass) {
@@ -163,7 +196,6 @@ export function tvCard(requested, hass) {
   const player = (action, data) => ({action: 'perform-action', perform_action: `media_player.${action}`, target: {entity_id: id}, ...(data ? {data} : {})});
   const watched = [...new Set([...players, ...(remote ? [remote.id] : [])])];
   const current = `const m=states[${JSON.stringify(id)}]; const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'}; const all=${JSON.stringify(players)}.map(p=>states[p]).filter(Boolean); const cur = r?.attributes?.current_activity || all.map(p=>p.attributes?.app_name || p.attributes?.source).find(Boolean);`;
-  const {apps, inputs} = tvLaunchers(players, hass, remote);
 
   // Remote popup: round pad, then Back, Home, Menu, then volume.
   const remoteContent = remote && (() => {
@@ -195,24 +227,18 @@ export function tvCard(requested, hass) {
   const launch = {};
   const big = {label: true, size: 26, height: 72};
   if (remoteContent) launch.remote = key('Remote', 'mdi:remote-tv', popup(`${name} remote`, remoteContent), big);
-  if (apps.length) launch.apps = key('Apps', 'mdi:apps', popup(`${name} apps`, launcherGrid(apps, current, watched)), big);
-  if (inputs.length) launch.sources = key('Sources', 'mdi:video-input-hdmi', popup(`${name} sources`, launcherGrid(inputs, current, watched)), big);
+  // Apps and Sources are offered for any TV that can switch apps or inputs; their lists load when opened.
+  const canSwitch = remote?.platform === 'androidtv_remote' || players.some(player =>
+    (Number(hass.states?.[player]?.attributes?.supported_features) & 2048) || hass.states?.[player]?.attributes?.source_list?.length);
+  if (canSwitch) {
+    launch.apps = key('Apps', 'mdi:apps', popup(`${name} apps`, launcherPopup('apps', players, remote, watched)), big);
+    launch.sources = key('Sources', 'mdi:video-input-hdmi', popup(`${name} sources`, launcherPopup('inputs', players, remote, watched)), big);
+  }
   if (remote?.commands?.keyboard) launch.keys = key('Keyboard', 'mdi:keyboard-outline', {action: 'fire-dom-event', browser_mod: {service: 'browser_mod.popup', data: {
     title: `Type on ${name}`, content: [{name: 'command', label: 'Text', selector: {text: {}}}],
     right_button: 'Send', right_button_action: {service: 'remote.send_command', data: {entity_id: remote.id}}, left_button: 'Close'}}}, big);
 
   const fields = {
-    head: `[[[ ${current}
-      const off = !m || ${OFF}.includes(m.state);
-      const app = cur;
-      const title = [m?.attributes?.media_title, m?.attributes?.media_artist].filter(Boolean).join(', ');
-      const status = !m ? 'Unavailable' : off ? 'Off' : [app, title].filter(Boolean).join(': ') || (m.state.charAt(0).toUpperCase() + m.state.slice(1));
-      const esc = s => String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
-      return '<div style="display:flex;align-items:center;justify-content:flex-start;gap:12px;width:100%;min-width:0;text-align:left">'
-        + '<ha-icon icon="mdi:television" style="--mdc-icon-size:28px;color:' + (off ? '${C.muted}' : '${C.onText}') + ';flex:none"></ha-icon>'
-        + '<div style="min-width:0;flex:1"><div style="font-size:17px;font-weight:600;color:${C.text};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(${JSON.stringify(name)}) + '</div>'
-        + '<div style="font-size:13px;color:${C.muted};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(status) + '</div></div></div>';
-    ]]]`,
     power: {card: {
       ...key('Power', 'mdi:power', player('toggle')), entity: id, triggers_update: [],
       styles: {...key('Power', 'mdi:power').styles, card: [
@@ -226,23 +252,32 @@ export function tvCard(requested, hass) {
       up: key('Volume up', 'mdi:volume-plus', player('volume_up'))
     })}
   };
-  const areas = ['"head power"', '"media media"'];
+  const areas = ['"i n power"', '"i l power"', '"media media media"'];
   if (Object.keys(launch).length) {
     fields.launch = {card: group(`"${Object.keys(launch).join(' ')}"`, `repeat(${Object.keys(launch).length},minmax(0,1fr))`, launch)};
-    areas.push('"launch launch"');
+    areas.push('"launch launch launch"');
   }
 
+  // Header: button-card's own icon, name and label, so it lines up on the left.
+  const status = `[[[ ${current}
+    const off = !m || ${OFF}.includes(m.state);
+    const title = [m?.attributes?.media_title, m?.attributes?.media_artist].filter(Boolean).join(', ');
+    return !m ? 'Unavailable' : off ? 'Off' : [cur, title].filter(Boolean).join(': ') || (m.state.charAt(0).toUpperCase() + m.state.slice(1)); ]]]`;
   return {
-    type: 'custom:button-card', entity: id, show_name: false, show_icon: false, show_state: false,
+    type: 'custom:button-card', entity: id, name, icon: 'mdi:television', show_name: true, show_icon: true, show_state: false, show_label: true, label: status,
     tap_action: {action: 'none'}, hold_action: {action: 'more-info'}, triggers_update: watched,
     grid_options: {columns: 12, rows: 'auto'},
     custom_fields: fields,
     styles: {
       card: [{padding: '16px'}, {'border-radius': '20px'}, {border: `1px solid ${C.line}`}, {overflow: 'hidden'},
         {background: `[[[ const p = entity?.attributes?.entity_picture; return entity?.state === 'playing' && p ? 'linear-gradient(180deg,rgba(10,20,32,.72),rgba(10,20,32,.94) 60%),url("' + p + '") center/cover' : 'linear-gradient(160deg,${C.surface},${C.card})'; ]]]`}],
-      grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': 'minmax(0,1fr) 46px'}, {gap: '14px 12px'}, {'align-items': 'center'}],
-      custom_fields: {head: [{'justify-self': 'stretch'}, {'min-width': '0'}, {width: '100%'}], power: [{'justify-self': 'end'}],
-        media: [{'justify-self': 'stretch'}], launch: [{'justify-self': 'stretch'}]}
+      grid: [{'grid-template-areas': areas.join(' ')}, {'grid-template-columns': '40px minmax(0,1fr) 46px'}, {gap: '2px 12px'}, {'align-items': 'center'}],
+      img_cell: [{'justify-content': 'flex-start'}, {width: '40px'}, {height: '40px'}],
+      icon: [{width: '28px'}, {color: `[[[ return ${OFF}.includes(entity?.state) ? '${C.muted}' : '${C.onText}'; ]]]`}],
+      name: [{'justify-self': 'start'}, {'align-self': 'end'}, {'font-size': '17px'}, {'font-weight': '600'}, {color: C.text}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
+      label: [{'justify-self': 'start'}, {'align-self': 'start'}, {'font-size': '13px'}, {color: C.muted}, {'text-align': 'left'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
+      custom_fields: {power: [{'justify-self': 'end'}],
+        media: [{'justify-self': 'stretch'}, {'margin-top': '14px'}], launch: [{'justify-self': 'stretch'}, {'margin-top': '10px'}]}
     }
   };
 }
