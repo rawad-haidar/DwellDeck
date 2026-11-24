@@ -16,18 +16,23 @@ export const TV_REMOTES = {
   androidtv: {up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT', ok: 'CENTER', back: 'BACK', home: 'HOME', menu: 'MENU', mute: 'MUTE'}
 };
 
-// How to send remote keys to this player: its device's remote entity, or ADB on the player itself.
+// How to send remote keys to this player: ADB on the player itself, or a remote entity of a supported
+// integration on the same device, or else in the same area with the same base name ("Saloon TV").
+const remoteControl = entry => ({id: entry.entity_id, platform: entry.platform, commands: TV_REMOTES[entry.platform],
+  send: (command, extra = {}) => ({action: 'perform-action', perform_action: 'remote.send_command', target: {entity_id: entry.entity_id}, data: {command, ...extra}})});
 export function tvRemote(id, hass) {
-  if (hass.entities?.[id]?.platform === 'androidtv') {
+  const own = hass.entities?.[id];
+  if (own?.platform === 'androidtv') {
     return {id, platform: 'androidtv', commands: TV_REMOTES.androidtv,
       send: command => ({action: 'perform-action', perform_action: 'androidtv.adb_command', target: {entity_id: id}, data: {command}})};
   }
-  const device = hass.entities?.[id]?.device_id;
-  const remote = device && Object.values(hass.entities || {}).find(entry => entry.device_id === device &&
-    entry.entity_id?.startsWith('remote.') && TV_REMOTES[entry.platform] && entry.platform !== 'androidtv');
-  if (!remote) return null;
-  return {id: remote.entity_id, platform: remote.platform, commands: TV_REMOTES[remote.platform],
-    send: (command, extra = {}) => ({action: 'perform-action', perform_action: 'remote.send_command', target: {entity_id: remote.entity_id}, data: {command, ...extra}})};
+  const remotes = Object.values(hass.entities || {}).filter(entry => entry.entity_id?.startsWith('remote.') &&
+    TV_REMOTES[entry.platform] && entry.platform !== 'androidtv' && !entry.disabled_by);
+  const sameDevice = own?.device_id && remotes.find(entry => entry.device_id === own.device_id);
+  const sameName = remotes.find(entry => (!own?.platform || entry.platform === own.platform) &&
+    entityArea(entry.entity_id, hass) === entityArea(id, hass) && baseName(entry.entity_id, hass) === baseName(id, hass));
+  const remote = sameDevice || sameName;
+  return remote ? remoteControl(remote) : null;
 }
 
 // One TV can appear through several integrations ("Saloon TV" and "Saloon TV ADB").
@@ -39,9 +44,13 @@ export const baseName = (id, hass) => {
     .split(' ').filter(word => word && !/^(adb|remote|cast|chromecast|\d+)$/.test(word));
   return [...new Set(words)].join(' ');
 };
+// The TV's own integration leads (Android TV Remote, Apple TV), then ADB, then other TVs, then speakers.
 const rank = (id, hass) => {
+  const platform = hass.entities?.[id]?.platform;
   const remote = tvRemote(id, hass);
-  return remote && remote.platform !== 'androidtv' ? 0 : remote ? 1 : 2;
+  if (['androidtv_remote', 'apple_tv'].includes(platform) || (remote && remote.platform !== 'androidtv')) return 0;
+  if (remote) return 1;
+  return hass.states?.[id]?.attributes?.device_class === 'tv' ? 2 : 3;
 };
 export function tvGroup(id, hass) {
   const base = baseName(id, hass);
@@ -67,12 +76,17 @@ const KNOWN_PACKAGES = {
   'com.google.android.tvlauncher': 'Home', 'com.google.android.apps.tv.launcherx': 'Home', 'com.android.tv.settings': 'Settings',
   'com.google.android.apps.mediashell': 'Google Cast', 'com.google.android.videos': 'Google TV', 'tv.twitch.android.app': 'Twitch'
 };
+// Shown when the TV lists no apps: common apps, opened by their package with Android TV Remote.
+const COMMON_APPS = [['Netflix', 'com.netflix.ninja'], ['YouTube', 'com.google.android.youtube.tv'], ['Disney+', 'com.disney.disneyplus'],
+  ['Prime Video', 'com.amazon.amazonvideo.livingroom'], ['Spotify', 'com.spotify.tv.android'], ['YouTube Music', 'com.google.android.youtube.tvmusic']];
+// Shown when the TV lists no inputs: Android input keys. Whether a TV follows them depends on the TV.
+const COMMON_INPUTS = [['Home', 'HOME'], ['HDMI 1', 'TV_INPUT_HDMI_1'], ['HDMI 2', 'TV_INPUT_HDMI_2'], ['HDMI 3', 'TV_INPUT_HDMI_3'], ['HDMI 4', 'TV_INPUT_HDMI_4'], ['Inputs', 'TV_INPUT']];
 const SOURCE_PATTERN = /hdmi|^tv$|live ?tv|antenna|tuner|^av\b|composite|component|usb|launcher|^home$/i;
 const APP_ICONS = [[/netflix/i, 'mdi:netflix'], [/youtube/i, 'mdi:youtube'], [/spotify/i, 'mdi:spotify'],
   [/disney/i, 'mdi:movie-open-star-outline'], [/prime|amazon/i, 'mdi:movie-play-outline'], [/apple ?tv|tv\+/i, 'mdi:apple'],
   [/plex/i, 'mdi:plex'], [/kodi/i, 'mdi:kodi'], [/twitch/i, 'mdi:twitch'], [/cast/i, 'mdi:cast'], [/hdmi/i, 'mdi:video-input-hdmi'],
   [/launcher|^home$/i, 'mdi:home-outline'], [/^(tv|live ?tv|antenna|tuner)$/i, 'mdi:television-classic'],
-  [/music/i, 'mdi:music-note-outline'], [/settings/i, 'mdi:cog-outline'], [/usb/i, 'mdi:usb']];
+  [/music/i, 'mdi:music-note-outline'], [/settings/i, 'mdi:cog-outline'], [/usb/i, 'mdi:usb'], [/^inputs$/i, 'mdi:import']];
 
 // A readable name for a list entry, or null for package names that are system services.
 export function appName(entry) {
@@ -160,11 +174,22 @@ function dwellTvPanel(states, cfg) {
   };
   if (cfg.activities) for (const raw of states[cfg.activities]?.attributes?.activity_list || []) add(raw, call('remote', 'turn_on', {entity_id: cfg.activities, activity: raw}));
   for (const p of cfg.players) for (const raw of states[p]?.attributes?.source_list || []) add(raw, call('media_player', 'select_source', {entity_id: p, source: raw}));
-  const byName = (a, b) => a.name.localeCompare(b.name, undefined, {numeric: true});
+  // When the TV lists nothing, offer common apps and input keys (Android TV Remote only).
+  const keyCallFor = command => call(cfg.remote.domain, cfg.remote.service, {entity_id: cfg.remote.target, command});
+  const fallbackNote = {};
+  if (cfg.fallback && !items.some(i => !i.input)) {
+    for (const [name, activity] of cfg.fallback.apps) items.push({name, callData: call('remote', 'turn_on', {entity_id: cfg.fallback.remote, activity}), input: false});
+    fallbackNote.apps = 'Common apps. To list the apps on this TV, add them in the Android TV Remote integration\'s options (Configure, then Applications).';
+  }
+  if (cfg.fallback && cfg.remote && !items.some(i => i.input)) {
+    cfg.fallback.inputs.forEach(([name, command], index) => items.push({name, callData: keyCallFor(command), input: true, order: index}));
+    fallbackNote.sources = 'Input keys. Some TVs ignore the HDMI keys; Inputs opens the TV\'s own input menu.';
+  }
+  const byName = (a, b) => (a.order ?? 99) - (b.order ?? 99) || a.name.localeCompare(b.name, undefined, {numeric: true});
   const icon = name => (cfg.icons.find(([pattern]) => new RegExp(pattern, 'i').test(name)) || [0, 'mdi:application-outline'])[1];
   const off = cfg.players.every(p => ['off', 'standby', 'unavailable', 'unknown'].includes(states[p]?.state));
   const grid = (list, kind) => list.length
-    ? `<div class="apps">${list.sort(byName).map(item => btn(icon(item.name), item.name, item.callData, 'app')).join('')}</div>`
+    ? `<div class="apps">${list.sort(byName).map(item => btn(icon(item.name), item.name, item.callData, 'app')).join('')}</div>${fallbackNote[kind] ? `<p class="empty">${fallbackNote[kind]}</p>` : ''}`
     : `<p class="empty">${off ? `Turn the TV on to see its ${kind}.` : kind === 'sources' ? 'This TV doesn\'t list any inputs.' : 'This TV doesn\'t list any apps. For Android TV Remote, add apps in the integration\'s options.'}</p>`;
 
   const tabs = [];
@@ -241,7 +266,16 @@ export function tvCard(requested, hass) {
   const remote = players.map(player => tvRemote(player, hass)).find(Boolean);
   const player = action => ({action: 'perform-action', perform_action: `media_player.${action}`, target: {entity_id: id}});
   const watched = [...new Set([...players, ...(remote ? [remote.id] : [])])];
-  const current = `const m=states[${JSON.stringify(id)}]; const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'}; const all=${JSON.stringify(players)}.map(p=>states[p]).filter(Boolean); const cur = r?.attributes?.current_activity || all.map(p=>p.attributes?.app_name || p.attributes?.source).find(Boolean);`;
+  // Status comes from whichever entry is on: the TV's own player first, then anything playing.
+  const current = `const OFFS=${OFF}; const known=${JSON.stringify(KNOWN_PACKAGES)};
+    const nice = v => { if (!v) return ''; const t = String(v).trim(); if (known[t]) return known[t]; if (/launcher/i.test(t)) return 'Home';
+      if (!/^[a-z][\\w]*(\\.[\\w:]+)+$/i.test(t)) return t;
+      const part = t.split(/[.:]/).filter(w => !/^(com|net|org|tv|android|androidtv|google|app|apps|mobile|ninja|livingroom|leanback)$/i.test(w)).pop() || t;
+      return part.charAt(0).toUpperCase() + part.slice(1); };
+    const all=${JSON.stringify(players)}.map(p=>states[p]).filter(Boolean); const live=all.filter(p=>!OFFS.includes(p.state));
+    const lead=states[${JSON.stringify(id)}]; const m=(lead && !OFFS.includes(lead.state)) ? lead : live.find(p=>p.state==='playing') || live[0] || lead;
+    const r=${remote?.id.startsWith('remote.') ? `states[${JSON.stringify(remote.id)}]` : 'undefined'};
+    const cur = nice(r && r.state !== 'off' ? r.attributes?.current_activity : '') || live.map(p => nice(p.attributes?.app_name) || nice(p.attributes?.app_id) || p.attributes?.source).find(Boolean) || '';`;
   const canSwitch = remote?.platform === 'androidtv_remote' || players.some(p =>
     (Number(hass.states?.[p]?.attributes?.supported_features) & 2048) || hass.states?.[p]?.attributes?.source_list?.length);
   const cfg = {
@@ -249,6 +283,7 @@ export function tvCard(requested, hass) {
     icons: APP_ICONS.map(([pattern, icon]) => [pattern.source, icon]),
     activities: remote?.platform === 'androidtv_remote' ? remote.id : null,
     keyboard: !!remote?.commands?.keyboard,
+    fallback: remote?.platform === 'androidtv_remote' ? {remote: remote.id, apps: COMMON_APPS, inputs: COMMON_INPUTS} : null,
     remote: remote && {
       domain: remote.platform === 'androidtv' ? 'androidtv' : 'remote', service: remote.platform === 'androidtv' ? 'adb_command' : 'send_command',
       target: remote.id, keys: remote.commands
@@ -273,7 +308,7 @@ export function tvCard(requested, hass) {
   fields.now = `[[[ ${current}
     const esc = v => String(v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const off = !m || ${OFF}.includes(m.state);
-    const playing = all.find(p => p.state === 'playing') || all.find(p => p.state === 'paused') || m;
+    const playing = ['playing', 'paused'].includes(m?.state) ? m : live.find(p => p.state === 'playing') || m;
     const a = playing?.attributes || {};
     const state = !m ? 'Unavailable' : off ? 'Off' : playing.state === 'playing' ? 'Playing' : playing.state === 'paused' ? 'Paused' : playing.state === 'buffering' ? 'Loading' : 'On';
     const title = a.media_title || '';
