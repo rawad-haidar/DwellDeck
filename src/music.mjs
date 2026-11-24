@@ -27,18 +27,36 @@ function dwellMaTheme(card, cfg) {
     const c = {
       bg: rgb(look('--primary-background-color'), cfg.bg), surface: rgb(look('--card-background-color'), cfg.surface),
       light: rgb(look('--secondary-background-color'), cfg.light), primary: rgb(look('--primary-color'), cfg.primary),
-      secondary: rgb(look('--accent-color'), cfg.secondary), text: rgb(look('--primary-text-color'), cfg.text)
+      secondary: rgb(look('--accent-color'), cfg.secondary), text: rgb(look('--primary-text-color'), cfg.text),
+      muted: rgb(look('--secondary-text-color'), cfg.muted)
     };
+    const col = (v, a) => a === undefined ? `rgb(${v})` : `rgba(${v},${a})`;
     // The dashboard's font too, unless it is switched off in setup.
     const font = doc.createElement('link');
     if (cfg.font) Object.assign(font, {rel: 'stylesheet', href: cfg.font});
     const style = doc.createElement('style');
     style.id = 'dwelldeck-theme';
     style.textContent = `
+      /* Older parts of the app (Vuetify): colours as "r,g,b". */
       .v-theme--dark, .v-theme--light {
         --v-theme-background: ${c.bg}; --v-theme-surface: ${c.surface}; --v-theme-surface-light: ${c.light};
-        --v-theme-primary: ${c.primary}; --v-theme-secondary: ${c.secondary};
+        --v-theme-overlay: ${c.surface}; --v-theme-primary: ${c.primary}; --v-theme-secondary: ${c.secondary};
         --v-theme-on-background: ${c.text}; --v-theme-on-surface: ${c.text}; --v-theme-fg: ${c.text};
+      }
+      /* Newer parts (sidebar, cards, menus): plain colours. html.dark outranks the app's own .dark. */
+      html.dark, html {
+        --background: ${col(c.bg)}; --foreground: ${col(c.text)};
+        --card: ${col(c.surface)}; --card-foreground: ${col(c.text)};
+        --popover: ${col(c.surface)}; --popover-foreground: ${col(c.text)};
+        --primary: ${col(c.primary)}; --primary-foreground: ${col(c.bg)};
+        --secondary: ${col(c.light)}; --secondary-foreground: ${col(c.text)};
+        --muted: ${col(c.light)}; --muted-foreground: ${col(c.muted)};
+        --accent: ${col(c.light)}; --accent-foreground: ${col(c.text)};
+        --border: ${col(c.text, 0.12)}; --input: ${col(c.text, 0.12)}; --ring: ${col(c.primary)};
+        --sidebar: ${col(c.surface)}; --sidebar-foreground: ${col(c.text)};
+        --sidebar-primary: ${col(c.primary)}; --sidebar-primary-foreground: ${col(c.bg)};
+        --sidebar-accent: ${col(c.text, 0.08)}; --sidebar-accent-foreground: ${col(c.text)};
+        --sidebar-border: ${col(c.text, 0.12)}; --sidebar-ring: ${col(c.primary)};
       }
       html, body, .v-application, .v-main { background: rgb(${c.bg}) !important; }
       ${cfg.family ? `body, .v-application { font-family: ${cfg.family} !important; }` : ''}
@@ -64,7 +82,7 @@ export function designMusic(output, config = {}) {
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
     // Fallbacks in DwellDeck's colours (recoloured with the palette like every other card).
     custom_fields: {theme: `[[[ return (${dwellMaTheme.toString()})(this, ${JSON.stringify({font: config.font === 'system' ? '' : DWELL_FONT_URL, family: config.font === 'system' ? '' : DWELL_FONT_STACK,
-      bg: '#080e18', surface: '#162536', light: '#111d2b', primary: '#29d5ee', secondary: '#39e2bc', text: '#edf5ff'})}); ]]]`},
+      bg: '#080e18', surface: '#162536', light: '#111d2b', primary: '#29d5ee', secondary: '#39e2bc', text: '#edf5ff', muted: '#91a8bd'})}); ]]]`},
     styles: {card: [{height: '0'}, {padding: '0'}, {border: 'none'}, {background: 'none'}, {'box-shadow': 'none'}, {overflow: 'hidden'}],
       grid: [{'grid-template-areas': '"theme"'}]},
     // Takes no room on the page.
