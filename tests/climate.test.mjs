@@ -11,7 +11,7 @@ const view = () => generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {d
 
 test('climate opens with what runs now, heating beside it, then the rest', () => {
   const v = view();
-  assert.deepEqual(v.sections.map(s => s.cards[0].heading), ['Climate now', 'Heating', 'Air conditioners', 'Thermostats', 'Scenes', 'Last 24 hours']);
+  assert.deepEqual(v.sections.map(s => s.cards[0].heading), ['Climate now', 'Heating', 'AC scenes', 'Air conditioners', 'Thermostats', 'Last 24 hours']);
   assert.equal(v.sections[0].column_span, 2);
   assert(!JSON.stringify(v).includes('"name":"AC live status"'), 'the old list is replaced');
   const heatTile = v.sections[1].cards.find(c => c.entity === 'switch.boiler');

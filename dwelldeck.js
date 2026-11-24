@@ -2487,16 +2487,18 @@ function designClimate(output, {hass = {}} = {}) {
   // Air conditioners and thermostats: three across on a wide screen, one per row on a phone.
   for (const tile of acTiles) tile.grid_options = {columns: 12, rows: 3};
   for (const card of thermostats) card.grid_options = {columns: 12, rows: 'auto'};
-  for (const card of scenes) card.grid_options = {columns: 12, rows: 1};
+  // Six across on a wide screen, two across on a phone.
+  for (const card of scenes) card.grid_options = {columns: 6, rows: 1};
   for (const card of history) card.grid_options = {columns: 'full', rows: 'auto'};
 
   const section = (items, span) => ({type: 'grid', ...(span ? {column_span: span} : {}), cards: items});
   view.sections = [
     section([clHeading('Climate now', 'mdi:home-thermometer'), status], 2),
     section([clHeading('Heating', 'mdi:water-boiler'), ...heating]),
+    // AC scenes right above the air conditioners they start, in one row.
+    section([clHeading('AC scenes', 'mdi:play-box-outline'), ...scenes], 3),
     section([clHeading('Air conditioners', 'mdi:air-conditioner'), ...acTiles], 3),
     section([clHeading('Thermostats', 'mdi:thermostat'), ...thermostats], 3),
-    section([clHeading('Scenes', 'mdi:play-box-outline'), ...scenes]),
     section([clHeading('Last 24 hours', 'mdi:chart-timeline-variant'), ...history, ...rest], 2)
   ].filter(item => item.cards.length > 1);
   view.max_columns = 3;
