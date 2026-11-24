@@ -1,0 +1,20 @@
+{
+  "default": "5e1266e924270906a165ad1f9d9673ccb473e201a8a11bd2ee72bdb2efdecb23",
+  "title, theme and music app": "e659b97751eafd0d4eda0e3466333576c63fcb0a920e258f435069dbbbb4aa5c",
+  "palette ocean": "5e1266e924270906a165ad1f9d9673ccb473e201a8a11bd2ee72bdb2efdecb23",
+  "palette emerald": "49225812649cdea2c496b1f0fb3e73632b69f0b88b341e5d2b3ff8861312345f",
+  "palette violet": "5403d9fd17b395aa707f0c4b019a7d468328779cf06a0b9572cf6bee2cfc8ba9",
+  "palette rose": "38d1c08f131d696fac678e06eedde445f16469c7d6109d2ef8f9a344c756f844",
+  "palette slate": "56868adce3e5b4901da0cbd25244074ba960d37314f18e5eb7bc47f0ecd5e950",
+  "palette unknown": "5e1266e924270906a165ad1f9d9673ccb473e201a8a11bd2ee72bdb2efdecb23",
+  "entity binding": "b1be7b15cefefe8a1cf0536f5742c85ec7a20eb5391e9eb7232c3726f13f4eb0",
+  "labels": "9533eee79c0d50e5a357e8d2fd2897c6dc75c318c4faec9befc74bfe6a0dbc05",
+  "template room by entities": "c43d51d3a1ef22e45e5ee34a5b8a8347f5d0b67598d015bcc3ded386e49839f0",
+  "template room by area with controls": "8002fac89cdeafce01a4f6c7112c560c9dd55a77bea3485bfd5d4e8246a6d176",
+  "extra rooms": "d75b7146829154074abe7304a0b3f943e916a78cf46526a598ec820c6ab566ce",
+  "area rooms": "8505079e38922b9b754c415733b7b4905672ded99a11d1d79d168b70e370ba2a",
+  "auto discover": "168146106b38595ae083a3e7f31330d86081b2d1f1575a644f0b789dca13725b",
+  "auto discover keeps bindings": "2d1d82b820624d255ca18db1ff28b9767ed5e190b7fb62279a99c71fd1e39886",
+  "discoverConfiguration": "1ab7c63c028b940af6cdd253c40cfb16c6bf17c39ce2265c28444423fe0adabf",
+  "strategy generate with discovery": "168146106b38595ae083a3e7f31330d86081b2d1f1575a644f0b789dca13725b"
+}
