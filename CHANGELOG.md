@@ -4,6 +4,8 @@
 
 - Security shortcuts are one full-width row of buttons (icon, name, what it opens, and an arrow) instead of small tiles squeezed into one column; nothing is cut off, and on a phone they stack one per row.
 - Recent history and Detection history opened the same page; they are one **History** button now.
+- Shortcuts sit above Entrance cameras and Camera detection.
+- The top row lines up: Status, Alarm and Gates each have a heading and end on the same line. The status card has a fixed height (a long attention list scrolls inside), the alarm panel is at least that tall, and the gate rows grow to fill the column. The note under the gates is gone.
 
 ## 0.9.26 — Home and Security in order of importance
 

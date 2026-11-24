@@ -25,7 +25,7 @@ test('security view gets a camera detection section with status and recent activ
 
 test('the history shortcut opens the Activity view under the dashboard path', () => {
   // Detection history and Recent history opened the same page; one History button remains.
-  const bar = generate({}).views.find(v => v.path === 'security').sections.at(-1).cards[1].custom_fields.bar;
+  const bar = generate({}).views.find(v => v.path === 'security').sections.find(s => s.cards[0].heading === 'Shortcuts').cards[1].custom_fields.bar;
   const html = Function('states', bar.trim().slice(3, -3))({});
   assert(html.includes('data-path="/dashboard-test/notifications"'));
   assert.equal(html.match(/notifications"/g).length, 1);

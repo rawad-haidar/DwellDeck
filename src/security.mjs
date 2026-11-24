@@ -3,6 +3,8 @@
 import {ROOM_COLORS} from './rooms.mjs';
 
 const SEC_C = ROOM_COLORS;
+// Height of the top row's cards, so status, alarm and gates line up at top and bottom.
+const TOP_ROW = 288;
 const secHeading = (text, icon) => ({type: 'heading', heading: text, icon, heading_style: 'title'});
 
 // Runs inside a button-card template: the alarm state, status pills and a list of what needs attention.
@@ -103,7 +105,8 @@ function securityStatusCard(cfg) {
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, triggers_update: 'all', variables: {dwell_static: true},
     custom_fields: {status: `[[[ return (${dwellSecurityStatus.toString()})(states, hass, ${JSON.stringify(cfg)}); ]]]`},
     styles: {
-      card: [{padding: '22px 24px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${SEC_C.surface},${SEC_C.card})`},
+      // The top row (status, alarm, gates) shares one height; a long attention list scrolls inside.
+      card: [{padding: '22px 24px'}, {height: `${TOP_ROW}px`}, {'box-sizing': 'border-box'}, {'overflow-y': 'auto'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${SEC_C.surface},${SEC_C.card})`},
         {border: `1px solid ${SEC_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"status"'}, {'grid-template-columns': '1fr'}],
       custom_fields: {status: [{width: '100%'}, {'pointer-events': 'auto'}]}
@@ -199,7 +202,26 @@ export function designSecurity(output, {prefix}) {
     return unlock ? [tile, unlockButton(unlock)] : [tile];
   });
   const loose = unlocks.filter(card => !lockTiles.some(tile => [].concat(card.tap_action.target?.entity_id).includes(tile.entity))).map(unlockButton);
-  for (const card of [...cameras, ...gateNotes, ...alarmPanel]) card.grid_options = {columns: 12, rows: 'auto'};
+  for (const card of [...cameras, ...alarmPanel]) card.grid_options = {columns: 12, rows: 'auto'};
+  // The alarm panel is at least as tall as the status card, its content centred. A keypad makes it taller.
+  for (const card of alarmPanel) {
+    const css = `ha-card { min-height: ${TOP_ROW}px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; border-radius: 20px; }`;
+    card.card_mod = {...(card.card_mod || {}), style: `${card.card_mod?.style || ''} ${css}`};
+  }
+  // No note under the gates: each gate row grows so the column ends on the same line as status and alarm.
+  const gateRows = lockTiles.length + loose.length;
+  const rowHeight = gateRows ? Math.max(56, Math.floor((TOP_ROW - 8 * (gateRows - 1)) / gateRows)) : 56;
+  for (const tile of lockTiles) {
+    tile.grid_options = {...tile.grid_options, rows: 'auto'};
+    const css = `ha-card { height: ${rowHeight}px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; border-radius: 20px; }`;
+    tile.card_mod = {...(tile.card_mod || {}), style: `${tile.card_mod?.style || ''} ${css}`};
+  }
+  for (const button of [...gates, ...loose].filter(card => card.name === 'Unlock')) {
+    button.grid_options = {...button.grid_options, rows: 'auto'};
+    button.styles.card = button.styles.card.map(rule => 'height' in rule ? {height: `${rowHeight}px`} : 'border-radius' in rule ? {'border-radius': '20px'} : rule);
+    // Icon above the word in a tall button.
+    if (rowHeight > 90) button.styles.grid = [{'grid-template-areas': '"i" "n"'}, {'grid-template-columns': '1fr'}, {gap: '6px'}, {'justify-items': 'center'}, {'align-content': 'center'}];
+  }
 
   const status = securityStatusCard({
     alarm: alarmId && !alarmId.includes('.dwelldeck_slot_') ? alarmId : null,
@@ -208,14 +230,15 @@ export function designSecurity(output, {prefix}) {
   });
   const section = (items, span) => ({type: 'grid', ...(span ? {column_span: span} : {}), cards: items});
   const sections = [
-    section([status], 2),
+    // Every section has a heading, so the top row starts on one line.
+    section([secHeading('Status', 'mdi:shield-check-outline'), status], 2),
     section([secHeading('Alarm', 'mdi:shield-home'), ...alarmPanel]),
-    section([secHeading('Gates', 'mdi:gate'), ...gates, ...loose, ...gateNotes]),
+    section([secHeading('Gates', 'mdi:gate'), ...gates, ...loose]),
+    // Full width (Home Assistant narrows a span to the columns the screen has), above cameras and detection.
+    section([secHeading('Shortcuts', 'mdi:view-grid-outline'), shortcutBar(shortcuts), ...rest], 4),
     section([secHeading('Entrance cameras', 'mdi:cctv'), ...cameras], 2),
-    section([secHeading('Camera detection', 'mdi:motion-sensor'), ...detection.filter(card => !navigates(card))], 2),
-    // Full width (Home Assistant narrows a span to the columns the screen has).
-    section([secHeading('Shortcuts', 'mdi:view-grid-outline'), shortcutBar(shortcuts), ...rest], 4)
+    section([secHeading('Camera detection', 'mdi:motion-sensor'), ...detection.filter(card => !navigates(card))], 2)
   ];
-  view.sections = sections.filter(item => item.cards.length > 1 || item.cards[0] === status);
+  view.sections = sections.filter(item => item.cards.length > 1);
   return output;
 }
