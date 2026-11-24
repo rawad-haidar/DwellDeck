@@ -760,3 +760,8 @@ test('player cards stay small: shared code is loaded once, not copied into every
  assert.equal(typeof globalThis.__dwell.dwellTvPanel,'function');
  assert.equal(Function('states',card.label.trim().slice(3,-3))(hass.states),'On, YouTube','and it still works');
 });
+
+test('a theme\'s frosted-glass blur is off on DwellDeck pages: cards are solid, and the blur slows scrolling',()=>{
+ const d=generate({});
+ for(const view of d.views)assert(String(view.card_mod?.style||'').includes('--ha-card-backdrop-filter:none'),view.path);
+});

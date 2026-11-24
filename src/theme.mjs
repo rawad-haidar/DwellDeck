@@ -74,9 +74,11 @@ export function applyDwellPalette(dashboard, key) {
   const accent = roles.accent || palette.colors[3];
   const surface = name === 'lamplight' ? roles.page : `linear-gradient(135deg,${roles.page},${roles.popup})`;
   for (const view of themed.views) {
+    // A theme's frosted-glass blur behind every card is invisible on DwellDeck's solid cards but has to be
+    // redrawn for each card and button while scrolling, which leaves cards blank for a moment on phones.
     view.card_mod ||= {};
     view.card_mod.style = (view.card_mod.style || '') + `
-:host {--primary-color:${accent};--accent-color:${accent};--lovelace-background:${surface};--primary-background-color:${roles.page};--ha-card-background:${roles.card};--card-background-color:${roles.card};--history-unavailable-color:${roles.unavailable};background:${surface}!important;}`;
+:host {--primary-color:${accent};--accent-color:${accent};--lovelace-background:${surface};--primary-background-color:${roles.page};--ha-card-background:${roles.card};--card-background-color:${roles.card};--history-unavailable-color:${roles.unavailable};--ha-card-backdrop-filter:none;background:${surface}!important;}`;
   }
   return themed;
 }

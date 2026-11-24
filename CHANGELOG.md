@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.34 — Smooth scrolling
+
+- **Cards no longer stay blank for a moment while scrolling** (most visible on the Media page on phones and tablets). A Home Assistant theme can put a frosted-glass blur behind every card (Alpine Morning does); on DwellDeck's solid cards it is invisible, but it had to be recomputed for every card and every button inside it (52 on the Media page) while scrolling. DwellDeck pages now turn that blur off; the theme is unchanged everywhere else, and DwellDeck's own frosted panels (the weather sky) keep theirs.
+
 ## 0.9.33 — Faster pages
 
 - **Lighter dashboard, faster pages.** TV and sound system cards and room status chips used to carry their own copy of the same code (the TV remote panel, the volume slider, the Music Assistant buttons, the "what's playing" logic and the list of app names, that one up to seven times per card). That code is now loaded once and every card refers to it, so the generated dashboard is about 44% smaller: the Media page about 62% smaller, Home and Rooms about half. The browser reads and runs far less when a page opens, most noticeably on phones and tablets. Every card draws exactly what it drew before (checked template by template, in two palettes).
