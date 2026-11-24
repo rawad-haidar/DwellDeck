@@ -224,14 +224,31 @@ function dwellDetections(states, cfg) {
   const last = groups.find(g => !g.offline && g.latest);
   const summary = active.length ? 'Detected now: ' + active.map(g => esc(g.cam)).join(', ')
     : last ? 'Latest: ' + esc(last.cam) + ', ' + when(last.latest) : 'No detections yet';
-  const toggle = `event.stopPropagation();const r=this.closest('.det');const o=!r.classList.contains('open');r.classList.toggle('open',o);try{localStorage.setItem('dwelldeck-detections-open',o?'1':'0')}catch(e){}`;
-  const popup = key => `event.stopPropagation();this.dispatchEvent(new CustomEvent('ll-custom',{detail:{browser_mod:window.__dwellDet['${key}']},bubbles:true,composed:true}));`;
-  const go = path => `event.stopPropagation();history.pushState(null,'','${path}');window.dispatchEvent(new CustomEvent('location-changed'));`;
+  // Clicks go through small helpers on window, like the TV panel: inline handlers stay short and quote-free.
+  window.__dwellDetUi = window.__dwellDetUi || {
+    toggle(el) {
+      const box = el.closest('.det');
+      const open = !box.classList.contains('open');
+      box.classList.toggle('open', open);
+      el.setAttribute('aria-expanded', open ? 'true' : 'false');
+      try { window.localStorage.setItem('dwelldeck-detections-open', open ? '1' : '0'); } catch (e) { /* private mode */ }
+    },
+    popup(el) {
+      const action = window.__dwellDet?.[el.dataset.key];
+      if (action) el.dispatchEvent(new CustomEvent('ll-custom', {detail: {browser_mod: action}, bubbles: true, composed: true}));
+    },
+    go(el) { history.pushState(null, '', el.dataset.path); window.dispatchEvent(new CustomEvent('location-changed')); }
+  };
+  const toggle = 'event.stopPropagation();window.__dwellDetUi.toggle(this)';
+  const popup = key => `event.stopPropagation();window.__dwellDetUi.popup(this)" data-key="${key}`;
+  const go = path => `event.stopPropagation();window.__dwellDetUi.go(this)" data-path="${path}`;
   const row = g => `<button class="row${g.now.length ? ' now' : ''}" onclick="${popup(g.key)}">
     <ha-icon icon="${g.now.length ? icon(g.now[0]) : g.offline ? 'mdi:video-off' : g.latestKind ? icon(g.latestKind) : 'mdi:cctv'}"></ha-icon><span class="nm">${esc(g.cam)}</span>
     <span class="st">${g.now.length ? 'Detected now' : g.offline ? 'Unavailable' : g.latest ? when(g.latest) : '—'}</span></button>`;
   return `<style>
     .det{display:grid;gap:10px;text-align:left}
+    .det ha-icon{--mdc-icon-size:20px;width:20px;height:20px;display:block}
+    .ic ha-icon{--mdc-icon-size:22px;width:22px;height:22px}
     .head{all:unset;box-sizing:border-box;display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:12px;cursor:pointer;width:100%}
     .ic{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:rgba(0,0,0,.18);color:${active.length ? cfg.c.onText : cfg.c.muted}}
     .t{font-size:15px;font-weight:600;color:${cfg.c.text}}
@@ -253,7 +270,7 @@ function dwellDetections(states, cfg) {
     @media (prefers-reduced-motion:reduce){.chev ha-icon{transition:none}}
   </style>
   <div class="det${open ? ' open' : ''}">
-    <button class="head" onclick="${toggle}" aria-label="Show or hide cameras"><span class="ic"><ha-icon icon="mdi:cctv"></ha-icon></span>
+    <button class="head" onclick="${toggle}" aria-expanded="${open ? 'true' : 'false'}" aria-label="Show or hide cameras"><span class="ic"><ha-icon icon="mdi:cctv"></ha-icon></span>
       <span style="min-width:0"><div class="t">${groups.length} cameras with detection</div><div class="sum">${summary}</div></span>
       <span class="chev"><ha-icon icon="mdi:chevron-down"></ha-icon></span></button>
     <div class="list">${groups.map(row).join('')}
