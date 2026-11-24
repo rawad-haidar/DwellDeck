@@ -1,0 +1,74 @@
+// Energy page: inverters found by name, a live power flow, today's totals and 30-day graphs.
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+globalThis.HTMLElement = class {};
+globalThis.customElements = {get: () => undefined, define: () => {}};
+globalThis.window = {};
+const {ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, generateOriginal} = await import('../dwelldeck.js');
+const {discoverInverters, energySetup} = await import('../src/energy.mjs');
+
+// Two Deye inverters in parallel through Solarman, as on a real system at night: battery discharging.
+const s = (id, state, unit, name) => [`sensor.electric_room_inverter_${id}`, {state: String(state), attributes: {unit_of_measurement: unit, friendly_name: name}}];
+const both = (key, unit, master, slave, label) => [s(`master_${key}`, master, unit, `Inverter Master ${label}`), s(`slave_${key}`, slave, unit, `Inverter Slave ${label}`)];
+const states = Object.fromEntries([
+  ...both('pv_power', 'W', 0, 20, 'PV Power'), ...both('battery_power', 'W', 1039, 945, 'Battery Power'), ...both('grid_power', 'W', 0, 0, 'Grid Power'),
+  ...both('power', 'W', 938, 919, 'Power'), ...both('load_power', 'W', 938, 9190, 'Load Power'), ...both('battery', '%', 70, 70, 'Battery'),
+  ...both('pv1_power', 'W', 0, 20, 'PV1 Power'),
+  ...both('today_production', 'kWh', 24.6, 23.6, 'Today Production'), ...both('today_load_consumption', 'kWh', 20.6, 20.3, 'Today Load Consumption'),
+  ...both('today_battery_charge', 'kWh', 17.1, 13.4, 'Today Battery Charge'), ...both('today_battery_discharge', 'kWh', 12.6, 11.1, 'Today Battery Discharge'),
+  ...both('today_energy_import', 'kWh', 0, 0, 'Today Energy Import'), ...both('today_energy_export', 'kWh', 0, 0, 'Today Energy Export'),
+  ...both('total_production', 'kWh', 18019, 21634, 'Total Production'), ...both('total_load_consumption', 'kWh', 19382, 21734, 'Total Load Consumption'),
+  ...both('total_battery_charge', 'kWh', 12114, 12213, 'Total Battery Charge'), ...both('total_battery_discharge', 'kWh', 11014, 11938, 'Total Battery Discharge'),
+  ...both('total_energy_import', 'kWh', 2245, 0.2, 'Total Energy Import'), ...both('total_energy_export', 'kWh', 86, 84, 'Total Energy Export'),
+  ['sensor.electric_room_deye_pv_power', {state: '20', attributes: {unit_of_measurement: 'W'}}]
+]);
+const hass = {states, entities: {}, areas: {}, devices: {}};
+
+test('finds both inverters by name and skips a group that only adds up PV', () => {
+  const inverters = discoverInverters(hass);
+  assert.deepEqual(inverters.map(inv => inv.pv), ['sensor.electric_room_inverter_master_pv_power', 'sensor.electric_room_inverter_slave_pv_power']);
+  // The output power, not the load power (one inverter reports load ten times too high).
+  assert.equal(inverters[1].load, 'sensor.electric_room_inverter_slave_power');
+  assert.equal(inverters[0].today.solar, 'sensor.electric_room_inverter_master_today_production');
+});
+
+const energy = d => d.views.find(v => v.path === 'energy');
+const run = (card, field) => Function('states', card.custom_fields[field].trim().slice(3, -3))(states);
+
+test('the power flow adds the inverters up and shows the direction of each flow', () => {
+  const view = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x'}, hass));
+  assert.deepEqual(view.sections.map(s => s.cards[0].heading), ['Power flow', 'Today', 'Last 30 days']);
+  globalThis.window = {};
+  const html = run(view.sections[0].cards[1], 'flow');
+  assert(html.includes('>1.9 kW<'), 'home: 938 + 919 W');
+  assert(html.includes('>2.0 kW<') && html.includes('Discharging'), 'battery: 1039 + 945 W, discharging');
+  assert(html.includes('Battery · 70%'));
+  assert(html.includes('Idle'), 'grid idle');
+  assert.equal((html.match(/<animateMotion/g) || []).length, 9, 'dots on solar, home and battery lines, none on the idle grid line');
+  assert(view.sections[0].cards[1].styles.custom_fields.flow.some(r => r['pointer-events'] === 'auto'));
+});
+
+test('today adds up both inverters', () => {
+  const view = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x'}, hass));
+  const html = run(view.sections[1].cards[1], 'today');
+  assert(html.includes('48.2<small> kWh</small>') && html.includes('Solar produced'));
+  assert(html.includes('40.9<small> kWh</small>') && html.includes('Home used'));
+});
+
+test('graphs cover the last 30 days', () => {
+  const view = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x'}, hass));
+  const graphs = view.sections[2].cards.slice(1);
+  assert(graphs.length >= 3);
+  assert(graphs.every(g => g.type === 'statistics-graph' && g.days_to_show === 30));
+  assert(graphs.some(g => g.chart_type === 'bar' && g.stat_types.includes('change')));
+  // Without inverters the page's own graphs stretch to 30 days.
+  const plain = energy(generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x'}, {}));
+  const minis = plain.sections.at(-1).cards.slice(1);
+  assert(minis.length && minis.every(g => g.hours_to_show === 720 || g.type === 'markdown'));
+});
+
+test('sign conventions can be flipped in setup', () => {
+  const setup = energySetup({energy: {battery_charging: 'positive', grid_import: 'negative'}}, hass);
+  assert.equal(setup.batteryCharging, 1);
+  assert.equal(setup.gridImport, -1);
+});

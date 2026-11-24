@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.9.27 — Friendlier Security shortcuts
+## 0.9.27 — Energy power flow, Security shortcuts
+
+- **Energy** follows Home's arrangement. Top row: a live **Power flow** (solar on top, grid left, house right, battery below, the inverter in the middle; moving dots show which way power flows and speed up with more power; tap a circle for its sensor) and **Today** (solar produced, home used, battery charged and discharged, from and to the grid).
+- Inverters are found by their sensor names (Solarman / Deye style) and added up, so two inverters in parallel show as one house. The house uses each inverter's output power.
+- **Last 30 days**: daily kWh bars for solar and home, battery and grid, the daily average power, and the battery's daily low, average and high, from Home Assistant's long-term statistics. Without inverter sensors, the page's own graphs show 30 days.
 
 - Security shortcuts are one full-width row of buttons (icon, name, what it opens, and an arrow) instead of small tiles squeezed into one column; nothing is cut off, and on a phone they stack one per row.
 - Recent history and Detection history opened the same page; they are one **History** button now.
