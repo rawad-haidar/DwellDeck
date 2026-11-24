@@ -1313,11 +1313,13 @@ class DwellDeckOriginalStrategy extends HTMLElement {
   static getConfigElement(){return document.createElement('dwelldeck-original-editor');}
   static getCreateSuggestions(){return {title:'DwellDeck',icon:'mdi:view-dashboard'};}
   static async generate(config, hass) {
-    // Camera detection links sensors to cameras on the same device, so it needs the registries too.
-    const needsDiscovery = config.auto_discover || config.room_controls || config.camera_detection !== false ||
+    const needsDiscovery = config.auto_discover || config.room_controls ||
       Object.values(config.rooms || {}).some(room => room.area) ||
       (config.extra_rooms || []).some(room => room.area);
-    const context = needsDiscovery ? await discoveryContext(hass) : hass;
+    // Camera detection only uses the registries to link sensors to cameras on the same device.
+    // If any registry cannot be read (older Home Assistant has no floors or labels), match camera names instead.
+    const context = needsDiscovery ? await discoveryContext(hass)
+      : config.camera_detection !== false ? await discoveryContext(hass).catch(() => hass) : hass;
     return generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, config, context);
   }
 }
