@@ -96,7 +96,7 @@ const KNOWN_PACKAGES = {
   'net.mbc.shahid.androidtv': 'Shahid', 'net.mbc.shahidtv': 'Shahid', 'com.tod.tv': 'TOD', 'com.bein.tod': 'TOD',
   'com.apple.atve.androidtv.appletv': 'Apple TV', 'com.plexapp.android': 'Plex', 'org.xbmc.kodi': 'Kodi',
   'com.google.android.tvlauncher': 'Home', 'com.google.android.apps.tv.launcherx': 'Home', 'com.android.tv.settings': 'Settings',
-  'com.google.android.apps.mediashell': 'Google Cast', 'com.android.vending': 'Play Store', 'com.google.android.videos': 'Google TV', 'tv.twitch.android.app': 'Twitch'
+  'com.google.android.apps.mediashell': 'Google Cast', 'com.android.vending': 'Play Store', 'io.homeassistant.companion.android': 'Home Assistant', 'com.anghami.tv': 'Anghami', 'com.google.android.videos': 'Google TV', 'tv.twitch.android.app': 'Twitch'
 };
 // Asks ADB for the TV apps that can be launched from the home screen, and for user-installed apps.
 const FETCH_APPS = 'cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER; pm list packages -3';
@@ -108,11 +108,23 @@ const COMMON_APPS = [['Netflix', 'com.netflix.ninja'], ['YouTube', 'com.google.a
 // Shown when the TV lists no inputs: Android input keys. Whether a TV follows them depends on the TV.
 const COMMON_INPUTS = [['Home', 'HOME'], ['HDMI 1', 'TV_INPUT_HDMI_1'], ['HDMI 2', 'TV_INPUT_HDMI_2'], ['HDMI 3', 'TV_INPUT_HDMI_3'], ['HDMI 4', 'TV_INPUT_HDMI_4'], ['Inputs', 'TV_INPUT']];
 const SOURCE_PATTERN = /hdmi|^tv$|live ?tv|antenna|tuner|^av\b|composite|component|usb|launcher|^home$/i;
-const APP_ICONS = [[/netflix/i, 'mdi:netflix'], [/youtube/i, 'mdi:youtube'], [/spotify/i, 'mdi:spotify'],
-  [/disney/i, 'mdi:movie-open-star-outline'], [/prime|amazon/i, 'mdi:movie-play-outline'], [/apple ?tv|tv\+/i, 'mdi:apple'],
-  [/plex/i, 'mdi:plex'], [/kodi/i, 'mdi:kodi'], [/twitch/i, 'mdi:twitch'], [/cast/i, 'mdi:cast'], [/hdmi/i, 'mdi:video-input-hdmi'],
-  [/launcher|^home$/i, 'mdi:home-outline'], [/^(tv|live ?tv|antenna|tuner)$/i, 'mdi:television-classic'],
-  [/music/i, 'mdi:music-note-outline'], [/settings/i, 'mdi:cog-outline'], [/usb/i, 'mdi:usb'], [/^inputs$/i, 'mdi:import']];
+// App icons: Material Design brand icons (built into Home Assistant, so nothing is downloaded) on the
+// app's brand colour. Inputs use a neutral icon. Apps not listed get a letter tile (see dwellTvPanel).
+const APP_ICONS = [
+  [/youtube ?music|tvmusic/i, 'mdi:music-circle', '#ff0000'], [/youtube ?kids/i, 'mdi:youtube', '#ff4e45'],
+  [/youtube/i, 'mdi:youtube', '#ff0000'], [/netflix/i, 'mdi:netflix', '#e50914'], [/spotify/i, 'mdi:spotify', '#1db954'],
+  [/twitch/i, 'mdi:twitch', '#9146ff'], [/plex/i, 'mdi:plex', '#e5a00d'], [/kodi/i, 'mdi:kodi', '#17b2e7'],
+  [/apple ?tv|tv\+/i, 'mdi:apple', '#3a3a3c'], [/apple ?music/i, 'mdi:apple', '#fa2d48'], [/play ?store|vending/i, 'mdi:google-play', '#01875f'],
+  [/disney/i, 'mdi:movie-open-star-outline', '#113ccf'], [/prime|amazon/i, 'mdi:movie-play-outline', '#00a8e1'],
+  [/hulu/i, 'mdi:hulu', '#1ce783'], [/vlc/i, 'mdi:vlc', '#ff8800'], [/emby/i, 'mdi:emby', '#52b54b'], [/jellyfin/i, 'mdi:jellyfish', '#aa5cc3'],
+  [/steam/i, 'mdi:steam', '#1b2838'], [/chrome|browser/i, 'mdi:google-chrome', '#4285f4'], [/firefox/i, 'mdi:firefox', '#ff7139'],
+  [/facebook/i, 'mdi:facebook', '#1877f2'], [/instagram/i, 'mdi:instagram', '#e1306c'], [/whatsapp/i, 'mdi:whatsapp', '#25d366'],
+  [/vimeo/i, 'mdi:vimeo', '#1ab7ea'], [/^tod$|bein/i, 'mdi:soccer', '#5b2c83'], [/playstation/i, 'mdi:sony-playstation', '#003791'],
+  [/xbox/i, 'mdi:microsoft-xbox', '#107c10'], [/home ?assistant/i, 'mdi:home-assistant', '#18bcf2'], [/cast/i, 'mdi:cast', '#4285f4'],
+  [/google ?tv/i, 'mdi:television-play', '#4285f4'], [/settings/i, 'mdi:cog', '#5f6b7a'], [/podcast/i, 'mdi:podcast', '#8e44ad'],
+  [/music/i, 'mdi:music-note', '#e0533d'], [/weather/i, 'mdi:weather-partly-cloudy', '#2d8cf0'], [/news/i, 'mdi:newspaper', '#5f6b7a'],
+  [/hdmi/i, 'mdi:video-input-hdmi'], [/launcher|^home$/i, 'mdi:home-outline'], [/^(tv|live ?tv|antenna|tuner)$/i, 'mdi:television-classic'],
+  [/usb/i, 'mdi:usb'], [/^inputs$/i, 'mdi:import']];
 
 // A readable name for a list entry, or null for package names that are system services.
 export function appName(entry) {
@@ -271,10 +283,20 @@ function dwellTvPanel(states, cfg) {
     fallbackNote.apps = 'Turn the TV on and press Refresh to load the apps installed on it (needs the ADB connection).';
   }
   const byName = (a, b) => (a.order ?? 99) - (b.order ?? 99) || a.name.localeCompare(b.name, undefined, {numeric: true});
-  const icon = name => (cfg.icons.find(([pattern]) => new RegExp(pattern, 'i').test(name)) || [0, 'mdi:application-outline'])[1];
+  const look = name => cfg.icons.find(([pattern]) => new RegExp(pattern, 'i').test(name));
+  const icon = name => (look(name) || [0, 'mdi:application-outline'])[1];
+  // App tiles: the brand icon on its colour, or the first letter on a colour that stays the same for each app.
+  const logo = name => {
+    const found = look(name);
+    if (found?.[2]) return `<span class="logo" style="background:${found[2]}"><ha-icon icon="${found[1]}"></ha-icon></span>`;
+    let hue = 0;
+    for (const ch of name) hue = (hue * 31 + ch.charCodeAt(0)) % 360;
+    return `<span class="logo" style="background:hsl(${hue},48%,40%)"><b>${esc((name.match(/[\p{L}\p{N}]/u) || ['?'])[0].toUpperCase())}</b></span>`;
+  };
+  const appBtn = item => `<button class="app" aria-label="${esc(item.name)}" onclick="window.__dwellTv.call(this)" data-call="${item.callData}">${logo(item.name)}<span>${esc(item.name)}</span></button>`;
   const off = cfg.players.every(p => ['off', 'standby', 'unavailable', 'unknown'].includes(states[p]?.state));
   const grid = (list, kind) => list.length
-    ? `<div class="apps">${list.sort(byName).map(item => btn(icon(item.name), item.name, item.callData, 'app')).join('')}</div>${fallbackNote[kind] ? `<p class="empty">${fallbackNote[kind]}</p>` : ''}`
+    ? `<div class="apps">${list.sort(byName).map(item => kind === 'apps' ? appBtn(item) : btn(icon(item.name), item.name, item.callData, 'app')).join('')}</div>${fallbackNote[kind] ? `<p class="empty">${fallbackNote[kind]}</p>` : ''}`
     : `<p class="empty">${off ? `Turn the TV on to see its ${kind}.` : kind === 'sources' ? 'This TV doesn\'t list any inputs.' : 'This TV doesn\'t list any apps. For Android TV Remote, add apps in the integration\'s options.'}</p>`;
 
   const tabs = [];
@@ -338,6 +360,9 @@ function dwellTvPanel(states, cfg) {
     .dw-tv .app{min-height:80px;padding:10px 6px 8px;border-radius:14px}
     .dw-tv .app ha-icon{--mdc-icon-size:30px}
     .dw-tv .app span,.dw-tv .tab span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .dw-tv .logo{display:grid;place-items:center;width:46px;height:46px;border-radius:13px;color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+    .dw-tv .logo ha-icon{--mdc-icon-size:28px}
+    .dw-tv .logo b{font-size:21px;font-weight:700;line-height:1}
     .dw-tv .refresh{flex-direction:row;gap:8px;min-height:44px;margin-top:2px;color:${c.muted}}
     .dw-tv .refresh ha-icon{--mdc-icon-size:20px}
     .dw-tv .empty{margin:6px 4px;color:${c.muted};font-size:14px;line-height:1.5}
@@ -381,7 +406,7 @@ export function tvCard(requested, hass) {
     (Number(hass.states?.[p]?.attributes?.supported_features) & 2048) || hass.states?.[p]?.attributes?.source_list?.length);
   const cfg = {
     lead: id, players, canSwitch, c: C, known: KNOWN_PACKAGES, inputPattern: SOURCE_PATTERN.source,
-    icons: APP_ICONS.map(([pattern, icon]) => [pattern.source, icon]),
+    icons: APP_ICONS.map(([pattern, icon, color]) => [pattern.source, icon, color || '']),
     activities: remote?.platform === 'androidtv_remote' ? remote.id : null,
     keyboard: !!remote?.commands?.keyboard,
     fallback: remote?.platform === 'androidtv_remote' ? {remote: remote.id, apps: COMMON_APPS, inputs: COMMON_INPUTS} : null,

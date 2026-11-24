@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.12 — App icons
+
+- Apps show their brand icon on the brand colour (Netflix, YouTube, Spotify, Play Store, Plex, Kodi, Twitch, Apple TV and more), using icons built into Home Assistant, so nothing is downloaded. Apps without a brand icon get a tile with their first letter on a colour that stays the same for each app.
+
 ## 0.9.11 — Installed TV apps from ADB
 
 - **Apps** lists the apps installed on the TV. Opening the tab (at most once a minute) or pressing **Refresh installed apps** asks ADB for the TV's launchable apps and user-installed apps. The list is remembered in the browser until a newer answer replaces it, so an app drops out only once it is uninstalled.
