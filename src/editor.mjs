@@ -87,11 +87,13 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     this.shadowRoot.append(discoverySummary);
     this.shadowRoot.append(this.form([
       {name: 'auto_discover', selector: {boolean: {}}},
-      {name: 'room_controls', selector: {boolean: {}}}
-    ], {auto_discover: !!this.config.auto_discover, room_controls: !!this.config.room_controls},
+      {name: 'room_controls', selector: {boolean: {}}},
+      {name: 'camera_detection', selector: {boolean: {}}}
+    ], {auto_discover: !!this.config.auto_discover, room_controls: !!this.config.room_controls, camera_detection: this.config.camera_detection !== false},
     value => this.change({...this.config, ...value}), {
       auto_discover: 'Discover newly added areas automatically',
-      room_controls: 'Show room controls and sensors in room popups'
+      room_controls: 'Show room controls and sensors in room popups',
+      camera_detection: 'Show camera human and vehicle detection on the Security page'
     }));
     const roomDetails=document.createElement('details');roomDetails.open=true;const summary=document.createElement('summary');summary.textContent='Home Assistant areas and controls';roomDetails.append(summary);
     const editorRooms = this.config.area_rooms

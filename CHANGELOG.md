@@ -2,9 +2,11 @@
 
 ## Unreleased — Modular source
 
+- Add camera human and vehicle detection status and recent activity to the Security page (`camera_detection: false` to hide).
+- Fix history graphs, mini graphs and entities cards breaking when some of their entities are not selected.
 - Split the runtime into focused `src/` modules and move the layout data into `src/data/*.json`; the build no longer reads its own output.
 - Add golden tests that lock the generated dashboards, plus bundle and up-to-date checks in CI.
-- No change to the generated dashboards or the public API.
+- The module split itself does not change the generated dashboards or the public API.
 
 ## 0.8.1 — Areas, activity and colour themes
 
