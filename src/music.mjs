@@ -252,7 +252,7 @@ function dwellPlayed(card, hass, cfg) {
     .pb{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     .pb select{height:36px;padding:0 10px;border-radius:10px;border:1px solid ${c.line};background:${c.card};color:${c.text};font:inherit;font-size:14px}
     .busy{font-size:12px;color:${c.muted}}
-    .ls{display:flex;flex-direction:column}
+    .ls{display:flex;flex-direction:column;max-height:360px;overflow-y:auto;overscroll-behavior:contain;padding-right:4px;scrollbar-width:thin}
     .dy{margin:14px 0 4px;font-size:12.5px;font-weight:600;color:${c.muted}}.dy:first-child{margin-top:0}
     .it{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:10px 0;border-top:1px solid ${c.line}}
     .dy+.it{border-top:none}
@@ -270,7 +270,7 @@ function dwellPlayed(card, hass, cfg) {
   return style + render();
 }
 
-// The Media page ends with "Recently played" for every TV and sound system card on it.
+// The Media page opens with "Recently played" for every TV and sound system card on it.
 export function designMediaHistory(output, {hass = {}} = {}) {
   const view = output.views.find(item => item.path === 'media');
   if (!view?.sections?.length) return output;
@@ -285,7 +285,9 @@ export function designMediaHistory(output, {hass = {}} = {}) {
   }
   if (!players.length) return output;
   const c = {text: ROOM_COLORS.text, muted: ROOM_COLORS.muted, line: ROOM_COLORS.line, card: ROOM_COLORS.card, on: ROOM_COLORS.on, onText: ROOM_COLORS.onText};
-  view.sections.push({type: 'grid', column_span: 4, cards: [
+  // At the top of the page, under the Music Assistant buttons; the list scrolls inside a fixed height.
+  const at = view.sections[0]?.cards?.some(card => card.type === 'heading' && /music/i.test(card.heading || '')) ? 1 : 0;
+  view.sections.splice(at, 0, {type: 'grid', column_span: 4, cards: [
     {type: 'heading', heading: 'Recently played', icon: 'mdi:history'},
     {type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
       tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
