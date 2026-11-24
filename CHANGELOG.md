@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.17 — TCL HDMI inputs
+
+- On TCL TVs, HDMI 1 to 3 open with TCL's passthrough links (HW15, HW16, HW17): through Android TV Remote (`remote.turn_on`) or ADB (`am start`). Live TV opens TCL's TV app. A TV counts as TCL by its device manufacturer or its installed TCL apps.
+- A room with exactly one TV remote pairs it with the room's TV even when their names differ.
+
 ## 0.9.16 — Power button follows the TV
 
 - The power button is plain with a grey icon when the TV is off, and filled orange when it is on.

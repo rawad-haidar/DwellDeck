@@ -293,7 +293,8 @@ test('a real TCL Google TV app list from ADB gives readable apps and Live TV in 
  const apps=p.names('apps-pane');
  for(const name of ['Netflix','YouTube','Shahid','TOD','Disney+','Prime Video','Spotify','Play Store','Settings'])assert(apps.includes(name),name);
  for(const name of ['Mea','ShahidTV','Tcl','Instructions','Suspension','Dashboard','Exhibit','Guard','Overseas'])assert(!apps.includes(name),name);
- assert.deepEqual(p.names('sources'),['Home','Live TV','HDMI 1','HDMI 2','HDMI 3','HDMI 4','Inputs']);
+ assert.deepEqual(p.names('sources'),['Home','Live TV','HDMI 1','HDMI 2','HDMI 3','Inputs']);
+ assert(p.calls.some(c=>c[0]==='androidtv'&&c[2].command==='am start -a android.intent.action.VIEW -d "content://android.media.tv/passthrough/com.tcl.tvinput%2F.TvPassThroughService%2FHW15"'));
  assert(p.calls.some(c=>c[0]==='androidtv'&&c[2].command.startsWith('monkey -p com.tcl.tv ')));
 });
 test('the power button is plain when the TV is off and orange when it is on, matching the status',()=>{
@@ -308,4 +309,18 @@ test('the power button is plain when the TV is off and orange when it is on, mat
  assert.equal(style(make('off'),'background'),'transparent');assert.equal(label(make('off')),'Off');
  assert.notEqual(style(make('on'),'background'),'transparent');assert.equal(label(make('on')),'On');
  assert.deepEqual(power.triggers_update,['media_player.kitchen_tv']);
+});
+test('a TCL TV with Android TV Remote opens HDMI through remote.turn_on and pairs the room\'s only remote',()=>{
+ const states={'media_player.rest_area_living_tv':{state:'on',attributes:{friendly_name:'Living Tv',device_class:'tv',supported_features:153529}},
+  'remote.rest_area_living_2f_tv_pro':{state:'on',attributes:{friendly_name:'Living 2F TV Pro',current_activity:'com.tcl.tv',activity_list:[]}}};
+ const hass={states,services:{browser_mod:{popup:{}}},areas:{rest:{area_id:'rest',name:'Rest Area',labels:[]}},floors:{},labels:{},
+  devices:{d1:{id:'d1',area_id:'rest',manufacturer:'TCL'},d2:{id:'d2',area_id:'rest',manufacturer:'TCL'}},
+  entities:{'media_player.rest_area_living_tv':{entity_id:'media_player.rest_area_living_tv',platform:'cast',device_id:'d1'},
+   'remote.rest_area_living_2f_tv_pro':{entity_id:'remote.rest_area_living_2f_tv_pro',platform:'androidtv_remote',device_id:'d2'}}};
+ const d=generateOriginal(ORIGINAL_TEMPLATE,SLOTS,ROOM_TEMPLATES,{dashboard_path:'/x',area_rooms:true,room_controls:true,auto_discover:true},hass);
+ const cards=[];const find=x=>{if(x&&typeof x==='object'){if(x.custom_fields?.media&&x.entity)cards.push(x);Object.values(x).forEach(find);}};find(d.views.find(v=>v.path==='rooms'));
+ const p=panel(cards[0],states);
+ assert(p.calls.some(c=>c[0]==='remote'&&c[1]==='turn_on'&&c[2].entity_id==='remote.rest_area_living_2f_tv_pro'&&c[2].activity==='content://android.media.tv/passthrough/com.tcl.tvinput%2F.TvPassThroughService%2FHW15'));
+ assert(p.calls.some(c=>c[1]==='turn_on'&&c[2].activity==='com.tcl.tv'));
+ assert(p.calls.some(c=>c[1]==='send_command'&&c[2].command==='DPAD_UP'));
 });

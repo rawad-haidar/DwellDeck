@@ -38,7 +38,11 @@ export function tvRemote(id, hass) {
     .filter(entry => !entry.disabled_by && entry.platform !== 'androidtv' && remoteKind(entry, hass));
   const sameDevice = own?.device_id && remotes.find(entry => entry.device_id === own.device_id);
   const sameName = remotes.find(entry => entityArea(entry.entity_id, hass) === entityArea(id, hass) && baseName(entry.entity_id, hass) === baseName(id, hass));
-  const remote = sameDevice || sameName;
+  // A room with exactly one TV remote: that remote belongs to this TV even when the names differ
+  // ("Living Tv" and remote.rest_area_living_2f_tv_pro).
+  const inArea = remotes.filter(entry => entityArea(entry.entity_id, hass) === entityArea(id, hass));
+  const onlyInArea = hass.states?.[id]?.attributes?.device_class === 'tv' && inArea.length === 1 ? inArea[0] : null;
+  const remote = sameDevice || sameName || onlyInArea;
   if (!remote) return null;
   const kind = remoteKind(remote, hass);
   return {...remoteControl(remote), platform: kind, commands: TV_REMOTES[kind]};
@@ -113,6 +117,9 @@ const COMMON_APPS = [['Netflix', 'com.netflix.ninja'], ['YouTube', 'com.google.a
 // Android key names; Android TV Remote sends them as they are, ADB as "input keyevent KEYCODE_<name>".
 const COMMON_INPUTS = [['Home', 'HOME'], ['Live TV', 'TV'], ['HDMI 1', 'TV_INPUT_HDMI_1'], ['HDMI 2', 'TV_INPUT_HDMI_2'],
   ['HDMI 3', 'TV_INPUT_HDMI_3'], ['HDMI 4', 'TV_INPUT_HDMI_4'], ['Inputs', 'TV_INPUT']];
+// TCL passthrough links for HDMI inputs (opened with remote.turn_on or ADB), and its Live TV app.
+const TCL_PASSTHROUGH = port => `content://android.media.tv/passthrough/com.tcl.tvinput%2F.TvPassThroughService%2F${port}`;
+const TCL_INPUTS = {'HDMI 1': TCL_PASSTHROUGH('HW15'), 'HDMI 2': TCL_PASSTHROUGH('HW16'), 'HDMI 3': TCL_PASSTHROUGH('HW17'), 'Live TV': 'com.tcl.tv'};
 const SOURCE_PATTERN = /hdmi|^tv$|live ?tv|antenna|tuner|^av\b|composite|component|usb|launcher|^home$/i;
 // App icons: Material Design brand icons (built into Home Assistant, so nothing is downloaded) on the
 // app's brand colour. Inputs use a neutral icon. Apps not listed get a letter tile (see dwellTvPanel).
@@ -287,12 +294,20 @@ function dwellTvPanel(states, cfg) {
   // Input keys for any Android TV (Android TV Remote or ADB) that lists no inputs of its own.
   // (Only HDMI or AV inputs of its own replace the keys; a listed home screen or Live TV app doesn't.)
   if (cfg.inputKeys && cfg.remote && !items.some(i => i.input && /hdmi|^av\b|composite|component/i.test(i.name))) {
+    // TCL TVs open HDMI through a passthrough link (HDMI 1 is HW15) and Live TV through their TV app.
+    const tcl = cfg.tcl || installed.some(pkg => /^com\.tcl\./.test(pkg));
+    const open = target => cfg.androidRemote
+      ? call('remote', 'turn_on', {entity_id: cfg.androidRemote, activity: target})
+      : call('androidtv', 'adb_command', {entity_id: cfg.adb, command: target.includes('://') ? `am start -a android.intent.action.VIEW -d "${target}"` : `monkey -p ${target} -c android.intent.category.LEANBACK_LAUNCHER 1`});
     cfg.inputKeys.forEach(([name, command], index) => {
       const existing = items.find(i => i.name.toLowerCase() === name.toLowerCase());
       if (existing) { existing.order = index; return; }
-      items.push({name, callData: keyCallFor(cfg.remote.keyPrefix + command), input: true, order: index});
+      const port = tcl && cfg.tclInputs[name];
+      if (tcl && name === 'HDMI 4') return;
+      const callData = port && (cfg.androidRemote || cfg.adb) ? open(port) : keyCallFor(cfg.remote.keyPrefix + command);
+      items.push({name, callData, input: true, order: index});
     });
-    fallbackNote.sources = 'Input keys. Some TVs ignore the HDMI keys; Inputs opens the TV\'s own input menu.';
+    fallbackNote.sources = tcl ? 'Inputs opens the TV\'s own input menu.' : 'Input keys. Some TVs ignore the HDMI keys; Inputs opens the TV\'s own input menu.';
   }
   const byName = (a, b) => (a.order ?? 99) - (b.order ?? 99) || a.name.localeCompare(b.name, undefined, {numeric: true});
   const look = name => cfg.icons.find(([pattern]) => new RegExp(pattern, 'i').test(name));
@@ -433,7 +448,9 @@ export function tvCard(requested, hass) {
       domain: remote.platform === 'androidtv' ? 'androidtv' : 'remote', service: remote.platform === 'androidtv' ? 'adb_command' : 'send_command',
       target: remote.id, keys: remote.commands, keyPrefix: remote.platform === 'androidtv' ? 'input keyevent KEYCODE_' : ''
     },
-    inputKeys: ['androidtv_remote', 'androidtv'].includes(remote?.platform) ? COMMON_INPUTS : null
+    inputKeys: ['androidtv_remote', 'androidtv'].includes(remote?.platform) ? COMMON_INPUTS : null,
+    tcl: [...players, ...(remote ? [remote.id] : [])].some(e => /tcl/i.test(`${hass.devices?.[hass.entities?.[e]?.device_id]?.manufacturer || ''} ${hass.devices?.[hass.entities?.[e]?.device_id]?.model || ''}`)),
+    tclInputs: TCL_INPUTS
   };
 
   // One console line per TV, so a setup can be checked from the browser console (F12).
