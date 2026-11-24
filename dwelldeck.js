@@ -1845,6 +1845,19 @@ function discoverInverters(hass = {}) {
   }));
 }
 
+const ENERGY_TOTALS = ['solar', 'home', 'charge', 'discharge', 'import', 'export'];
+
+// What the dashboard editor shows: the chosen sensors, or what would be found, so they can be checked and changed.
+function energyEditorValues(config = {}, hass = {}) {
+  const setup = energySetup(config, hass);
+  const chosen = config.energy || {};
+  return {
+    solar: setup.solar, home: setup.home, battery: setup.battery, grid: setup.grid, battery_soc: setup.soc,
+    battery_charging: chosen.battery_charging || 'negative', grid_import: chosen.grid_import || 'positive',
+    ...Object.fromEntries(ENERGY_TOTALS.flatMap(key => [[`today_${key}`, setup.today[key]], [`total_${key}`, setup.total[key]]]))
+  };
+}
+
 // What the page shows: chosen sensors (DwellDeck setup) win, then inverters, then the page's own sensors.
 function energySetup(config = {}, hass = {}, slots = {}) {
   const chosen = config.energy || {};
@@ -1861,8 +1874,8 @@ function energySetup(config = {}, hass = {}, slots = {}) {
     // Sign conventions: Deye and most hybrid inverters report battery discharge and grid import as positive.
     batteryCharging: chosen.battery_charging === 'positive' ? 1 : -1,
     gridImport: chosen.grid_import === 'negative' ? -1 : 1,
-    today: Object.fromEntries(['solar', 'home', 'charge', 'discharge', 'import', 'export'].map(key => [key, inverters.map(inv => inv.today[key]).filter(Boolean)])),
-    total: Object.fromEntries(['solar', 'home', 'charge', 'discharge', 'import', 'export'].map(key => [key, inverters.map(inv => inv.total[key]).filter(Boolean)]))
+    today: Object.fromEntries(ENERGY_TOTALS.map(key => [key, chosen[`today_${key}`]?.length ? chosen[`today_${key}`] : inverters.map(inv => inv.today[key]).filter(Boolean)])),
+    total: Object.fromEntries(ENERGY_TOTALS.map(key => [key, chosen[`total_${key}`]?.length ? chosen[`total_${key}`] : inverters.map(inv => inv.total[key]).filter(Boolean)]))
   };
 }
 
@@ -3117,7 +3130,9 @@ class DwellDeckOriginalEditor extends HTMLElement {
     if(JSON.stringify(this.config)===JSON.stringify(config))return;
     this.config=clone(config);this.render();
   }
-  set hass(hass){this._hass=hass;this.shadowRoot.querySelectorAll('ha-form').forEach(f=>{f.hass=hass;});this.renderDependencies();}
+  set hass(hass){this._hass=hass;this.shadowRoot.querySelectorAll('ha-form').forEach(f=>{f.hass=hass;});this.renderDependencies();
+    // The energy fields show what is found, which needs Home Assistant's states: fill them once these arrive.
+    if(this._energyForm&&!this._energyFilled&&!this.config.energy&&Object.keys(hass?.states||{}).length){this._energyFilled=true;this._energyForm.data=energyEditorValues(this.config,hass);}}
   change(config){
     if(JSON.stringify(this.config)===JSON.stringify(config))return;
     this.config=clone(config);
@@ -3238,6 +3253,38 @@ class DwellDeckOriginalEditor extends HTMLElement {
       snapshots.disabled = false;
     };
     this.shadowRoot.append(snapshots, snapshotStatus);
+    // Energy page sensors: found automatically; shown here so they can be checked and changed.
+    const energy = document.createElement('details');
+    const energyTitle = document.createElement('summary');
+    energyTitle.textContent = 'Energy page sensors';
+    const energyNote = document.createElement('p');
+    energyNote.textContent = this.config.energy
+      ? 'These sensors were chosen here. Several sensors in one field are added up (for inverters in parallel).'
+      : 'Found automatically from your inverters. Change any field to choose sensors yourself; several in one field are added up.';
+    const power = {entity: {multiple: true, filter: {domain: 'sensor', device_class: 'power'}}};
+    const kwh = {entity: {multiple: true, filter: {domain: 'sensor', device_class: 'energy'}}};
+    const totalLabels = {solar: 'solar produced', home: 'home used', charge: 'battery charged', discharge: 'battery discharged', import: 'from the grid', export: 'to the grid'};
+    this._energyFilled = Object.keys(this._hass?.states || {}).length > 0;
+    energy.append(energyTitle, energyNote, this._energyForm = this.form([
+      {name: 'solar', selector: power}, {name: 'home', selector: power}, {name: 'battery', selector: power}, {name: 'grid', selector: power},
+      {name: 'battery_soc', selector: {entity: {multiple: true, filter: {domain: 'sensor', device_class: 'battery'}}}},
+      {name: 'battery_charging', selector: {select: {mode: 'dropdown', options: [{value: 'negative', label: 'Negative while charging (Deye, most hybrid inverters)'}, {value: 'positive', label: 'Positive while charging'}]}}},
+      {name: 'grid_import', selector: {select: {mode: 'dropdown', options: [{value: 'positive', label: 'Positive while importing (Deye, most inverters)'}, {value: 'negative', label: 'Negative while importing'}]}}},
+      ...ENERGY_TOTALS.map(key => ({name: `today_${key}`, selector: kwh})),
+      ...ENERGY_TOTALS.map(key => ({name: `total_${key}`, selector: kwh}))
+    ], energyEditorValues(this.config, this._hass || {}), value => this.change({...this.config, energy: value}), {
+      solar: 'Solar power', home: 'Home power (inverter output)', battery: 'Battery power', grid: 'Grid power', battery_soc: 'Battery level (%)',
+      battery_charging: 'Battery power sign', grid_import: 'Grid power sign',
+      ...Object.fromEntries(ENERGY_TOTALS.map(key => [`today_${key}`, `Today: ${totalLabels[key]} (kWh)`])),
+      ...Object.fromEntries(ENERGY_TOTALS.map(key => [`total_${key}`, `Running total: ${totalLabels[key]} (kWh, for the 30-day graphs)`]))
+    }));
+    if (this.config.energy) {
+      const auto = document.createElement('button');
+      auto.textContent = 'Find energy sensors automatically again';
+      auto.onclick = () => { const next = {...this.config}; delete next.energy; this.change(next); this.render(); };
+      energy.append(auto);
+    }
+    this.shadowRoot.append(energy);
     const discoverySummary = document.createElement('p');
     discoverySummary.textContent = `${Object.values(this.config.rooms || {}).filter(room => room.area).length + (this.config.extra_rooms || []).length} rooms configured · ${Object.keys(this.config.entities || {}).length} entity bindings. Save the dashboard configuration to apply changes.`;
     this.shadowRoot.append(discoverySummary);

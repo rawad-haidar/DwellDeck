@@ -72,3 +72,17 @@ test('sign conventions can be flipped in setup', () => {
   assert.equal(setup.batteryCharging, 1);
   assert.equal(setup.gridImport, -1);
 });
+
+test('the dashboard editor shows the energy sensors that were found, and chosen ones override them', async () => {
+  const {energyEditorValues} = await import('../src/energy.mjs');
+  const found = energyEditorValues({}, hass);
+  assert.deepEqual(found.home, ['sensor.electric_room_inverter_master_power', 'sensor.electric_room_inverter_slave_power']);
+  assert.equal(found.battery_charging, 'negative');
+  assert.equal(found.today_solar.length, 2);
+  const chosen = {energy: {...found, home: ['sensor.villa_power'], grid_import: 'negative'}};
+  const setup = energySetup(chosen, hass);
+  assert.deepEqual(setup.home, ['sensor.villa_power']);
+  assert.equal(setup.gridImport, -1);
+  const view = generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, {dashboard_path: '/x', ...chosen}, hass).views.find(v => v.path === 'energy');
+  assert(view.sections[0].cards[1].custom_fields.flow.includes('sensor.villa_power'));
+});

@@ -37,6 +37,19 @@ export function discoverInverters(hass = {}) {
   }));
 }
 
+export const ENERGY_TOTALS = ['solar', 'home', 'charge', 'discharge', 'import', 'export'];
+
+// What the dashboard editor shows: the chosen sensors, or what would be found, so they can be checked and changed.
+export function energyEditorValues(config = {}, hass = {}) {
+  const setup = energySetup(config, hass);
+  const chosen = config.energy || {};
+  return {
+    solar: setup.solar, home: setup.home, battery: setup.battery, grid: setup.grid, battery_soc: setup.soc,
+    battery_charging: chosen.battery_charging || 'negative', grid_import: chosen.grid_import || 'positive',
+    ...Object.fromEntries(ENERGY_TOTALS.flatMap(key => [[`today_${key}`, setup.today[key]], [`total_${key}`, setup.total[key]]]))
+  };
+}
+
 // What the page shows: chosen sensors (DwellDeck setup) win, then inverters, then the page's own sensors.
 export function energySetup(config = {}, hass = {}, slots = {}) {
   const chosen = config.energy || {};
@@ -53,8 +66,8 @@ export function energySetup(config = {}, hass = {}, slots = {}) {
     // Sign conventions: Deye and most hybrid inverters report battery discharge and grid import as positive.
     batteryCharging: chosen.battery_charging === 'positive' ? 1 : -1,
     gridImport: chosen.grid_import === 'negative' ? -1 : 1,
-    today: Object.fromEntries(['solar', 'home', 'charge', 'discharge', 'import', 'export'].map(key => [key, inverters.map(inv => inv.today[key]).filter(Boolean)])),
-    total: Object.fromEntries(['solar', 'home', 'charge', 'discharge', 'import', 'export'].map(key => [key, inverters.map(inv => inv.total[key]).filter(Boolean)]))
+    today: Object.fromEntries(ENERGY_TOTALS.map(key => [key, chosen[`today_${key}`]?.length ? chosen[`today_${key}`] : inverters.map(inv => inv.today[key]).filter(Boolean)])),
+    total: Object.fromEntries(ENERGY_TOTALS.map(key => [key, chosen[`total_${key}`]?.length ? chosen[`total_${key}`] : inverters.map(inv => inv.total[key]).filter(Boolean)]))
   };
 }
 
