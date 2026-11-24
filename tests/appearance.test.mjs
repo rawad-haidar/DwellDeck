@@ -382,4 +382,9 @@ test('room temperature averages the room\'s sensors, or the sensors chosen for t
  assert(den({}).includes('24°C'),'average of 26 and 22, unavailable skipped');
  const manual=den({rooms:{den:{name:'Den',area:'den',temperature_sensors:['sensor.den_t1','sensor.hall_t']}}});
  assert(manual.includes('22.5°C'),'average of the chosen sensors');
+ states['climate.den_ac']=st('cool',{current_temperature:25,temperature:22,hvac_action:'cooling'});
+ hass.entities['climate.den_ac']=E('climate.den_ac','den');
+ assert(den({rooms:{den:{name:'Den',area:'den',temperature_sensors:['climate.den_ac','sensor.den_t2']}}}).includes('23.5'),'an air conditioner counts with its current temperature');
+ for(const id of ['sensor.den_t1','sensor.den_t2','sensor.den_t3']){delete states[id];delete hass.entities[id];}
+ assert(den({}).includes('25'),'a room without sensors uses its air conditioner');
 });

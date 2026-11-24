@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.24 — Air conditioners as room temperature
+
+- **Room temperature sensors** also lists air conditioners and thermostats; their current temperature is used and averaged with any sensors chosen.
+- A room with no temperature sensor uses its air conditioners' current temperature.
+
 ## 0.9.23 — Room temperature
 
 - A room's temperature is the average of its temperature sensors; unavailable sensors are skipped.

@@ -15,11 +15,15 @@ function dwellRoomChips(states, cfg) {
   const chips = [];
   const chip = (icon, text, tone = '') => chips.push({icon, text, tone});
   const byClass = cls => cfg.sensors.filter(id => live(id) && states[id].attributes?.device_class === cls);
-  // Room temperature: the sensors chosen for the room, or else every temperature sensor in it; several are averaged.
-  const temps = (cfg.temps.length ? cfg.temps.filter(live) : byClass('temperature')).filter(id => Number.isFinite(Number(states[id].state)));
+  // Room temperature: the sensors or air conditioners chosen for the room, or else every temperature sensor in it,
+  // or else its air conditioners' current temperature. Several are averaged.
+  const reading = id => Number(id.startsWith('climate.') ? states[id].attributes?.current_temperature : states[id].state);
+  const auto = byClass('temperature').length ? byClass('temperature') : cfg.climates.filter(live);
+  const temps = (cfg.temps.length ? cfg.temps.filter(live) : auto).filter(id => Number.isFinite(reading(id)) && states[id].attributes?.current_temperature !== null);
   if (temps.length) {
-    const average = temps.reduce((sum, id) => sum + Number(states[id].state), 0) / temps.length;
-    chip('mdi:thermometer', `${number(average, 1)}${states[temps[0]].attributes?.unit_of_measurement || '°'}`);
+    const average = temps.reduce((sum, id) => sum + reading(id), 0) / temps.length;
+    const unit = temps.map(id => states[id].attributes?.unit_of_measurement).find(Boolean) || '°';
+    chip('mdi:thermometer', `${number(average, 1)}${unit}`);
   }
   const humidity = byClass('humidity')[0];
   if (humidity) chip('mdi:water-percent', `${number(states[humidity].state)}%`);
@@ -59,7 +63,7 @@ function dwellRoomChips(states, cfg) {
 }
 
 const chipsConfig = (controls, hass, strip = false, room = {}) => ({
-  temps: (room.temperature_sensors || []).filter(id => typeof id === 'string' && id.startsWith('sensor.')),
+  temps: (room.temperature_sensors || []).filter(id => typeof id === 'string' && /^(sensor|climate)\./.test(id)),
   sensors: controls.filter(id => id.startsWith('sensor.')),
   binary: controls.filter(id => id.startsWith('binary_sensor.')),
   climates: controls.filter(id => id.startsWith('climate.')),
