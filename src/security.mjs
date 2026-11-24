@@ -112,24 +112,50 @@ function securityStatusCard(cfg) {
   };
 }
 
-// Page buttons as the same shortcut cards as Home: icon on top, name, one line of what it opens.
 const SHORTCUT_HINTS = {'security-sensors': 'Doors, motion and safety', notifications: 'Last 24 hours', cameras: 'Every camera, live'};
-function securityShortcut(card) {
-  const path = card.tap_action?.navigation_path || '';
-  const view = path.split('/').pop();
-  const label = card.name === 'Detection history' ? 'People and vehicles' : card.name === 'Detection snapshots' ? 'Latest picture per sensor' : SHORTCUT_HINTS[view] || '';
+
+// Shortcuts as one full-width row of buttons: icon, name and what it opens, nothing cut off. On a phone they
+// wrap two by two. Self-contained: serialised with toString.
+function dwellShortcutBar(states, cfg) {
+  window.__dwellGo = window.__dwellGo || (el => { history.pushState(null, '', el.dataset.path); window.dispatchEvent(new CustomEvent('location-changed')); });
+  const esc = v => String(v).replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+  return `<style>
+    .bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+    .go{all:unset;box-sizing:border-box;display:grid;grid-template-columns:40px minmax(0,1fr) 16px;align-items:center;gap:12px;min-height:64px;padding:10px 12px;
+      border-radius:16px;background:rgba(0,0,0,.18);border:1px solid ${cfg.c.line};cursor:pointer;text-align:left;transition:border-color .2s ease,background .2s ease}
+    .go:hover{border-color:${cfg.c.on};background:rgba(213,167,76,.08)}
+    .go:focus-visible{outline:2px solid ${cfg.c.onText};outline-offset:2px}
+    .ic{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:rgba(0,0,0,.22);color:${cfg.c.onText}}
+    .ic ha-icon{--mdc-icon-size:22px;width:22px;height:22px;display:block}
+    .nm{font-size:15px;font-weight:600;color:${cfg.c.text};line-height:1.25}
+    .ht{font-size:13px;color:${cfg.c.muted};line-height:1.3;margin-top:2px}
+    .ar{color:${cfg.c.muted}}
+    .ar ha-icon{--mdc-icon-size:16px;width:16px;height:16px;display:block}
+    @media (prefers-reduced-motion:reduce){.go{transition:none}}
+  </style><div class="bar">${cfg.items.map(item => `<button class="go" data-path="${esc(item.path)}" onclick="event.stopPropagation();window.__dwellGo(this)">
+    <span class="ic"><ha-icon icon="${item.icon}"></ha-icon></span><span style="min-width:0"><div class="nm">${esc(item.name)}</div>${item.hint ? `<div class="ht">${esc(item.hint)}</div>` : ''}</span>
+    <span class="ar"><ha-icon icon="mdi:chevron-right"></ha-icon></span></button>`).join('')}</div>`;
+}
+
+function shortcutBar(cards) {
+  // One button per page: two buttons that open the same page become one.
+  const seen = new Set();
+  const items = cards.filter(card => card.tap_action?.navigation_path && !seen.has(card.tap_action.navigation_path) && seen.add(card.tap_action.navigation_path)).map(card => {
+    const path = card.tap_action.navigation_path;
+    const view = path.split('/').pop();
+    const name = card.name === 'Recent history' ? 'History' : card.name === 'Detection snapshots' ? 'Snapshots' : card.name.replace(/^All \d+ cameras$/, 'All cameras');
+    const hint = view === 'notifications' ? 'Alerts, last 24 hours' : card.name === 'Detection snapshots' ? 'Pictures by camera, last 30 days'
+      : SHORTCUT_HINTS[view] || '';
+    return {name, hint, icon: card.icon, path};
+  });
   return {
-    type: 'custom:button-card', name: card.name, icon: card.icon, label, show_label: !!label, show_state: false,
-    tap_action: card.tap_action, hold_action: {action: 'none'}, variables: {dwell_static: true},
-    styles: {
-      grid: [{'grid-template-areas': '"i" "n" "l"'}, {'grid-template-columns': '1fr'}, {'grid-template-rows': '40px min-content min-content'}, {'row-gap': '2px'}, {'align-content': 'space-between'}, {height: '100%'}],
-      card: [{padding: '14px'}, {height: '120px'}, {'box-sizing': 'border-box'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${SEC_C.surface},${SEC_C.card})`}, {border: `1px solid ${SEC_C.line}`}, {'box-shadow': 'none'}],
-      img_cell: [{'justify-self': 'start'}, {width: '40px'}, {height: '40px'}, {'border-radius': '12px'}, {background: 'rgba(0,0,0,.18)'}],
-      icon: [{width: '22px'}, {color: SEC_C.muted}],
-      name: [{'justify-self': 'start'}, {'font-size': '15px'}, {'font-weight': '600'}, {color: SEC_C.text}, {'margin-top': '8px'}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}],
-      label: [{'justify-self': 'start'}, {'font-size': '13px'}, {color: SEC_C.muted}, {'white-space': 'nowrap'}, {overflow: 'hidden'}, {'text-overflow': 'ellipsis'}, {'max-width': '100%'}]
-    },
-    grid_options: {columns: 6, rows: 'auto'}
+    type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
+    tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true},
+    custom_fields: {bar: `[[[ return (${dwellShortcutBar.toString()})(states, ${JSON.stringify({items, c: SEC_C})}); ]]]`},
+    styles: {card: [{padding: '0'}, {background: 'transparent'}, {border: 'none'}, {'box-shadow': 'none'}, {cursor: 'default'}],
+      grid: [{'grid-template-areas': '"bar"'}, {'grid-template-columns': '1fr'}],
+      custom_fields: {bar: [{width: '100%'}, {'pointer-events': 'auto'}]}},
+    grid_options: {columns: 'full', rows: 'auto'}
   };
 }
 
@@ -187,7 +213,8 @@ export function designSecurity(output, {prefix}) {
     section([secHeading('Gates', 'mdi:gate'), ...gates, ...loose, ...gateNotes]),
     section([secHeading('Entrance cameras', 'mdi:cctv'), ...cameras], 2),
     section([secHeading('Camera detection', 'mdi:motion-sensor'), ...detection.filter(card => !navigates(card))], 2),
-    section([secHeading('Shortcuts', 'mdi:view-grid-outline'), ...shortcuts.map(securityShortcut), ...rest])
+    // Full width (Home Assistant narrows a span to the columns the screen has).
+    section([secHeading('Shortcuts', 'mdi:view-grid-outline'), shortcutBar(shortcuts), ...rest], 4)
   ];
   view.sections = sections.filter(item => item.cards.length > 1 || item.cards[0] === status);
   return output;

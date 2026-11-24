@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.27 — Friendlier Security shortcuts
+
+- Security shortcuts are one full-width row of buttons (icon, name, what it opens, and an arrow) instead of small tiles squeezed into one column; nothing is cut off, and on a phone they stack one per row.
+- Recent history and Detection history opened the same page; they are one **History** button now.
+
 ## 0.9.26 — Home and Security in order of importance
 
 - **Security** opens with one status card: the alarm state in large type, pills for safety alerts, open doors and windows, motion, gates and cameras, and a **Needs attention** list (alarm triggered, safety alerts, unlocked gates, open doors and windows, offline cameras, most serious first; each opens its entity). When nothing needs you, it says all clear.
