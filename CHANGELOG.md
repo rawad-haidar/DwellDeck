@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.37 — TV apps open again
+
+- **Apps in a TV's Apps tab open again.** Since 0.9.31 a TV added through both Android integrations (the Living TV) opened its installed apps through Android TV Remote, which asks the TV to open them as Play Store links. The TV refuses that for apps installed another way (OnPlus, Cablevision Plus) and drops its connection each time. Installed apps now open through ADB whenever the TV has it, with the TV launcher's entry first and the phone launcher's for apps that have no TV entry. Android TV Remote still opens apps on TVs without ADB, and the common apps shown before the installed list is loaded.
+
 ## 0.9.36 — Phones and tablets
 
 - **Buttons inside cards work on a phone.** button-card listens for taps on the whole card and cancels the end of every touch on it, so on a touch screen the buttons, tabs, menus and sliders drawn inside DwellDeck's cards often never got their press (with a mouse they did). Affected: the player cards' Music player and Music Assistant buttons, Remote / Apps / Sources / Keyboard tabs and volume slider, Recently played, the Home pills and energy, Security status and shortcuts, Climate status and history, the Energy flow and history, and camera detections. Touches inside these areas now stay with the buttons. Measured: the touch was cancelled before, and is not now.

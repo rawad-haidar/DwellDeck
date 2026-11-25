@@ -805,3 +805,16 @@ test('the Music Assistant app fills the screen height on a phone too, not a box 
  const style=view.cards[0].cards[1].card_mod.style;
  assert(style.includes('#root { padding-top: 0 !important; height: calc(100dvh - 92px) !important')&&style.includes('iframe { height: 100% !important'));
 });
+
+test('installed apps open through ADB when the TV has both ADB and Android TV Remote (the remote\'s Play Store links fail for other apps)',()=>{
+ const hass=tvHass();
+ const cards=tvCards();
+ const saloon=cards['media_player.saloon_tv'];
+ globalThis.window={__dwellTvApps:{}};globalThis.localStorage=undefined;
+ const states={...hass.states,'media_player.saloon_tv_adb':{...hass.states['media_player.saloon_tv_adb'],attributes:{...hass.states['media_player.saloon_tv_adb'].attributes,adb_response:'com.onplus/.MainActivity\npackage:com.CV.CablevisionPlus'}}};
+ const p=panel(saloon,states);
+ const onplus=p.calls.find(c=>c[2]?.command?.includes('com.onplus'));
+ assert(onplus&&onplus[0]==='androidtv'&&onplus[1]==='adb_command','OnPlus opens over ADB');
+ assert(onplus[2].command.includes('LEANBACK_LAUNCHER 1 || monkey -p com.onplus -c android.intent.category.LAUNCHER 1'),'TV entry first, phone entry for apps without one');
+ assert(!p.calls.some(c=>c[0]==='remote'&&c[1]==='turn_on'&&/onplus|Cablevision/i.test(c[2]?.activity||'')),'not as a Play Store link');
+});
