@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.38 — Faster on phones
+
+- **Pages open faster, most of all on phones.** A 2.8 KB block of DwellDeck's colour variables was copied into almost every card (over 2,000 on a large home, about a third of the whole dashboard), and card-mod had to apply each copy card by card as a page opened, which on a phone showed as cards appearing late and shifting. The variables are now set once on the dashboard's view and on browser_mod's popup, and every card inherits them. Identical values for every palette (checked palette by palette, including the design pass on corner radii); measured on a real home: about 3 MB less to build and load, and over 2,000 fewer styles to apply.
+
 ## 0.9.37 — TV apps open again
 
 - **Apps in a TV's Apps tab open again.** Since 0.9.31 a TV added through both Android integrations (the Living TV) opened its installed apps through Android TV Remote, which asks the TV to open them as Play Store links. The TV refuses that for apps installed another way (OnPlus, Cablevision Plus) and drops its connection each time. Installed apps now open through ADB whenever the TV has it, with the TV launcher's entry first and the phone launcher's for apps that have no TV entry. Android TV Remote still opens apps on TVs without ADB, and the common apps shown before the installed list is loaded.

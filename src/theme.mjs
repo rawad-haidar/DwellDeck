@@ -2,18 +2,31 @@
 import {walk, visit} from './util.mjs';
 import {BUILTIN_THEME} from './data.mjs';
 
-export function addBuiltinColors(dashboard) {
-  const variables=Object.entries(BUILTIN_THEME).filter(([key,value])=>key!=='modes'&&typeof value==='string').map(([key,value])=>`--${key}:${value};`).join('');
+// DwellDeck's colour variables. They are set once on the dashboard's view and on browser_mod's popup (see
+// dwellPageCss, delivered by the strategy), and every card inherits them. Copying them into every card made
+// the dashboard much larger and left card-mod restyling over a thousand cards one by one as a page opened.
+// everyCard copies them into each card again (and inPopup only into popup cards), for where the strategy
+// does not deliver them.
+export const builtinVariables = () => Object.entries(BUILTIN_THEME).filter(([key, value]) => key !== 'modes' && typeof value === 'string').map(([key, value]) => `--${key}:${value};`).join('');
+export function addBuiltinColors(dashboard, {everyCard = false, inPopups = false} = {}) {
+  const variables = builtinVariables();
   const css=`:host {${variables}} ha-card {color:var(--primary-text-color);background:var(--ha-card-background);border-radius:var(--ha-card-border-radius);}`;
   for(const view of dashboard.views){delete view.theme;view.card_mod={...view.card_mod,style:`:host{${variables}}`};}
-  visit(dashboard,item=>{
-    const nativeCards=['markdown','tile','button','entities','history-graph','thermostat','picture-entity','alarm-panel','weather-forecast','media-control'];
+  const nativeCards=['markdown','tile','button','entities','history-graph','thermostat','picture-entity','alarm-panel','weather-forecast','media-control'];
+  const add=item=>{
     if(!nativeCards.includes(item.type)&&!item.type?.startsWith('custom:'))return;
     if(!item.card_mod)item.card_mod={style:css};
     else if(typeof item.card_mod.style==='string')item.card_mod.style=css+'\n'+item.card_mod.style;
     else if(item.card_mod.style&&typeof item.card_mod.style==='object')item.card_mod.style={...item.card_mod.style,'.':css+'\n'+(item.card_mod.style['.']||'')};
     else item.card_mod.style=css;
-  });
+  };
+  const walk=(node,inPopup)=>{
+    if(Array.isArray(node)){node.forEach(child=>walk(child,inPopup));return;}
+    if(!node||typeof node!=='object')return;
+    if(((inPopup&&inPopups)||everyCard)&&typeof node.type==='string')add(node);
+    for(const [key,value] of Object.entries(node))walk(value,inPopup||key==='browser_mod');
+  };
+  walk(dashboard.views,false);
 }
 // Every colour in the original design belongs to one role. A palette recolours a role
 // everywhere it appears (card-mod CSS, button-card templates, inline HTML and SVG),
@@ -160,6 +173,10 @@ export function dwellPageCss(key) {
   const accent = roles.accent || palette.colors[3];
   const surface = name === 'lamplight' ? roles.page : `linear-gradient(135deg,${roles.page},${roles.popup})`;
   return {
+    // The view and browser_mod's popup: DwellDeck's colour variables for every card in them (palette applied),
+    // as each card used to carry them.
+    view: `hui-view{${paletteText(name)(builtinVariables())}}`,
+    popup: `browser-mod-popup{${paletteText(name)(builtinVariables())}}`,
     root: `:host{--primary-color:${accent};--accent-color:${accent};--lovelace-background:${surface};--primary-background-color:${roles.page};--ha-card-background:${roles.card};--card-background-color:${roles.card};--history-unavailable-color:${roles.unavailable};--ha-card-backdrop-filter:none}`,
     page: `html,body{background-color:${roles.page}!important}`
   };

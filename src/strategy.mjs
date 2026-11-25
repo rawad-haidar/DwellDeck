@@ -1,7 +1,7 @@
 // Dashboard strategy and custom element registration.
 import {discoveryContext} from './discovery.mjs';
 import {generateOriginal} from './generator.mjs';
-import {loadDwellFont} from './design.mjs';
+import {loadDwellFont, refreshText} from './design.mjs';
 import {DwellDeckOriginalEditor} from './editor.mjs';
 import {dwellTabsCss, dwellPageCss, DEFAULT_PALETTE} from './theme.mjs';
 import {ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES} from './data.mjs';
@@ -25,7 +25,10 @@ function keepDwellPage(css) {
     const root = panel?.shadowRoot?.querySelector('hui-root')?.shadowRoot;
     const wanted = panel ? state.paths[`/${panel.panel?.url_path || location.pathname.split('/')[1] || ''}`] : null;
     put(document.head, 'dwelldeck-page', wanted?.page);
-    if (root) { put(root, 'dwelldeck-tabs', wanted?.tabs); put(root, 'dwelldeck-root', wanted?.root); }
+    // browser_mod draws popups in Home Assistant's own shell, outside the dashboard.
+    const shell = document.querySelector('home-assistant')?.shadowRoot;
+    if (shell) put(shell, 'dwelldeck-popup', wanted?.popup);
+    if (root) { put(root, 'dwelldeck-tabs', wanted?.tabs); put(root, 'dwelldeck-root', wanted?.root); put(root, 'dwelldeck-view', wanted?.view); }
   }, 500);
 }
 
@@ -36,7 +39,13 @@ class DwellDeckOriginalStrategy extends HTMLElement {
   static async generate(config, hass) {
     loadDwellFont(config);
     const palette = config.color_palette || DEFAULT_PALETTE;
-    keepDwellPage({...dwellPageCss(palette), tabs: config.modern_tabs !== false ? dwellTabsCss(palette) : ''});
+    const page = dwellPageCss(palette);
+    // The same design pass as the cards' own text (corner radii, text sizes).
+    page.view = refreshText(page.view);
+    page.popup = refreshText(page.popup);
+    // Without DwellDeck's own colours (a theme chosen instead), cards keep the theme's.
+    if (config.theme || config.builtin_colors === false) page.view = page.popup = '';
+    keepDwellPage({...page, tabs: config.modern_tabs !== false ? dwellTabsCss(palette) : ''});
     const needsDiscovery = config.auto_discover || config.room_controls ||
       Object.values(config.rooms || {}).some(room => room.area) ||
       (config.extra_rooms || []).some(room => room.area);
