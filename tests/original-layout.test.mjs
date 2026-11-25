@@ -20,7 +20,7 @@ test('room selection regenerates popup controls and bulk action targets',()=>{
  const c=d.views.find(v=>v.path==='lighting').sections[room.section].cards[room.card];
  assert.equal(c.name,'My living room');const popup=c.tap_action.browser_mod.data;assert.equal(popup.title,'My living room | Lighting');
  const grid=popup.content.cards.find(c=>c.type==='grid');assert.deepEqual(grid.cards.map(c=>c.entity),ids);
- assert.deepEqual(popup.content.cards[1].cards[0].tap_action.target.entity_id,ids);
+ const allOn=popup.content.cards[1].cards[0];assert.equal(allOn.tap_action.action,'javascript');assert(allOn.tap_action.javascript.includes(`const ids = ${JSON.stringify(ids)};`),'All on switches the room\'s lights one by one');
  assert(c.label.includes('light.test_two'));
 });
 test('area selection discovers lights and switches and respects exclusions',()=>{
