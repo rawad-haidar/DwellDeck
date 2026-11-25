@@ -22,7 +22,7 @@ export function inferDashboardPath(config, pathname = '') {
 // confirmation fails the whole tap. The button now sends a plain signal (no code: a popup's settings are
 // evaluated when the popup opens, and code there would run), and DwellDeck switches the lights one at a time.
 export function lightsOneByOne(dashboard) {
-  const bulk = action => action?.action === 'perform-action' && ['light.turn_on', 'light.turn_off'].includes(action.perform_action)
+  const bulk = action => action?.action === 'perform-action' && ['light.turn_on', 'light.turn_off', 'homeassistant.turn_on', 'homeassistant.turn_off'].includes(action.perform_action)
     && Array.isArray(action.target?.entity_id) && action.target.entity_id.length > 1 && !action.data;
   visit(dashboard, item => {
     if (!bulk(item.tap_action)) return;
