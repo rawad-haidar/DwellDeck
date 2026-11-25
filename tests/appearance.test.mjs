@@ -832,3 +832,30 @@ test('colour variables are set once (view and popup), not copied into every card
  assert(strategy.includes("put(root, 'dwelldeck-view', wanted?.view)")&&strategy.includes("put(shell, 'dwelldeck-popup', wanted?.popup)"));
  assert(strategy.includes('page.view = refreshText(page.view)'),'same design pass as the cards');
 });
+
+test('All on / All off switch lights one by one and report only lights that really did not switch',async()=>{
+ const {lightsOneByOne}=await import('../src/generator.mjs');
+ const d={views:[{cards:[{type:'button',name:'All on',icon:'mdi:lightbulb-group',tap_action:{action:'perform-action',perform_action:'light.turn_on',target:{entity_id:['light.a','light.b','light.c']}},card_mod:{style:'ha-card{}'}},
+  {type:'button',name:'One',tap_action:{action:'perform-action',perform_action:'light.turn_on',target:{entity_id:['light.a']}}}]}]};
+ lightsOneByOne(d);
+ const [all,one]=d.views[0].cards;
+ assert.equal(all.type,'custom:button-card');assert.equal(all.name,'All on');assert.equal(all.card_mod.style,'ha-card{}');
+ assert.equal(one.type,'button','a single light keeps its plain button');
+ // Run the sequence with a hub that refuses one confirmation and a fake clock.
+ const calls=[],timers=[];const states={'light.a':{state:'on',attributes:{}},'light.b':{state:'off',attributes:{friendly_name:'Dirty Kitchen P1'}},'light.c':{state:'on',attributes:{}}};
+ const hass={states,callService:(d,s,data)=>{calls.push(data.entity_id);return data.entity_id==='light.b'?Promise.reject(new Error('did not confirm')):Promise.resolve()}};
+ const toasts=[];globalThis.helpers={toastMessage:m=>toasts.push(m)};
+ const realSet=globalThis.setTimeout;globalThis.setTimeout=(f,ms)=>timers.push([ms,f]);
+ globalThis.document={querySelector:()=>({hass})};
+ try{Function('hass','helpers',all.tap_action.javascript.trim().slice(3,-3)).call({dispatchEvent(){}},hass,globalThis.helpers);}finally{globalThis.setTimeout=realSet;}
+ timers.sort((a,b)=>a[0]-b[0]);
+ assert.deepEqual(timers.map(t=>t[0]),[0,150,300,5450],'150 ms apart, then the check');
+ for(const [,f] of timers.slice(0,3))f();
+ await new Promise(r=>realSet(r,0));
+ assert.deepEqual(calls,['light.a','light.b','light.c'],'every light gets its own command, even after one fails');
+ timers[3][1]();
+ assert.deepEqual(toasts,['1 light did not turn on: Dirty Kitchen P1']);
+ states['light.b'].state='on';toasts.length=0;timers[3][1]();
+ assert.equal(toasts.length,0,'a late confirmation is not an error');
+ delete globalThis.helpers;
+});
