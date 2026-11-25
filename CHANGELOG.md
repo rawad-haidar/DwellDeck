@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.40 — All on / All off, one light at a time (safely)
+
+- **All on / All off switch the lights one at a time.** They sent one command for every light at once, which LifeSmart hubs could not keep up with: confirmations went missing and one late light failed the whole tap. DwellDeck now sends one light, waits until the hub confirms it (up to 1.2 s), pauses 250 ms, then sends the next, so a hub never has more than one command from the button at a time. A few seconds after the last light, only a light that is really not on (or off) is named in a message; a late confirmation is not an error.
+- Unlike 0.9.39 (withdrawn), the button holds no code, only a signal that DwellDeck's own code handles when the button is tapped: opening a room does nothing to its lights.
+
 ## 0.9.38 — Faster on phones
 
 - **Pages open faster, most of all on phones.** A 2.8 KB block of DwellDeck's colour variables was copied into almost every card (over 2,000 on a large home, about a third of the whole dashboard), and card-mod had to apply each copy card by card as a page opened, which on a phone showed as cards appearing late and shifting. The variables are now set once on the dashboard's view and on browser_mod's popup, and every card inherits them. Identical values for every palette (checked palette by palette, including the design pass on corner radii); measured on a real home: about 3 MB less to build and load, and over 2,000 fewer styles to apply.

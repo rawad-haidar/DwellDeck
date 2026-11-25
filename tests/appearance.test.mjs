@@ -832,3 +832,23 @@ test('colour variables are set once (view and popup), not copied into every card
  assert(strategy.includes("put(root, 'dwelldeck-view', wanted?.view)")&&strategy.includes("put(shell, 'dwelldeck-popup', wanted?.popup)"));
  assert(strategy.includes('page.view = refreshText(page.view)'),'same design pass as the cards');
 });
+
+test('All on / All off: no code in the popup (it would run when the popup opens), lights switched one at a time',async()=>{
+ const d=generate({});
+ // Every bulk light button is a plain signal now, with nothing a popup could evaluate.
+ const buttons=[];const walk=x=>{if(x&&typeof x==='object'){if(x.tap_action?.dwelldeck_lights)buttons.push(x);Object.values(x).forEach(walk)}};walk(d);
+ assert(buttons.length>=10,'the rooms\' All on / All off buttons');
+ for(const b of buttons){assert(!JSON.stringify(b.tap_action).includes('[[['),'no template in the action');assert.equal(b.tap_action.action,'fire-dom-event')}
+ assert(!JSON.stringify(d).includes('"perform_action":"light.turn_on","target":{"entity_id":["'),'no single command for several lights is left');
+ // DwellDeck's side: one light at a time, waiting for each, and only real failures reported.
+ const {dwellSwitchLights}=await import('../src/strategy.mjs');
+ const log=[];let inFlight=0,most=0;
+ const states={'light.a':{state:'on',attributes:{}},'light.b':{state:'off',attributes:{friendly_name:'Bar Spot'}},'light.c':{state:'on',attributes:{}}};
+ const hass={states,callService:async(d,s,data)=>{inFlight++;most=Math.max(most,inFlight);log.push(data.entity_id);await null;inFlight--;if(data.entity_id==='light.b')throw new Error('did not confirm');}};
+ const waits=[];const notes=[];
+ const left=await dwellSwitchLights({service:'turn_on',entity_id:['light.a','light.b','light.c']},hass,m=>notes.push(m),async ms=>{waits.push(ms)});
+ assert.deepEqual(log,['light.a','light.b','light.c'],'each light its own command, the others still go after one fails');
+ assert.equal(most,1,'never more than one command at a time');
+ assert(waits.filter(ms=>ms===250).length===3&&waits.includes(4000),'250 ms between lights, then the check');
+ assert.deepEqual(left,['light.b']);assert.deepEqual(notes,['1 light did not turn on: Bar Spot']);
+});
