@@ -18,6 +18,18 @@ export function inferDashboardPath(config, pathname = '') {
   const prefix = pathname.split('/')[1];
   return prefix && !['config','profile','hacs','marketplace','lovelace'].includes(prefix) && /^[a-z0-9_-]+$/.test(prefix) ? `/${prefix}` : '/dashboard-dwelldeck';
 }
+// "All on" / "All off": one command for every light makes a hub (LifeSmart) miss confirmations, and one late
+// confirmation fails the whole tap. The button now sends a plain signal (no code: a popup's settings are
+// evaluated when the popup opens, and code there would run), and DwellDeck switches the lights one at a time.
+export function lightsOneByOne(dashboard) {
+  const bulk = action => action?.action === 'perform-action' && ['light.turn_on', 'light.turn_off'].includes(action.perform_action)
+    && Array.isArray(action.target?.entity_id) && action.target.entity_id.length > 1 && !action.data;
+  visit(dashboard, item => {
+    if (!bulk(item.tap_action)) return;
+    item.tap_action = {action: 'fire-dom-event', dwelldeck_lights: {service: item.tap_action.perform_action.split('.')[1], entity_id: item.tap_action.target.entity_id}};
+  });
+}
+
 export function generateOriginal(template, slots, roomTemplates, config, hass = {}) {
   if (config.auto_discover) config = discoverConfiguration(config, hass, roomTemplates, slots);
   const bindings = config.entities || {};
@@ -141,6 +153,7 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
   // Tiles colour by state on their own; the old "state" value is no longer understood and leaves
   // sliders (curtain position, light brightness) without a colour, so only their handle shows.
   visit(output, item => { if (item.type === 'tile' && item.color === 'state') delete item.color; });
+  lightsOneByOne(output);
   if(!config.theme && config.builtin_colors!==false)addBuiltinColors(output);
   addLivingDesign(output);
   // Shared card code gets the same rewrite as the cards: palette colours, text sizes and wording.

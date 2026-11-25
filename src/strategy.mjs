@@ -32,6 +32,33 @@ function keepDwellPage(css) {
   }, 500);
 }
 
+// Switches the lights an "All on" / "All off" button names, one at a time: each light gets its own command,
+// the next goes when the hub has confirmed the last one (or after 1.2 s), 250 ms apart. A few seconds after
+// the last one, only a light that is really not on (or off) is named in a message.
+export async function dwellSwitchLights({service, entity_id: ids}, hass, notify, wait = ms => new Promise(r => setTimeout(r, ms))) {
+  if (!['turn_on', 'turn_off'].includes(service) || !Array.isArray(ids) || !hass?.callService) return [];
+  for (const id of ids) {
+    await Promise.race([hass.callService('light', service, {entity_id: id}).catch(() => {}), wait(1200)]);
+    await wait(250);
+  }
+  await wait(4000);
+  const want = service === 'turn_on' ? 'on' : 'off';
+  const states = (typeof document !== 'undefined' && document.querySelector('home-assistant')?.hass?.states) || hass.states || {};
+  const left = ids.filter(id => states[id] && states[id].state !== 'unavailable' && states[id].state !== want);
+  if (left.length) notify(`${left.length === 1 ? '1 light' : left.length + ' lights'} did not turn ${want}: ${left.map(id => states[id].attributes?.friendly_name || id).join(', ')}`);
+  return left;
+}
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function' && !window.__dwellLights) {
+  window.__dwellLights = true;
+  window.addEventListener('ll-custom', event => {
+    const request = event.detail?.dwelldeck_lights;
+    if (!request) return;
+    const shell = document.querySelector('home-assistant');
+    const notify = message => shell?.dispatchEvent(new CustomEvent('hass-notification', {detail: {message}, bubbles: true, composed: true}));
+    dwellSwitchLights(request, shell?.hass, notify);
+  });
+}
+
 class DwellDeckOriginalStrategy extends HTMLElement {
   static configRequired=true;
   static getConfigElement(){return document.createElement('dwelldeck-original-editor');}

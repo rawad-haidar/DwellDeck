@@ -20,7 +20,7 @@ test('room selection regenerates popup controls and bulk action targets',()=>{
  const c=d.views.find(v=>v.path==='lighting').sections[room.section].cards[room.card];
  assert.equal(c.name,'My living room');const popup=c.tap_action.browser_mod.data;assert.equal(popup.title,'My living room | Lighting');
  const grid=popup.content.cards.find(c=>c.type==='grid');assert.deepEqual(grid.cards.map(c=>c.entity),ids);
- assert.deepEqual(popup.content.cards[1].cards[0].tap_action.target.entity_id,ids);
+ const allOn=popup.content.cards[1].cards[0].tap_action;assert.equal(allOn.action,'fire-dom-event');assert.deepEqual(allOn.dwelldeck_lights,{service:'turn_on',entity_id:ids},'All on asks DwellDeck to switch the room\'s lights one by one');
  assert(c.label.includes('light.test_two'));
 });
 test('area selection discovers lights and switches and respects exclusions',()=>{
