@@ -18,39 +18,6 @@ export function inferDashboardPath(config, pathname = '') {
   const prefix = pathname.split('/')[1];
   return prefix && !['config','profile','hacs','marketplace','lovelace'].includes(prefix) && /^[a-z0-9_-]+$/.test(prefix) ? `/${prefix}` : '/dashboard-dwelldeck';
 }
-// "All on" / "All off": one command for every light makes some hubs (LifeSmart) miss confirmations, and one
-// light that confirms late fails the whole tap with an error. The lights are switched one after another,
-// 150 ms apart; five seconds later only a light that is really not on (or off) is named in a message.
-export function lightsOneByOne(dashboard) {
-  const bulk = action => action?.action === 'perform-action' && ['light.turn_on', 'light.turn_off'].includes(action.perform_action)
-    && Array.isArray(action.target?.entity_id) && action.target.entity_id.length > 1 && !action.data;
-  const script = action => {
-    const ids = action.target.entity_id, service = action.perform_action.split('.')[1], want = service === 'turn_on' ? 'on' : 'off';
-    return `[[[ const ids = ${JSON.stringify(ids)};
-  ids.forEach((id, i) => setTimeout(() => hass.callService('light', '${service}', {entity_id: id}).catch(() => {}), i * 150));
-  setTimeout(() => {
-    const now = document.querySelector('home-assistant')?.hass || hass;
-    const left = ids.filter(id => now.states[id] && now.states[id].state !== 'unavailable' && now.states[id].state !== '${want}');
-    if (!left.length) return;
-    const message = (left.length === 1 ? '1 light did not turn ${want}: ' : left.length + ' lights did not turn ${want}: ') + left.map(id => now.states[id].attributes.friendly_name || id).join(', ');
-    if (typeof helpers !== 'undefined' && helpers.toastMessage) helpers.toastMessage(message);
-    else this.dispatchEvent(new CustomEvent('hass-notification', {detail: {message}, bubbles: true, composed: true}));
-  }, ids.length * 150 + 5000); ]]]`;
-  };
-  visit(dashboard, item => {
-    if (!bulk(item.tap_action)) return;
-    const tap = {action: 'javascript', javascript: script(item.tap_action)};
-    if (item.type === 'custom:button-card') { item.tap_action = tap; return; }
-    if (item.type !== 'button') return;
-    // A plain button cannot run a sequence: the same button as a button-card.
-    const {name, icon, card_mod} = item;
-    for (const key of Object.keys(item)) delete item[key];
-    Object.assign(item, {type: 'custom:button-card', name, icon, show_name: true, show_icon: true, show_state: false, tap_action: tap,
-      styles: {card: [{padding: '12px 8px'}, {height: '100%'}], icon: [{width: '24px'}, {height: '24px'}], name: [{'font-size': '14px'}, {'margin-top': '6px'}]},
-      ...(card_mod ? {card_mod} : {})});
-  });
-}
-
 export function generateOriginal(template, slots, roomTemplates, config, hass = {}) {
   if (config.auto_discover) config = discoverConfiguration(config, hass, roomTemplates, slots);
   const bindings = config.entities || {};
@@ -174,7 +141,6 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
   // Tiles colour by state on their own; the old "state" value is no longer understood and leaves
   // sliders (curtain position, light brightness) without a colour, so only their handle shows.
   visit(output, item => { if (item.type === 'tile' && item.color === 'state') delete item.color; });
-  lightsOneByOne(output);
   if(!config.theme && config.builtin_colors!==false)addBuiltinColors(output);
   addLivingDesign(output);
   // Shared card code gets the same rewrite as the cards: palette colours, text sizes and wording.
