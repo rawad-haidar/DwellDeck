@@ -327,9 +327,12 @@ function dwellTvPanel(states, cfg) {
     }
   }
   const installed = store[storeKey] || [];
-  const launch = pkg => cfg.androidRemote
-    ? call('remote', 'turn_on', {entity_id: cfg.androidRemote, activity: pkg})
-    : call('androidtv', 'adb_command', {entity_id: cfg.adb, command: `monkey -p ${pkg} -c android.intent.category.LEANBACK_LAUNCHER 1`});
+  // Installed apps open through ADB when the TV has it: Android TV Remote opens an app as a Play Store link,
+  // which the TV refuses for apps installed another way (and drops its connection each time). The TV
+  // launcher's entry first, the phone launcher's for apps that have no TV entry.
+  const launch = pkg => cfg.adb
+    ? call('androidtv', 'adb_command', {entity_id: cfg.adb, command: `monkey -p ${pkg} -c android.intent.category.LEANBACK_LAUNCHER 1 || monkey -p ${pkg} -c android.intent.category.LAUNCHER 1`})
+    : call('remote', 'turn_on', {entity_id: cfg.androidRemote, activity: pkg});
   for (const pkg of installed) {
     const name = prettify(pkg);
     if (seen.has(name.toLowerCase())) continue;
