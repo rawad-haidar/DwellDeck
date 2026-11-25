@@ -1,9 +1,5 @@
 # Changelog
 
-## 0.9.39 — All on / All off, one light at a time
-
-- **All on / All off no longer fail with "did not confirm".** They sent one command for every light in the room at once; some hubs (LifeSmart) then miss confirmations, and one light that confirms late failed the whole tap with an error, even when every light had switched. The lights are now switched one after another, 150 ms apart, each with its own command, so one slow light does not stop the others. Five seconds later, only a light that is really not on (or off) is named in a short message ("1 light did not turn on: …"); a late confirmation is not an error. Buttons for a single light are unchanged.
-
 ## 0.9.38 — Faster on phones
 
 - **Pages open faster, most of all on phones.** A 2.8 KB block of DwellDeck's colour variables was copied into almost every card (over 2,000 on a large home, about a third of the whole dashboard), and card-mod had to apply each copy card by card as a page opened, which on a phone showed as cards appearing late and shifting. The variables are now set once on the dashboard's view and on browser_mod's popup, and every card inherits them. Identical values for every palette (checked palette by palette, including the design pass on corner radii); measured on a real home: about 3 MB less to build and load, and over 2,000 fewer styles to apply.
