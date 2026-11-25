@@ -31,13 +31,12 @@ test('the history shortcut opens the Activity view under the dashboard path', ()
   assert.equal(html.match(/notifications"/g).length, 1);
 });
 
-test('detection cards use the dashboard colours and selected palette', () => {
-  const ocean = JSON.stringify(detectionSection(generate({color_palette: 'ocean'})));
-  const lamplight = JSON.stringify(detectionSection(generate({})));
-  const emerald = JSON.stringify(detectionSection(generate({color_palette: 'emerald'})));
-  assert(ocean.includes('--primary-text-color:#edf5ff'));
-  assert(lamplight.includes('--primary-text-color:#e8e2d8'));
-  assert(emerald.includes('#183d38'));
+test('detection cards use the dashboard colours and selected palette', async () => {
+  // The colour variables come from the dashboard's view (set once), and the cards' own colours follow the palette.
+  const {dwellPageCss} = await import('../src/theme.mjs');
+  assert(dwellPageCss('ocean').view.includes('--primary-text-color:#edf5ff'));
+  assert(dwellPageCss('lamplight').view.includes('--primary-text-color:#e8e2d8'));
+  assert(JSON.stringify(detectionSection(generate({color_palette: 'emerald'}))).includes('#183d38'));
 });
 
 test('the section is also added to area-based layouts', () => {

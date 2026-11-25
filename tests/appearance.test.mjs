@@ -818,3 +818,17 @@ test('installed apps open through ADB when the TV has both ADB and Android TV Re
  assert(onplus[2].command.includes('LEANBACK_LAUNCHER 1 || monkey -p com.onplus -c android.intent.category.LAUNCHER 1'),'TV entry first, phone entry for apps without one');
  assert(!p.calls.some(c=>c[0]==='remote'&&c[1]==='turn_on'&&/onplus|Cablevision/i.test(c[2]?.activity||'')),'not as a Play Store link');
 });
+
+test('colour variables are set once (view and popup), not copied into every card',async()=>{
+ const {dwellPageCss,builtinVariables}=await import('../src/theme.mjs');
+ const d=generate({});
+ const copies=JSON.stringify(d.views.map(v=>({...v,card_mod:undefined}))).split(':host {--').length-1;
+ assert.equal(copies,0,'no card carries its own copy');
+ const css=dwellPageCss('lamplight');
+ assert(css.view.startsWith('hui-view{--')&&css.popup.startsWith('browser-mod-popup{--'));
+ assert(css.view.includes('--primary-text-color:#e8e2d8'),'palette applied');
+ const fs=await import('node:fs');
+ const strategy=fs.readFileSync(new URL('../src/strategy.mjs',import.meta.url),'utf8');
+ assert(strategy.includes("put(root, 'dwelldeck-view', wanted?.view)")&&strategy.includes("put(shell, 'dwelldeck-popup', wanted?.popup)"));
+ assert(strategy.includes('page.view = refreshText(page.view)'),'same design pass as the cards');
+});
