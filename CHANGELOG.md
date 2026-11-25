@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.41 — Room card lights button, one light at a time
+
+- **The lights button on each room card** (the round button on Home and Rooms) now switches the lights one at a time too, like All on / All off. So do All on / All off in rooms that include switches, which still sent one command for everything.
+- Lights already on (for "on") or off (for "off"), and unreachable lights, are left alone, so the hub only gets the commands that change something.
+
 ## 0.9.40 — All on / All off, one light at a time (safely)
 
 - **All on / All off switch the lights one at a time.** They sent one command for every light at once, which LifeSmart hubs could not keep up with: confirmations went missing and one late light failed the whole tap. DwellDeck now sends one light, waits until the hub confirms it (up to 1.2 s), pauses 250 ms, then sends the next, so a hub never has more than one command from the button at a time. A few seconds after the last light, only a light that is really not on (or off) is named in a message; a late confirmation is not an error.

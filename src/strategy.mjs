@@ -32,19 +32,23 @@ function keepDwellPage(css) {
   }, 500);
 }
 
-// Switches the lights an "All on" / "All off" button names, one at a time: each light gets its own command,
-// the next goes when the hub has confirmed the last one (or after 1.2 s), 250 ms apart. A few seconds after
-// the last one, only a light that is really not on (or off) is named in a message.
+// Switches the lights an "All on" / "All off" button (or a room card's lights button) names, one at a time:
+// lights already that way or unreachable are left alone; each other light gets its own command, the next goes
+// when the hub has confirmed the last one (or after 1.2 s), 250 ms apart. A few seconds after the last one,
+// only a light that is really not on (or off) is named in a message.
 export async function dwellSwitchLights({service, entity_id: ids}, hass, notify, wait = ms => new Promise(r => setTimeout(r, ms))) {
   if (!['turn_on', 'turn_off'].includes(service) || !Array.isArray(ids) || !hass?.callService) return [];
-  for (const id of ids) {
-    await Promise.race([hass.callService('light', service, {entity_id: id}).catch(() => {}), wait(1200)]);
+  const want = service === 'turn_on' ? 'on' : 'off';
+  const now = () => (typeof document !== 'undefined' && document.querySelector('home-assistant')?.hass?.states) || hass.states || {};
+  const todo = ids.filter(id => { const state = now()[id]?.state; return state && !['unavailable', 'unknown'].includes(state) && state !== want; });
+  for (const id of todo) {
+    await Promise.race([hass.callService(id.split('.')[0], service, {entity_id: id}).catch(() => {}), wait(1200)]);
     await wait(250);
   }
+  if (!todo.length) return [];
   await wait(4000);
-  const want = service === 'turn_on' ? 'on' : 'off';
-  const states = (typeof document !== 'undefined' && document.querySelector('home-assistant')?.hass?.states) || hass.states || {};
-  const left = ids.filter(id => states[id] && states[id].state !== 'unavailable' && states[id].state !== want);
+  const states = now();
+  const left = todo.filter(id => states[id] && states[id].state !== 'unavailable' && states[id].state !== want);
   if (left.length) notify(`${left.length === 1 ? '1 light' : left.length + ' lights'} did not turn ${want}: ${left.map(id => states[id].attributes?.friendly_name || id).join(', ')}`);
   return left;
 }

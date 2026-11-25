@@ -327,7 +327,7 @@ test('a TCL TV with Android TV Remote opens HDMI through remote.turn_on and pair
  assert(p.calls.some(c=>c[1]==='turn_on'&&c[2].activity==='com.tcl.tv'));
  assert(p.calls.some(c=>c[1]==='send_command'&&c[2].command==='DPAD_UP'));
 });
-test('room cards show a summary, status chips and a lights button; rooms open with a status strip',()=>{
+test('room cards show a summary, status chips and a lights button; rooms open with a status strip',async()=>{
  const st=(state,attributes)=>({state,attributes});
  const states={'light.saloon_a':st('on',{friendly_name:'A'}),'light.saloon_b':st('off',{friendly_name:'B'}),
   'sensor.saloon_temp':st('26.9',{device_class:'temperature',unit_of_measurement:'°C',friendly_name:'Saloon Temp'}),
@@ -352,14 +352,18 @@ test('room cards show a summary, status chips and a lights button; rooms open wi
  const stripText=Function('states',strip.custom_fields.chips.trim().slice(3,-3))(states).replace(/<[^>]+>/g,' ');
  for(const text of ['26.9°C','55%','Cooling 22°','TV on','Motion'])assert(stripText.includes(text),text);
  const slot=card.custom_fields.power.card.cards;
- assert.equal(slot[0].card.tap_action.perform_action,'homeassistant.turn_off');
+ assert.deepEqual(slot[0].card.tap_action.dwelldeck_lights?.service,'turn_off');
+ assert.equal(slot[0].card.tap_action.action,'fire-dom-event');
  assert.equal(slot[0].conditions[0].condition,'or');
- assert.equal(slot[1].card.tap_action.perform_action,'homeassistant.turn_on');
+ assert.deepEqual(slot[1].card.tap_action.dwelldeck_lights?.service,'turn_on');
  assert(slot[1].conditions.every(c=>c.state_not==='on'));
- const target=(button,st)=>Function('states',button.tap_action.target.entity_id.trim().slice(3,-3))(st);
- assert.deepEqual(target(slot[0].card,states),['light.saloon_a']);
- const offline={...states,'light.saloon_b':{state:'unavailable',attributes:{}}};
- assert.deepEqual(target(slot[1].card,offline),['light.saloon_a']);
+ assert(!JSON.stringify(slot).includes('[[['),'no code in the room card\'s lights button');
+ // Off goes only to lights that are on; on only to reachable lights that are off.
+ const {dwellSwitchLights}=await import('../src/strategy.mjs');
+ const sent=async(button,st)=>{const ids=[];await dwellSwitchLights(button.tap_action.dwelldeck_lights,{states:st,callService:async(d,s,data)=>{ids.push(data.entity_id)}},()=>{},async()=>{});return ids;};
+ assert.deepEqual(await sent(slot[0].card,states),['light.saloon_a']);
+ const offline={...states,'light.saloon_a':{state:'off',attributes:{}},'light.saloon_b':{state:'unavailable',attributes:{}}};
+ assert.deepEqual(await sent(slot[1].card,offline),['light.saloon_a']);
  assert(!card.custom_fields.powerOn);
  assert(card.styles.grid[0]['grid-template-areas'].includes('power'));
  const content=card.tap_action.browser_mod.data.content.cards;
@@ -843,8 +847,8 @@ test('All on / All off: no code in the popup (it would run when the popup opens)
  // DwellDeck's side: one light at a time, waiting for each, and only real failures reported.
  const {dwellSwitchLights}=await import('../src/strategy.mjs');
  const log=[];let inFlight=0,most=0;
- const states={'light.a':{state:'on',attributes:{}},'light.b':{state:'off',attributes:{friendly_name:'Bar Spot'}},'light.c':{state:'on',attributes:{}}};
- const hass={states,callService:async(d,s,data)=>{inFlight++;most=Math.max(most,inFlight);log.push(data.entity_id);await null;inFlight--;if(data.entity_id==='light.b')throw new Error('did not confirm');}};
+ const states={'light.a':{state:'off',attributes:{}},'light.b':{state:'off',attributes:{friendly_name:'Bar Spot'}},'light.c':{state:'off',attributes:{}}};
+ const hass={states,callService:async(d,s,data)=>{inFlight++;most=Math.max(most,inFlight);log.push(data.entity_id);await null;inFlight--;if(data.entity_id==='light.b')throw new Error('did not confirm');states[data.entity_id].state='on';}};
  const waits=[];const notes=[];
  const left=await dwellSwitchLights({service:'turn_on',entity_id:['light.a','light.b','light.c']},hass,m=>notes.push(m),async ms=>{waits.push(ms)});
  assert.deepEqual(log,['light.a','light.b','light.c'],'each light its own command, the others still go after one fails');
