@@ -36,20 +36,29 @@ function keepDwellPage(css) {
 // lights already that way or unreachable are left alone; each other light gets its own command, the next goes
 // when the hub has confirmed the last one (or after 1.2 s), 250 ms apart. A few seconds after the last one,
 // only a light that is really not on (or off) is named in a message.
+// Which All on / All off run touched each light last. A newer run takes the light over:
+// the older one stops sending to it and does not report it (pressing All off right after All on is not a failure).
+const lightRuns = new Map();
+let lightRun = 0;
 export async function dwellSwitchLights({service, entity_id: ids}, hass, notify, wait = ms => new Promise(r => setTimeout(r, ms))) {
   if (!['turn_on', 'turn_off'].includes(service) || !Array.isArray(ids) || !hass?.callService) return [];
   const want = service === 'turn_on' ? 'on' : 'off';
+  const run = ++lightRun;
+  const mine = id => lightRuns.get(id) === run;
   const now = () => (typeof document !== 'undefined' && document.querySelector('home-assistant')?.hass?.states) || hass.states || {};
   const todo = ids.filter(id => { const state = now()[id]?.state; return state && !['unavailable', 'unknown'].includes(state) && state !== want; });
+  for (const id of ids) lightRuns.set(id, run);
   for (const id of todo) {
+    if (!mine(id)) continue;
     await Promise.race([hass.callService(id.split('.')[0], service, {entity_id: id}).catch(() => {}), wait(1200)]);
     await wait(250);
   }
-  if (!todo.length) return [];
+  if (!todo.length) { for (const id of ids) if (mine(id)) lightRuns.delete(id); return []; }
   await wait(4000);
   const states = now();
-  const left = todo.filter(id => states[id] && states[id].state !== 'unavailable' && states[id].state !== want);
-  if (left.length) notify(`${left.length === 1 ? '1 light' : left.length + ' lights'} did not turn ${want}: ${left.map(id => states[id].attributes?.friendly_name || id).join(', ')}`);
+  const left = todo.filter(id => mine(id) && states[id] && states[id].state !== 'unavailable' && states[id].state !== want);
+  for (const id of todo) if (mine(id)) lightRuns.delete(id);
+  if (left.length) notify(`${left.length === 1 ? '1 light' : left.length + ' lights'} did not turn ${want}: ${[...new Set(left.map(id => states[id].attributes?.friendly_name || id))].join(', ')}`);
   return left;
 }
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function' && !window.__dwellLights) {

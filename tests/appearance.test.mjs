@@ -855,4 +855,14 @@ test('All on / All off: no code in the popup (it would run when the popup opens)
  assert.equal(most,1,'never more than one command at a time');
  assert(waits.filter(ms=>ms===250).length===3&&waits.includes(4000),'250 ms between lights, then the check');
  assert.deepEqual(left,['light.b']);assert.deepEqual(notes,['1 light did not turn on: Bar Spot']);
+ // All off pressed while All on is still going: the newer press wins, and All on reports nothing.
+ const st2={'light.x':{state:'off',attributes:{}},'light.y':{state:'off',attributes:{}}};const sent2=[];const notes2=[];
+ let release;const gate=new Promise(r=>release=r);
+ const hass2={states:st2,callService:async(d,s,data)=>{sent2.push(s+' '+data.entity_id);st2[data.entity_id].state=s==='turn_on'?'on':'off';}};
+ const first=dwellSwitchLights({service:'turn_on',entity_id:['light.x','light.y']},hass2,m=>notes2.push(m),async ms=>{if(ms===250&&sent2.length===1)await gate;});
+ await new Promise(r=>setTimeout(r,0));
+ const second=dwellSwitchLights({service:'turn_off',entity_id:['light.x','light.y']},hass2,m=>notes2.push(m),async()=>{});
+ await second;release();await first;
+ assert.deepEqual(sent2,['turn_on light.x','turn_off light.x'],'the older run stops; light.y was already off, so nothing more is sent');
+ assert.deepEqual(notes2,[],'no "did not turn on" after All off was pressed');
 });
