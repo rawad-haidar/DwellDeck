@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.42 — All off right after All on is not an error
+
+- **A newer All on / All off press takes over from an older one.** Pressing All off within a few seconds of All on showed "lights did not turn on" for every light, because All on checked its lights after All off had already switched them off. Now the newer press takes over every light it covers: the older one sends nothing more to those lights and does not report them, so an All on still running can no longer switch a light back on after All off.
+- A light named twice in the message (two switches with the same name) is listed once.
+
 ## 0.9.41 — Room card lights button, one light at a time
 
 - **The lights button on each room card** (the round button on Home and Rooms) now switches the lights one at a time too, like All on / All off. So do All on / All off in rooms that include switches, which still sent one command for everything.
