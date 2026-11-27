@@ -7,6 +7,7 @@ import {energyEditorValues, ENERGY_TOTALS, ENERGY_COMBINE} from './energy.mjs';
 import {detectionSensors, snapshotAutomation, cleanupAutomation, SNAPSHOT_DIR, SNAPSHOT_DAYS, CLEANUP_YAML} from './detection.mjs';
 import {SLOTS, ROOM_TEMPLATES} from './data.mjs';
 import {guardAutomation, GUARD_ID} from './guard.mjs';
+import {KID_TABS} from './kids.mjs';
 
 export class DwellDeckOriginalEditor extends HTMLElement {
   constructor(){super();this.attachShadow({mode:'open'});}
@@ -55,13 +56,14 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     if(!limitedUsers.length){container.textContent='No non-administrator users yet. Add one in Settings \u2192 People, with Administrator turned off.';return;}
     for(const user of limitedUsers){
       const entry=(this.config.kids||[]).find(kid=>kid.user===user.id||String(kid.user).toLowerCase()===String(user.name).toLowerCase());
-      container.append(this.form([{name:'rooms',selector:{area:{multiple:true}}}],{rooms:entry?.rooms||[]},value=>{
+      container.append(this.form([{name:'rooms',selector:{area:{multiple:true}}},{name:'tabs',selector:{select:{multiple:true,mode:'list',options:KID_TABS.map(([value,label])=>({value,label}))}}}],{rooms:entry?.rooms||[],tabs:entry?.tabs||[]},value=>{
         const others=(this.config.kids||[]).filter(kid=>kid!==entry&&kid.user!==user.id&&String(kid.user).toLowerCase()!==String(user.name).toLowerCase());
-        const rooms=value.rooms||[];
-        const kids=rooms.length?[...others,{user:user.id,name:user.name,rooms}]:others;
+        const rooms=value.rooms||[],tabs=value.tabs||[];
+        const mine={user:user.id,name:user.name,rooms};if(tabs.length)mine.tabs=tabs;
+        const kids=rooms.length||tabs.length?[...others,mine]:others;
         const next={...this.config};if(kids.length)next.kids=kids;else delete next.kids;
         this.change(next);
-      },{rooms:`${user.name}: rooms they can use`}));
+      },{rooms:`${user.name}: rooms they can use`,tabs:`${user.name}: other DwellDeck tabs they can see`}));
     }
     // Hiding is not blocking: the guard automation undoes what a limited user changes outside their rooms.
     const guardTitle=document.createElement('h3');guardTitle.textContent='Protection';
@@ -75,7 +77,7 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     save.onclick=async()=>{
       save.disabled=true;status.textContent='Saving the guard automation\u2026';
       try{
-        const kids=(this.config.kids||[]).filter(kid=>kid.rooms?.length);
+        const kids=(this.config.kids||[]).filter(kid=>kid.rooms?.length||kid.tabs?.length);
         if(!kids.length){
           await this._hass.callApi('DELETE',`config/automation/config/${GUARD_ID}`).catch(()=>{});
           const next={...this.config};delete next.guard;this.change(next);
@@ -265,7 +267,7 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     const add=document.createElement('button');add.textContent='+ Add room';add.onclick=()=>{this.change({...this.config,extra_rooms:[...(this.config.extra_rooms||[]),{name:'New room',entities:[]}]});this.render();};roomDetails.append(add);
     this.shadowRoot.append(roomDetails);
     const limited=document.createElement('details');const limitedTitle=document.createElement('summary');limitedTitle.textContent='Limited users';limited.append(limitedTitle);
-    const limitedHelp=document.createElement('p');limitedHelp.textContent='Your non-administrator users are listed here. Pick rooms for someone and DwellDeck shows them only a My room page with those rooms\u2019 lights, TVs and air conditioners. Leave the rooms empty for the full dashboard. This limits what DwellDeck shows, not what Home Assistant allows: also set your other dashboards to Admin only (Settings \u2192 Dashboards).';limited.append(limitedHelp);
+    const limitedHelp=document.createElement('p');limitedHelp.textContent='Your non-administrator users are listed here. Pick rooms for someone and DwellDeck shows them a My room page with those rooms\u2019 lights, TVs and air conditioners; tick other tabs to show them those too. Leave both empty for the full dashboard. Protection below still sets back changes outside their rooms, even on tabs they can see. This limits what DwellDeck shows, not what Home Assistant allows: also set your other dashboards to Admin only (Settings \u2192 Dashboards).';limited.append(limitedHelp);
     const limitedList=document.createElement('div');limitedList.textContent='Loading users\u2026';limited.append(limitedList);
     if((this.config.kids||[]).length)limited.open=true;
     this.renderLimitedUsers(limitedList);
