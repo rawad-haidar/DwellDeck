@@ -6,6 +6,7 @@ import {DWELL_PALETTES, DEFAULT_PALETTE} from './theme.mjs';
 import {energyEditorValues, ENERGY_TOTALS, ENERGY_COMBINE} from './energy.mjs';
 import {detectionSensors, snapshotAutomation, cleanupAutomation, SNAPSHOT_DIR, SNAPSHOT_DAYS, CLEANUP_YAML} from './detection.mjs';
 import {SLOTS, ROOM_TEMPLATES} from './data.mjs';
+import {guardAutomation, GUARD_ID} from './guard.mjs';
 
 export class DwellDeckOriginalEditor extends HTMLElement {
   constructor(){super();this.attachShadow({mode:'open'});}
@@ -62,6 +63,36 @@ export class DwellDeckOriginalEditor extends HTMLElement {
         this.change(next);
       },{rooms:`${user.name}: rooms they can use`}));
     }
+    // Hiding is not blocking: the guard automation undoes what a limited user changes outside their rooms.
+    const guardTitle=document.createElement('h3');guardTitle.textContent='Protection';
+    const guardHelp=document.createElement('p');guardHelp.textContent='Home Assistant lets every signed-in user control every device; the page above only hides things. Protection adds an automation, \u201cDwellDeck \u00b7 Guard\u201d, that sets back anything a limited user changes outside their rooms (switches such as the boiler and pool filter, valves, other rooms\u2019 air conditioners, curtains, locks, automations) and leaves you a notification. Their own rooms\u2019 lights, TVs and air conditioners are not touched.';
+    container.append(guardTitle,guardHelp,this.form([{name:'protected',selector:{entity:{multiple:true}}}],{protected:this.config.protected||[]},value=>{
+      const next={...this.config};if(value.protected?.length)next.protected=value.protected;else delete next.protected;this.change(next);
+    },{protected:'Also protect these (any device, even lights in their rooms)'}));
+    const save=document.createElement('button');save.textContent='Save protection';
+    const status=document.createElement('p');status.setAttribute('role','status');
+    status.textContent=this.config.guard?'Protection is on. Press Save protection again after changing users, rooms or devices.':'Pick rooms above, then press Save protection.';
+    save.onclick=async()=>{
+      save.disabled=true;status.textContent='Saving the guard automation\u2026';
+      try{
+        const kids=(this.config.kids||[]).filter(kid=>kid.rooms?.length);
+        if(!kids.length){
+          await this._hass.callApi('DELETE',`config/automation/config/${GUARD_ID}`).catch(()=>{});
+          const next={...this.config};delete next.guard;this.change(next);
+          status.textContent='No limited users, so protection is off and the guard automation was removed.';save.disabled=false;return;
+        }
+        const automation=guardAutomation(this.config,await discoveryContext(this._hass).catch(()=>this._hass),users);
+        await this._hass.callApi('POST',`config/automation/config/${GUARD_ID}`,automation);
+        let loaded=false;
+        for(let i=0;i<20&&!loaded;i++){loaded=Object.values(this._hass.states).some(state=>state.entity_id.startsWith('automation.')&&state.attributes.id===GUARD_ID);if(!loaded)await new Promise(resolve=>setTimeout(resolve,250));}
+        if(!loaded){status.textContent='The guard was saved, but Home Assistant did not load it. Make sure configuration.yaml contains \u201cautomation: !include automations.yaml\u201d, restart, then press Save protection again.';save.disabled=false;return;}
+        this.change({...this.config,guard:true});
+        const names=Object.keys(automation.variables.allowed).map(id=>users.find(user=>user.id===id)?.name).filter(Boolean);
+        status.textContent=`Protection is on for ${names.join(', ')}. Save the dashboard too.`;
+      }catch(error){status.textContent=`Could not save protection: ${error.message||error.body?.message||'administrator access is required'}`;}
+      save.disabled=false;
+    };
+    container.append(save,status);
   }
   render(){
     if(!this.config)return;
