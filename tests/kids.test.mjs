@@ -92,6 +92,29 @@ test('Home with nothing picked follows the other tabs; Home alone is the whole o
   assert(JSON.stringify(whole.views.find(v => v.path === 'home')).includes('light.saloon'), 'a whole tab given: everything on it counts');
 });
 
+test('rooms left out of the Rooms tab are left out of the other tabs too, unless picked there', async () => {
+  const {tabChoices} = await import('../src/kids.mjs');
+  const parent = await Strategy.generate({...config, kids: undefined}, hass({id: 'p', name: 'Parent'}));
+  const ali = tabChoices(parent.views.find(v => v.path === 'rooms'), hass({})).find(c => /Ali Room/.test(c.key));
+  assert(ali, 'the Ali Room card is offered');
+  const kid = {user: 'Ali', tabs: ['rooms', 'lighting', 'media'], access: {rooms: {cards: [ali.key], entity_id: ali.refs}}};
+  const d = await Strategy.generate({...config, kids: [kid]}, hass({id: 'u1', name: 'Ali'}));
+  const lights = JSON.stringify(d.views.find(v => v.path === 'lighting'));
+  const media = JSON.stringify(d.views.find(v => v.path === 'media'));
+  assert(lights.includes('light.ali_ceiling') && !lights.includes('light.saloon'), 'Lights: only the given room');
+  assert(!media.includes('media_player.saloon_tv'), 'Media: not the Saloon TV');
+  const picked = await Strategy.generate({...config, kids: [{...kid, access: {...kid.access, media: {cards: ['Saloon TV'], entity_id: ['media_player.saloon_tv']}}}]}, hass({id: 'u1', name: 'Ali'}));
+  const pickedMedia = JSON.stringify(picked.views.find(v => v.path === 'media'));
+  const pickedKeys = tabChoices(parent.views.find(v => v.path === 'media'), hass({})).map(c => c.key);
+  const saloonKey = pickedKeys.find(k => /Saloon TV/.test(k));
+  if (saloonKey) {
+    const again = await Strategy.generate({...config, kids: [{...kid, access: {...kid.access, media: {cards: [saloonKey], entity_id: ['media_player.saloon_tv']}}}]}, hass({id: 'u1', name: 'Ali'}));
+    assert(JSON.stringify(again.views.find(v => v.path === 'media')).includes('media_player.saloon_tv'), 'picked on a tab: shown even from a room not given');
+  } else assert(pickedMedia !== undefined);
+  const noRoomsLimit = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['lighting']}]}, hass({id: 'u1', name: 'Ali'}));
+  assert(JSON.stringify(noRoomsLimit.views.find(v => v.path === 'lighting')).includes('light.saloon'), 'without a limited Rooms tab nothing changes');
+});
+
 test('a limited user with no tabs gets a clear message, not the dashboard', async () => {
   const d = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: []}]}, hass({id: 'u1', name: 'Ali'}));
   assert.equal(d.views.length, 1);
@@ -121,8 +144,17 @@ test('each tab lists its own cards, named with the heading above them', async ()
   assert.deepEqual(tabChoices(view, hass({})).map(c => [c.key, c.heading, c.refs.join()]), [
     ['Bedrooms · Ali TV', 'Bedrooms', 'media_player.ali_tv'],
     ['Bedrooms · Saloon TV', 'Bedrooms', 'media_player.saloon_tv'],
-    ['Bedrooms · 2 items', 'Bedrooms', 'climate.ali_ac,light.ali_ceiling'],
+    ['Bedrooms · overview', 'Bedrooms', 'climate.ali_ac,light.ali_ceiling'],
     ['Bedrooms · Ali TV (2)', 'Bedrooms', 'media_player.ali_tv']]);
+  assert.equal(tabChoices(view, hass({}))[2].label, 'Bedrooms · 2 items', 'the editor still shows how many things are on it');
+  // Adding a light to the house doesn't change which card is which.
+  const grown = JSON.parse(JSON.stringify(view));
+  grown.sections[0].cards[3].cards[0].triggers_update.push('switch.ali_lamp');
+  assert.equal(tabChoices(grown, hass({}))[2].key, 'Bedrooms · overview');
+  // A card saved before 0.9.54, under its count, is still found.
+  const {pruneView} = await import('../src/kids.mjs');
+  const kept = pruneView(view, {cards: ['Bedrooms · 2 items'], entity_id: ['climate.ali_ac', 'light.ali_ceiling']}, hass({}));
+  assert(JSON.stringify(kept).includes('triggers_update'));
 });
 
 test('a shared card can leave some of its items out', async () => {
@@ -151,6 +183,8 @@ test('templates lose what was not given: JSON data, id lists and single ids', as
   assert.equal(out.custom_fields.glance, '[[[ return f(states, {"lights":["light.a"],"tvs":[["light.a","y"]],"alarm":null,"n":2}) ]]]');
   assert.deepEqual(out.visibility[0].conditions.map(c => c.entity), ['light.a'], 'conditions on what was not given go');
   assert.equal(narrowCard({label: "[[[ const ac=['climate.a','climate.b']; ]]]"}, allowed, known).label, "[[[ const ac=['climate.a']; ]]]", 'single quotes alone too');
+  assert.equal(narrowCard({label: '[[[ const names={"climate.a":"A","climate.b":"B"}; ]]]'}, allowed, known).label, '[[[ const names={"climate.a":"A"}; ]]]', 'entries keyed by what was not given');
+  assert.equal(narrowCard({content: '{% set lights = ["light.a","light.b"] %}{{ lights | length }}'}, allowed, known).content, '{% set lights = ["light.a"] %}{{ lights | length }}', 'Jinja templates too');
 });
 
 test('the editor: a dropdown per tab, a dropdown per card, and what is saved', async () => {
