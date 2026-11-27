@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.58 — The generator card says what the engine is doing
+
+- **The state chip shows the engine's stage:** cranking, starting, warming up, running on or off load, cooling down after the load comes off, and stopping. A pulsing dot marks the in-between stages.
+  - **Worked out from the readings,** with no new sensor needed. Cranking is a slow engine with no output, and starting is speed or frequency still climbing. Warming up is the first few minutes after this page saw a start, or a cold engine. Cooling down is the engine still turning off load just after the load came off. Stopping is a turning engine in Stop mode.
+  - **An engine-state sensor wins if you have one.** That is the DSE engine operating state (GenComm page 5, offset 128), set as **Engine state** in the generator settings or found as `sensor.gen_engine_state`.
+
 ## 0.9.57 — Readable generator tiles while running
 
 - **The generator card is readable while the engine runs.** Running tiles, chips and the engine icon used light amber text on a solid amber fill, so Speed, Output, Frequency and the state chips were hard to read. They now use the dim amber background with light amber text, like other active cards in DwellDeck.

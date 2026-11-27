@@ -97,3 +97,33 @@ test('the editor offers the Generator settings only when there is a generator', 
   assert.equal(none._generatorBox.children.length, 0, 'no generator: nothing to set');
   delete globalThis.document;
 });
+
+test('the state chip shows what the engine is doing: cranking, starting, warming up, cooling down', async () => {
+  const {DSE_ENGINE_STATES} = await import('../src/genset.mjs');
+  const base = {...gensetSetup({}, {states}), modes: DSE_MODES, engineStates: DSE_ENGINE_STATES, c: {text: '#fff', muted: '#999', line: '#333', on: '#440', onBg: '#221', onText: '#fc0'}};
+  const at = (over, cfg = base) => dwellGenset({...states, ...over}, cfg);
+  const ago = s => new Date(Date.now() - s * 1000).toISOString();
+  globalThis.window = {};
+  assert(at({}).includes('Engine at rest'));
+  assert(at({'sensor.gen_engine_speed': st(220), 'sensor.gen_frequency': st(0)}).includes('Cranking'));
+  assert(at({'sensor.gen_engine_speed': st(1100), 'sensor.gen_frequency': st(36)}).includes('Starting'));
+  // This page saw it start a moment ago: warming up until the warm-up time passes.
+  const run = {'sensor.gen_engine_speed': st(1500), 'sensor.gen_frequency': st(50.2), 'sensor.gen_l1_n_voltage': st(229), 'sensor.gen_coolant_temp': st(70)};
+  assert(at(run).includes('Warming up'));
+  window.__dwellGenStage.since = Date.now() - 600000;
+  assert(at(run).includes('Running off load'));
+  assert(at({...run, 'sensor.electric_generator_power': st(3000)}).includes('Running on load'));
+  // The load came off a minute ago: cooling down; after the cool-down time it is just off load.
+  assert(at({...run, 'sensor.electric_generator_power': {state: '0', attributes: {}, last_changed: ago(60)}}).includes('Cooling down'));
+  assert(at({...run, 'sensor.electric_generator_power': {state: '0', attributes: {}, last_changed: ago(400)}}).includes('Running off load'));
+  assert(at({...run, 'sensor.gen_control_mode': st(0)}).includes('Stopping'));
+  // Opened mid-run with a cold engine: warming up.
+  globalThis.window = {__dwellGenStage: {seen: false}};
+  assert(at({...run, 'sensor.gen_coolant_temp': st(28)}).includes('Warming up'));
+  // A stage sensor from the controller wins.
+  const withStage = {...base, stage: 'sensor.gen_engine_state'};
+  assert(at({...run, 'sensor.gen_coolant_temp': st(70), 'sensor.gen_engine_state': st(4)}, withStage).includes('Cooling down'));
+  assert(at({...run, 'sensor.gen_coolant_temp': st(70), 'sensor.gen_engine_state': st(3), 'sensor.electric_generator_power': st(3000)}, withStage).includes('Running on load'));
+  assert(at({...run, 'sensor.gen_engine_state': st(15)}, withStage).includes('Warming up'), 'not available: read from the readings');
+  delete globalThis.window;
+});
