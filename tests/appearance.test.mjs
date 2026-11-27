@@ -882,3 +882,14 @@ test('room popups fill a phone screen, tile names wrap, and the heading names th
  assert(tiles[1].card_mod.style['.'].includes(TILE_NAME_CSS));
  assert(tiles[2].card_mod.style.includes(TILE_NAME_CSS));
 });
+test('the alarm card offers every mode the alarm supports',async()=>{
+ const {allAlarmModes}=await import('../src/generator.mjs');
+ const panel=(entity,extra={})=>({type:'alarm-panel',entity,...extra});
+ const d={views:[{cards:[panel('alarm_control_panel.a'),panel('alarm_control_panel.b'),panel('alarm_control_panel.a',{states:['arm_away']}),panel('alarm_control_panel.missing')]}]};
+ allAlarmModes(d,{states:{'alarm_control_panel.a':{attributes:{supported_features:1|2|4|8|16|32}},'alarm_control_panel.b':{attributes:{supported_features:1|2|8}}}});
+ const [a,b,chosen,missing]=d.views[0].cards;
+ assert.deepEqual(a.states,['arm_home','arm_away','arm_night','arm_vacation','arm_custom_bypass']);
+ assert.deepEqual(b.states,['arm_home','arm_away'],'trigger is not an arm mode');
+ assert.deepEqual(chosen.states,['arm_away'],'a choice already made is kept');
+ assert.equal(missing.states,undefined,'an alarm Home Assistant does not know is left alone');
+});

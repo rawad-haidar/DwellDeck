@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.45 — Every alarm mode on the alarm card
+
+- **The alarm card offers every mode your alarm supports.** Home Assistant's alarm card shows only Arm home and Arm away unless told otherwise, so Arm night, Arm vacation and Arm custom bypass were missing even when Alarmo offered them. The card now lists the modes the alarm reports. Alarmo reports the modes that are enabled in its own settings.
+
 ## 0.9.44 — Room popups on phones
 
 - **Room popups fill the phone screen.** browser_mod's wide popup is 90% of the screen and not centred, so on an iPhone the cards stopped well short of the right edge. On screens narrower than 600 px, popups now use the full width, with even margins.
