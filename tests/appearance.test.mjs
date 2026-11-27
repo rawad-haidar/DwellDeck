@@ -893,29 +893,37 @@ test('the alarm card offers every mode the alarm supports',async()=>{
  assert.deepEqual(chosen.states,['arm_away'],'a choice already made is kept');
  assert.equal(missing.states,undefined,'an alarm Home Assistant does not know is left alone');
 });
-test('a TV\'s volume is the TV\'s own: not its DLNA renderer\'s, and the steps while ADB is disconnected',async()=>{
+test('a TV\'s volume is the TV\'s own: not its DLNA renderer\'s; a TV that only steps gets a slider that presses its keys',async()=>{
  const {tvCard}=await import('../src/tv.mjs');
  const st=(id,state,a)=>[id,{entity_id:id,state,attributes:a}];
  const states=Object.fromEntries([
   st('media_player.saloon_saloon_tv','on',{friendly_name:'Saloon TV',supported_features:153529,volume_level:.34,is_volume_muted:false}),
+  st('remote.saloon_tv','on',{}),
   st('media_player.saloon_tv_192_168_14_246_2','idle',{friendly_name:'Saloon TV(192.168.14.187)',supported_features:479807,volume_level:.24}),
   st('media_player.saloon_saloon_tv_adb','off',{friendly_name:'Saloon TV ADB',supported_features:23997})]);
- const entities={'media_player.saloon_saloon_tv':{platform:'androidtv_remote',device_id:'r',area_id:'living_room'},
+ const entities={'media_player.saloon_saloon_tv':{entity_id:'media_player.saloon_saloon_tv',platform:'androidtv_remote',device_id:'r',area_id:'living_room'},
+  'remote.saloon_tv':{entity_id:'remote.saloon_tv',platform:'androidtv_remote',device_id:'r',area_id:'living_room'},
   'media_player.saloon_tv_192_168_14_246_2':{platform:'dlna_dmr',device_id:'d',area_id:'living_room'},
   'media_player.saloon_saloon_tv_adb':{platform:'androidtv',device_id:'a',area_id:'living_room'}};
  const hass={states,entities,devices:{r:{name:'Saloon TV'},d:{name:'Saloon TV(192.168.14.187)'},a:{name:'Android TV 192.168.14.187'}},areas:{living_room:{name:'Living'}}};
  const card=tvCard('media_player.saloon_saloon_tv',hass);
- const vol=s=>{globalThis.window={};return Function('states',card.custom_fields.vol.trim().slice(3,-3))(s);};
  const code=card.custom_fields.vol;
+ const vol=s=>{globalThis.window={};return Function('states',code.trim().slice(3,-3))(s);};
  assert(!code.includes('"media_player.saloon_tv_192_168_14_246_2"'),'the DLNA renderer is left out');
  let html=vol(states);
- assert(html.includes('aria-label="Volume up" data-entity="media_player.saloon_saloon_tv"'),'ADB off: the remote\'s volume steps');
- assert(!html.includes('type="range"'));
+ assert(html.includes('type="range"')&&html.includes('data-mode="steps" data-level="34" data-entity="media_player.saloon_saloon_tv" data-keys="remote.saloon_tv"'),'a slider that steps the TV through its remote');
+ assert(html.includes('data-entity="media_player.saloon_saloon_tv" data-muted')&&html.includes('34%'),'mute on the TV, and its level');
+ // Moving the slider from 34 to 40 presses volume up six times.
+ const calls=[];globalThis.document={querySelector:()=>({hass:{callService:(...a)=>calls.push(a)}})};
+ window.__dwellVol.set({value:'40',dataset:{mode:'steps',level:'34',entity:'media_player.saloon_saloon_tv',keys:'remote.saloon_tv'}});
+ assert.deepEqual(calls,[['remote','send_command',{entity_id:'remote.saloon_tv',command:'VOLUME_UP',num_repeats:6,delay_secs:0.05}]]);
+ // ADB connected: still the steps, since ADB's set-volume does nothing on some TVs.
  html=vol({...states,'media_player.saloon_saloon_tv_adb':{...states['media_player.saloon_saloon_tv_adb'],state:'on',attributes:{...states['media_player.saloon_saloon_tv_adb'].attributes,volume_level:.34}}});
- assert(!html.includes('type="range"')&&html.includes('aria-label="Volume up" data-entity="media_player.saloon_saloon_tv"'),'ADB connected: still the steps (ADB volume_set does nothing on some TVs)');
- assert(html.includes('data-entity="media_player.saloon_saloon_tv" data-muted'),'mute on the TV');
- assert(html.includes('34%'),'the TV\'s level between the steps');
+ assert(html.includes('data-mode="steps"')&&!html.includes('data-entity="media_player.saloon_saloon_tv_adb"'));
  html=vol({...states,'media_player.saloon_saloon_tv':{...states['media_player.saloon_saloon_tv'],attributes:{...states['media_player.saloon_saloon_tv'].attributes,is_volume_muted:true}}});
  assert(html.includes('aria-label="Unmute"')&&html.includes('Muted'),'a muted TV shows Muted and an Unmute button');
- delete globalThis.window;
+ // A TV that doesn't report its level: buttons.
+ html=vol({...states,'media_player.saloon_saloon_tv':{...states['media_player.saloon_saloon_tv'],attributes:{...states['media_player.saloon_saloon_tv'].attributes,volume_level:null}}});
+ assert(!html.includes('type="range"')&&html.includes('aria-label="Volume up" data-entity="media_player.saloon_saloon_tv"'));
+ delete globalThis.window;delete globalThis.document;
 });
