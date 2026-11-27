@@ -98,9 +98,53 @@ export function pruneCards(cards, allowed, known) {
 // A shared card with only some of its things given: lists of entities lose the others (so "All on"
 // switches only those) and cards inside it (a room's popup) showing the others are left out.
 export function narrowCard(card, allowed, known) {
-  const keep = id => typeof id !== 'string' || !known.has(id) || OPEN_DOMAINS.has(id.split('.')[0]) || allowed.has(id);
+  const given = id => typeof id !== 'string' || !known.has(id) || OPEN_DOMAINS.has(id.split('.')[0]) || allowed.has(id);
+  // Lists lose what wasn't given: ids, [id, …] pairs (a TV with its remote), and conditions on it
+  // (so "Everything is off" means everything of theirs).
+  const keepItem = item => typeof item === 'string' ? given(item)
+    : Array.isArray(item) ? given(item[0])
+    : item && typeof item === 'object' && typeof item.condition === 'string' && typeof item.entity === 'string' ? given(item.entity) : true;
+  // Templates carry their data as JSON ({"lights": [...]}, const ids=["light.a", ...]): narrowed the same way.
+  const inTemplate = text => {
+    let out = '', from = 0, start;
+    const next = at => Math.min(...['{"', '["', "['"].map(open => text.indexOf(open, at)).map(i => i === -1 ? Infinity : i));
+    while ((start = next(from)) !== Infinity) {
+      // A list in single quotes (const ac=['climate.a', ...]): only ids and names, so filter it as is.
+      if (text.startsWith("['", start)) {
+        const end = text.indexOf(']', start);
+        const body = end === -1 ? '' : text.slice(start + 1, end);
+        if (end !== -1 && /^\s*'[^'\\]*'(\s*,\s*'[^'\\]*')*\s*$/.test(body)) {
+          const items = body.split(',').map(item => item.trim().slice(1, -1)).filter(given);
+          out += text.slice(from, start) + '[' + items.map(item => `'${item}'`).join(',') + ']';
+          from = end + 1;
+        } else { out += text.slice(from, start + 2); from = start + 2; }
+        continue;
+      }
+      // Find where this object ends, minding quoted text.
+      let depth = 0, quoted = false, end = -1;
+      for (let i = start; i < text.length; i++) {
+        const ch = text[i];
+        if (quoted) { if (ch === '\\') i++; else if (ch === '"') quoted = false; continue; }
+        if (ch === '"') quoted = true;
+        else if (ch === '{' || ch === '[') depth++;
+        else if (ch === '}' || ch === ']') { depth--; if (!depth) { end = i; break; } }
+      }
+      if (end === -1) break;
+      const json = text.slice(start, end + 1);
+      let replaced = json;
+      try { replaced = JSON.stringify(walkData(JSON.parse(json))); } catch { /* not data: leave it */ }
+      out += text.slice(from, start) + replaced;
+      from = end + 1;
+    }
+    return out + text.slice(from);
+  };
+  // Inside a template's data, a single id that wasn't given becomes null ("alarm": null: no alarm shown).
+  const walkData = value => Array.isArray(value) ? value.filter(keepItem).map(walkData)
+    : typeof value === 'string' ? (given(value) ? value : null)
+    : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walkData(item)])) : value;
   const walk = value => {
-    if (Array.isArray(value)) return value.every(item => typeof item === 'string') ? value.filter(keep) : value.map(walk);
+    if (Array.isArray(value)) return value.filter(keepItem).map(walk);
+    if (typeof value === 'string') return value.includes('[[[') && /\{"|\["|\['/.test(value) ? inTemplate(value) : value;
     if (!value || typeof value !== 'object') return value;
     return Object.fromEntries(Object.entries(value).map(([key, item]) =>
       [key, key === 'cards' && Array.isArray(item) ? pruneCards(item, allowed, known).map(walk) : walk(item)]));
@@ -192,12 +236,49 @@ export function kidsDashboard(config, hass, kid, buildFull) {
   const picked = pickedViews(full, tabs);
   // A sub-page follows the picks of the tab that opens it (Activity from a Home limited to one room).
   const opener = view => picked.find(other => !other.subview && JSON.stringify(other).includes(`/${view.path}"`));
+  // Home with nothing picked for it follows the other tabs: it shows only what was given there,
+  // and its summary and room cards are narrowed to that. (Home alone shows the whole of Home.)
+  const others = tabs.filter(tab => tab !== 'home');
+  let given = null;
+  if (tabs.includes('home') && !tabTarget(kid, 'home') && others.length) {
+    given = new Set();
+    for (const tab of others) {
+      const target = tabTarget(kid, tab);
+      const ids = target ? targetEntities(target, hass) : tabChoices(full.views.find(view => view.path === tab), hass).flatMap(choice => choice.refs);
+      for (const id of ids) given.add(id);
+    }
+  }
+  const known = new Set(Object.keys(hass.states || {}));
+  const followOthers = view => {
+    const next = walkTab(view, hass, (card, {refs}) => refs.some(id => given.has(id)) ? narrowCard(card, given, known) : null);
+    if (Array.isArray(view.sections) && !next.sections.length) next.sections = [{type: 'grid', cards: [{type: 'markdown', content: 'Nothing on this page has been shared with you yet.'}]}];
+    return next;
+  };
   const views = picked.map(view => {
+    if (given && view.path === 'home') return followOthers(view);
     const sub = view.subview && !tabs.includes(view.path);
+    if (given && sub && opener(view)?.path === 'home') return pruneView(view, {entity_id: [...given]}, hass);
     const target = tabTarget(kid, sub ? opener(view)?.path : view.path);
     if (!target) return view;
     // A sub-page has other cards than the tab that opens it: it keeps what shows only given things.
     return pruneView(view, sub ? {...target, cards: undefined} : target, hass);
   });
-  return views.length ? {...full, views} : nothing;
+  if (!views.length) return nothing;
+  // Shortcuts to pages this person doesn't have would lead nowhere: they go.
+  const paths = new Set(views.map(view => view.path));
+  const leadsNowhere = card => {
+    const to = card?.tap_action?.action === 'navigate' && String(card.tap_action.navigation_path || '');
+    const page = to && to.split('/').filter(Boolean).pop();
+    return !!page && full.views.some(view => view.path === page) && !paths.has(page);
+  };
+  // A card that shows their things stays (tapping it does nothing); a plain shortcut goes.
+  const tidy = (cards, shortcuts) => (cards || []).flatMap(card => {
+    if (Array.isArray(card?.cards) && card.type !== 'custom:button-card') return [{...card, cards: tidy(card.cards, shortcuts)}];
+    if (!leadsNowhere(card)) return [card];
+    return shortcuts || !refsIn(card, known).length ? [] : [{...card, tap_action: {action: 'none'}}];
+  });
+  const isShortcuts = section => (section.cards || []).some(card => card?.type === 'heading' && /^shortcuts$/i.test(card.heading || ''));
+  return {...full, views: views.map(view => ({...view,
+    ...(Array.isArray(view.sections) ? {sections: view.sections.map(section => ({...section, cards: tidy(section.cards, isShortcuts(section))})).filter(section => section.cards.some(SUBSTANTIVE))} : {}),
+    ...(Array.isArray(view.cards) ? {cards: tidy(view.cards, false)} : {})}))};
 }

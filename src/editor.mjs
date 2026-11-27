@@ -54,7 +54,7 @@ export class DwellDeckOriginalEditor extends HTMLElement {
   }
   // One tab's dropdown: its cards grouped under their headings. Ticking a card shares it; its own
   // dropdown then lists what is on it, all ticked, to leave some out. Nothing ticked: the whole tab.
-  tabPicker(user,label,choices,target,onChange){
+  tabPicker(user,label,choices,target,onChange,whenEmpty='everything on this tab'){
     const box=document.createElement('details');box.className='tab-access';
     const summary=document.createElement('summary');box.append(summary);
     if(!choices.length){
@@ -69,7 +69,7 @@ export class DwellDeckOriginalEditor extends HTMLElement {
       :target?choices.filter(c=>c.refs.every(id=>given.has(id))).map(c=>c.key):[]);
     const allowed=new Set(target?.cards?.length?(target.entity_id||[]):choices.filter(c=>chosen.has(c.key)).flatMap(c=>c.refs));
     const name=id=>this._hass?.states?.[id]?.attributes?.friendly_name||id;
-    const count=()=>{summary.textContent=`${label}: ${chosen.size?`${chosen.size} of ${choices.length} cards`:'everything on this tab'}`;};
+    const count=()=>{summary.textContent=`${label}: ${chosen.size?`${chosen.size} of ${choices.length} cards`:whenEmpty}`;};
     const emit=()=>{
       count();
       const picked=choices.filter(c=>chosen.has(c.key));
@@ -139,7 +139,7 @@ export class DwellDeckOriginalEditor extends HTMLElement {
           for(const t of kidTabs(cur)){const target=tabTarget(cur,t);if(target)all[t]=Object.fromEntries(Object.entries(target).filter(([,v])=>v?.length));}
           if(access)all[tab]=access;else delete all[tab];
           write(kidTabs(cur),all);
-        }));
+        },tab==='home'&&tabs.length>1?'only what the other tabs give':'everything on this tab'));
         holder.replaceChildren(tabsForm,...pickers);
       };
       draw();
@@ -325,7 +325,9 @@ export class DwellDeckOriginalEditor extends HTMLElement {
       camera_detection: 'Show camera human and vehicle detection on the Security page',
       readable_font: 'Use the Atkinson Hyperlegible font (loaded from Google Fonts). Off uses the Home Assistant font.'
     }));
-    const roomDetails=document.createElement('details');roomDetails.open=true;const summary=document.createElement('summary');summary.textContent='Home Assistant areas and controls';roomDetails.append(summary);
+    const roomDetails=document.createElement('details');
+    // Closed at first; stays as it was (open after adding or removing a room) while the editor is open.
+    roomDetails.open=!!this._roomsOpen;roomDetails.addEventListener('toggle',()=>{this._roomsOpen=roomDetails.open;});const summary=document.createElement('summary');summary.textContent='Home Assistant areas and controls';roomDetails.append(summary);
     const editorRooms = this.config.area_rooms
       ? Object.entries(this.config.rooms || {}).map(([key, room]) => ({key, name: room.name, placeholders: []}))
       : ROOM_TEMPLATES;
@@ -336,7 +338,7 @@ export class DwellDeckOriginalEditor extends HTMLElement {
       ],this.config.rooms?.[room.key]||{entities:room.placeholders.map(id=>{const slot=SLOTS.find(s=>s.placeholder===id);return this.config.entities?.[slot?.key];}).filter(Boolean)},value=>this.change({...this.config,rooms:{...this.config.rooms,[room.key]:value}}),{name:'Room title',area:'Discover lights and switches from area',entities:'Lights and switches',exclude:'Excluded entities',discover_controls:'Discover room controls and sensors',controls:'Additional room controls and sensors',discover_lighting:'Filter automatic lighting discovery to lights and lighting switches',temperature_sensors:'Room temperature: temperature sensors or air conditioners (their current temperature); averaged when there are several, empty uses the room\'s own'}));roomDetails.append(details);
     }
     (this.config.extra_rooms||[]).forEach((room,index)=>{
-      const details=document.createElement('details');details.open=true;
+      const details=document.createElement('details');details.open=room.name==='New room';
       const title=document.createElement('summary');title.textContent=room.name||'New room';details.append(title);
       details.append(this.form([{name:'name',selector:{text:{}}},{name:'area',selector:{area:{}}},{name:'entities',selector:{entity:{multiple:true,filter:{domain:['light','switch']}}}},{name:'exclude',selector:{entity:{multiple:true}}},{name:'discover_controls',selector:{boolean:{}}},{name:'controls',selector:{entity:{multiple:true,filter:{domain:ROOM_CONTROL_DOMAINS}}}},{name:'discover_lighting',selector:{boolean:{}}},{name:'temperature_sensors',selector:{entity:{multiple:true,filter:[{domain:'sensor',device_class:'temperature'},{domain:'climate'}]}}}],room,value=>{
         const extra_rooms=[...this.config.extra_rooms];extra_rooms[index]=value;this.change({...this.config,extra_rooms});

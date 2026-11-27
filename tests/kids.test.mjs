@@ -75,6 +75,23 @@ test('each tab shows only what was picked for it; tabs left open show everything
   assert(JSON.stringify(all.views.find(v => v.path === 'media')).includes('media_player.saloon_tv'), 'the fixture does show the other TV when nothing is picked');
 });
 
+test('Home with nothing picked follows the other tabs; Home alone is the whole of Home', async () => {
+  const kid = {user: 'Ali', tabs: ['home', 'media'], access: {media: {entity_id: ['media_player.ali_tv']}}};
+  const d = await Strategy.generate({...config, kids: [kid]}, hass({id: 'u1', name: 'Ali'}));
+  const home = JSON.stringify(d.views.find(v => v.path === 'home'));
+  for (const id of ['light.saloon', 'media_player.saloon_tv', 'alarm_control_panel.house', 'lock.gate', 'light.ali_ceiling']) assert(!home.includes(id), `Home leaves out ${id}`);
+  for (const view of d.views.filter(v => v.subview)) assert(!JSON.stringify(view).includes('light.saloon'), `${view.path} too`);
+  const nav = [];
+  const collect = o => { if (o && typeof o === 'object') { if (o.tap_action?.action === 'navigate') nav.push(o.tap_action.navigation_path.split('/').pop()); Object.values(o).forEach(collect); } };
+  collect(d.views.filter(v => !v.subview));
+  const mainPaths = ['home', 'rooms', 'lighting', 'curtains', 'climate', 'energy', 'music-assistant', 'media', 'security', 'outdoor', 'devices', 'cameras'];
+  assert(nav.every(p => !mainPaths.includes(p) || d.views.some(v => v.path === p)), `shortcuts only to their pages: ${nav.join()}`);
+  const alone = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['home']}]}, hass({id: 'u1', name: 'Ali'}));
+  assert(JSON.stringify(alone.views.find(v => v.path === 'home')).includes('light.saloon'));
+  const whole = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['home', 'rooms']}]}, hass({id: 'u1', name: 'Ali'}));
+  assert(JSON.stringify(whole.views.find(v => v.path === 'home')).includes('light.saloon'), 'a whole tab given: everything on it counts');
+});
+
 test('a limited user with no tabs gets a clear message, not the dashboard', async () => {
   const d = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: []}]}, hass({id: 'u1', name: 'Ali'}));
   assert.equal(d.views.length, 1);
@@ -121,6 +138,21 @@ test('a shared card can leave some of its items out', async () => {
   assert.deepEqual(out.sections[0].cards[1].tap_action.browser_mod.data.content.cards.map(c => c.entity), ['light.ali_ceiling', 'climate.ali_ac'], 'so does its popup');
 });
 
+test('templates lose what was not given: JSON data, id lists and single ids', async () => {
+  const {narrowCard} = await import('../src/kids.mjs');
+  const known = new Set(['light.a', 'light.b', 'climate.a', 'climate.b', 'alarm_control_panel.x']);
+  const allowed = new Set(['light.a', 'climate.a']);
+  const card = {type: 'custom:button-card',
+    label: '[[[ const ids=["light.a","light.b"]; const ac=[\'climate.a\',\'climate.b\']; return ids.length ]]]',
+    custom_fields: {glance: '[[[ return f(states, {"lights":["light.a","light.b"],"tvs":[["light.b","x"],["light.a","y"]],"alarm":"alarm_control_panel.x","n":2}) ]]]'},
+    visibility: [{condition: 'and', conditions: [{condition: 'state', entity: 'light.a', state: 'off'}, {condition: 'state', entity: 'light.b', state: 'off'}]}]};
+  const out = narrowCard(card, allowed, known);
+  assert.equal(out.label, '[[[ const ids=["light.a"]; const ac=[\'climate.a\']; return ids.length ]]]');
+  assert.equal(out.custom_fields.glance, '[[[ return f(states, {"lights":["light.a"],"tvs":[["light.a","y"]],"alarm":null,"n":2}) ]]]');
+  assert.deepEqual(out.visibility[0].conditions.map(c => c.entity), ['light.a'], 'conditions on what was not given go');
+  assert.equal(narrowCard({label: "[[[ const ac=['climate.a','climate.b']; ]]]"}, allowed, known).label, "[[[ const ac=['climate.a']; ]]]", 'single quotes alone too');
+});
+
 test('the editor: a dropdown per tab, a dropdown per card, and what is saved', async () => {
   const {DwellDeckOriginalEditor} = await import('../src/editor.mjs');
   page();
@@ -151,6 +183,7 @@ test('the editor: a dropdown per tab, a dropdown per card, and what is saved', a
   assert.equal(sara.length, 2, 'one dropdown per ticked tab');
   const [rooms, media] = sara;
   assert.match(rooms.children[0].textContent, /everything on this tab/);
+  assert.doesNotMatch(rooms.children[0].textContent, /other tabs/);
   const roomRows = rooms.querySelectorAll('div');
   assert.deepEqual(roomRows.map(r => r.children[0].text.trim()), ['Ali Room', 'Saloon'], 'the heading is the group; rows show the card\'s own name');
   const [aliTick] = roomRows[0].children[0].children;
