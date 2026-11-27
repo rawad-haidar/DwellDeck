@@ -141,7 +141,8 @@ export function narrowCard(card, allowed, known) {
   // Inside a template's data, a single id that wasn't given becomes null ("alarm": null: no alarm shown).
   const walkData = value => Array.isArray(value) ? value.filter(keepItem).map(walkData)
     : typeof value === 'string' ? (given(value) ? value : null)
-    : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walkData(item)])) : value;
+    // {"climate.kitchen_ac": "Kitchen AC"}: entries keyed by something not given go too.
+    : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).filter(([key]) => given(key)).map(([key, item]) => [key, walkData(item)])) : value;
   const walk = value => {
     if (Array.isArray(value)) return value.filter(keepItem).map(walk);
     // JavaScript ([[[ ]]]) and Jinja ({% %}, {{ }}) templates both carry their lists this way.
