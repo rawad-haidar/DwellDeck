@@ -119,7 +119,7 @@ strategy:
       rooms: [ali_room]    # area ids or area names
 ```
 
-This limits what DwellDeck shows; it is not a lock. Make the children's accounts non-administrators, and turn on **Admin only** for your other dashboards (Settings → Dashboards), so they can't open those instead.
+On its own, this limits what DwellDeck shows; it is not a lock. Under **Protection**, press **Save protection**: DwellDeck creates an automation, “DwellDeck · Guard”, that sets back anything a limited user changes outside their rooms (boiler and pool switches, valves, other rooms’ air conditioners, curtains, locks, automations) and notifies you. Also make the children’s accounts non-administrators, and turn on **Admin only** for your other dashboards (Settings → Dashboards).
 
 ## Editing behavior
 

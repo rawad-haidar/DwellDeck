@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.48 — Protection for limited users
+
+- **Limited users can no longer change what isn't theirs.** Edit dashboard → Limited users has a new Protection part. Save protection creates a Home Assistant automation, "DwellDeck · Guard", that sets back anything a limited user changes outside their rooms and leaves you a notification. That covers switches such as the boiler and pool filter, valves, other rooms' air conditioners, curtains, locks and automations. Their own rooms' lights, TVs and air conditioners are left alone.
+- **Protect anything extra.** Pick devices under "Also protect these" and they're set back for every limited user, even in their own rooms.
+- Press Save protection again after changing users, rooms or devices. With no limited users left, it removes the guard.
+
 ## 0.9.47 — Limited users in the editor
 
 - **Set up limited users without YAML.** Edit dashboard now has a Limited users section that lists your non-administrator users. Pick rooms for someone and they get only the My room page for those rooms. Clear the rooms to give them the full dashboard back. Administrators and Home Assistant's own system accounts aren't listed.
