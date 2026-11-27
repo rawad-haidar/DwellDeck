@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.61 — Generator load from the controller
+
+- **The generator card uses the controller's own output power** when it's in Home Assistant (`sensor.gen_total_power` or `sensor.gen_power`; on a DSE, register 1536). The inverter-side reading only measures what the inverters take from the generator, and it also shows mains power while the generator is off.
+  - **The history keeps the inverter-side reading for the time before the controller's sensor existed,** so older runs keep their energy.
+  - **Only the controller's own reading marks a run,** so mains power on the inverter side is no longer counted as a run.
+
 ## 0.9.60 — Generator on Home
 
 - **The generator's live state is on Home,** under Energy and climate: what the engine is doing (pre-start, cranking, warming up, on or off load, cooling down), with its load, speed, output, frequency, coolant and battery. Tap it to open the Energy page with the buttons and history.

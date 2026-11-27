@@ -55,7 +55,10 @@ export function gensetSetup(config = {}, hass = {}) {
     rpm: pick('rpm', sensor('(?:engine_speed|rpm)')),
     frequency: pick('frequency', sensor('frequency')),
     voltage: pick('voltage', sensor('(?:l1_n_voltage|l1_voltage|output_voltage)')),
-    power: pick('power', find(/^sensor\.(?:electric_)?generator_(?:.*_)?power$/)),
+    // The controller's own output power wins; an inverter-side reading is the fallback and fills the history
+    // from before the controller's sensor existed.
+    power: pick('power', sensor('total_power') || sensor('(?:l1_)?power') || find(/^sensor\.(?:electric_)?generator_(?:.*_)?power$/)),
+    powerBackup: own.power ? null : (sensor('total_power') || sensor('(?:l1_)?power')) && find(/^sensor\.(?:electric_)?generator_(?:.*_)?power$/) || null,
     coolant: pick('coolant', sensor('coolant_temp(?:erature)?')),
     oil: pick('oil', sensor('oil_pressure')),
     fuel: pick('fuel', sensor('fuel_level')),
@@ -173,7 +176,7 @@ export function dwellGensetHistory(card, hass, cfg) {
     const days = Number.parseInt(st.range, 10) || 1;
     return [new Date(today - (days - 1) * 86400000), now];
   };
-  const ids = [cfg.rpm, cfg.frequency, cfg.power, cfg.coolant, cfg.voltage].filter(Boolean);
+  const ids = [cfg.rpm, cfg.frequency, cfg.power, cfg.powerBackup, cfg.coolant, cfg.voltage].filter(Boolean);
   const draw = () => { const t = card?.shadowRoot?.querySelector('.gnh'); if (t) t.outerHTML = render(); };
   const load = async () => {
     const [from, to] = span();
@@ -196,10 +199,19 @@ export function dwellGensetHistory(card, hass, cfg) {
   };
   // The value a series had at time t (its last reading at or before t).
   const at = (series, t) => { let v = null; for (const row of series || []) { if (row.t > t) break; v = row.v; } return v; };
+  // The controller's power, with the inverter-side reading before its first sample.
+  const powerOf = d => {
+    const own = d.rows[cfg.power] || [];
+    const first = own.find(row => Number.isFinite(row.v))?.t ?? Infinity;
+    return cfg.powerBackup ? (d.rows[cfg.powerBackup] || []).filter(row => row.t < first).concat(own.filter(row => row.t >= first)) : own;
+  };
   const analyse = d => {
+    // Only the controller's own reading marks a run: the inverter side also shows mains power.
+    const own = d.rows[cfg.power] || [];
+    const power = powerOf(d);
     // Running whenever the engine turns, there's output frequency, or the generator delivers power:
     // whichever the recorder has (a sensor added later only covers part of the history).
-    const signals = [[d.rows[cfg.rpm], 100], [d.rows[cfg.frequency], 5], [d.rows[cfg.power], 50]].filter(([rows]) => rows?.length);
+    const signals = [[d.rows[cfg.rpm], 100], [d.rows[cfg.frequency], 5], [own, 50]].filter(([rows]) => rows?.length);
     const times = [...new Set(signals.flatMap(([rows]) => rows.map(row => row.t)))].sort((a, b) => a - b);
     const index = signals.map(() => -1);
     const runs = [];
@@ -215,7 +227,6 @@ export function dwellGensetHistory(card, hass, cfg) {
       if (!on && open) { open.end = t; runs.push(open); open = null; }
     }
     if (open) { open.end = d.to; open.running = true; runs.push(open); }
-    const power = d.rows[cfg.power] || [];
     for (const run of runs) {
       // Energy: the load held between readings, added up over the run.
       let wh = 0, peak = 0, sum = 0, n = 0;
@@ -239,7 +250,7 @@ export function dwellGensetHistory(card, hass, cfg) {
   const chart = (d, runs) => {
     const W = 1100, H = 170, L = 58, R = 12, T = 12, B = 28;
     const x = t => L + (t - d.from) / Math.max(1, d.to - d.from) * (W - L - R);
-    const power = (d.rows[cfg.power] || []).filter(r => Number.isFinite(r.v));
+    const power = powerOf(d).filter(r => Number.isFinite(r.v));
     const top = Math.max(1000, ...power.map(r => r.v)) * 1.1;
     const y = v => T + (1 - v / top) * (H - T - B);
     let path = '';
@@ -355,7 +366,7 @@ export function gensetSection(setup) {
   const cards = [{type: 'heading', heading: 'Generator', icon: 'mdi:engine', heading_style: 'title'}, panel];
     if (buttons.length) cards.push({type: 'grid', columns: 4, square: false, cards: buttons, grid_options: {columns: 'full'}});
   // History: runs, running time and energy, worked out from the recorder (no counters needed).
-  const historyCfg = {rpm: setup.rpm, frequency: setup.frequency, power: setup.power, coolant: setup.coolant, voltage: setup.voltage, c: cfg.c};
+  const historyCfg = {rpm: setup.rpm, frequency: setup.frequency, power: setup.power, powerBackup: setup.powerBackup, coolant: setup.coolant, voltage: setup.voltage, c: cfg.c};
   cards.push({type: 'heading', heading: 'Generator history', icon: 'mdi:history', heading_style: 'subtitle'}, {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true}, triggers_update: [setup.rpm || setup.frequency].filter(Boolean),

@@ -168,3 +168,24 @@ test('Home shows the generator under the energy readings, opening the Energy pag
   const none = designHome(make(), {prefix: '/dwell', hass: {states: {'sensor.villa_power': st(1)}}, config: {}});
   assert(!JSON.stringify(none).includes('"genset"'), 'no generator, nothing on Home');
 });
+
+test("the controller's own power wins; the inverter reading fills the history before it", async () => {
+  const {dwellGensetHistory} = await import('../src/genset.mjs');
+  const withDse = {...states, 'sensor.gen_total_power': st(0, 'W')};
+  const setup = gensetSetup({}, {states: withDse});
+  assert.equal(setup.power, 'sensor.gen_total_power');
+  assert.equal(setup.powerBackup, 'sensor.electric_generator_power');
+  assert.equal(gensetSetup({generator: {power: 'sensor.electric_generator_power'}}, {states: withDse}).powerBackup, null, 'a power set by hand has no fallback');
+  const h = 3600000, from = Date.UTC(2026, 10, 27, 0), to = from + 12 * h;
+  globalThis.window = {__dwellGenHist: {g: {range: 'today', loading: false, asked: 'done', data: {from, to, error: '', rows: {
+    'sensor.gen_engine_speed': [{t: from, v: 0}, {t: from + 2 * h, v: 1500}, {t: from + 3 * h, v: 0}, {t: from + 10 * h, v: 1500}, {t: from + 11 * h, v: 0}],
+    // Inverter side: 2 kW during the first run, then 6 kW of mains power while the generator is at rest.
+    'sensor.electric_generator_power': [{t: from, v: 0}, {t: from + 2 * h, v: 2000}, {t: from + 3 * h, v: 0}, {t: from + 5 * h, v: 6000}, {t: from + 7 * h, v: 0}, {t: from + 10 * h, v: 9999}],
+    // The controller's sensor starts at 9 h: 4 kW in the second run.
+    'sensor.gen_total_power': [{t: from + 9 * h, v: 0}, {t: from + 10 * h, v: 4000}, {t: from + 11 * h, v: 0}]
+  }}}}};
+  const html = dwellGensetHistory(null, {}, {rpm: 'sensor.gen_engine_speed', power: 'sensor.gen_total_power', powerBackup: 'sensor.electric_generator_power', c: {text: '#fff', muted: '#999', line: '#333', on: '#440', onText: '#fc0'}});
+  assert.match(html, /Starts<\/div><div class="sv">2/, 'mains power on the inverter side is not a run');
+  assert.match(html, /Energy<\/div><div class="sv">6\.0 kWh/, '2 kWh from the inverter side before, 4 kWh from the controller after');
+  delete globalThis.window;
+});
