@@ -10,13 +10,13 @@ The Security page shows live **human** and **vehicle** detection for your camera
 
 Each camera appears as a tile that glows while something is detected. Tap a tile to see the latest **snapshot** of each human and vehicle detection and the live camera view. To save snapshots, open **Edit dashboard**, press **Set up detection snapshots**, then **Save**. This creates one automation, *DwellDeck · Detection snapshots*, that saves a picture from the sensor's camera each time a detection starts, replacing the previous one. Pictures are stored in `/media/dwelldeck/snapshots`, which needs a Home Assistant login to view. A sensor is linked to the camera on the same device, or else to a camera whose name starts with the camera name (for example *Front Gate Main* for *Front Gate Smart Motion Human*); main streams are preferred over sub streams. Press the button again after adding cameras or sensors. UI automations must be enabled (`automation: !include automations.yaml` in `configuration.yaml`, the default).
 
-## New in 0.9.48
+## New in 0.9.49
 
 Each TV is one compact card: its status and what is playing, power, volume, and tabs that open inside the card: **Remote**, **Apps**, **Sources** (HDMI, TV, home screen) and **Keyboard**. It works with the Android TV Remote, Android Debug Bridge and Apple TV integrations, and a TV added through more than one of them shows as one card. For the Android TV keyboard, turn on the integration's option for the current app name and keyboard input.
 
 ## New in 0.9.0
 
-The Home page opens with a live weather hero: the sky follows the real sun, weather moves across it, and a 6-hour forecast, sunrise or sunset countdown, wind, humidity and solar output sit at the bottom. The new **Lamplight** palette is the default (see below). To check which version your browser loaded, open the browser console: it shows **DwellDeck 0.9.48**.
+The Home page opens with a live weather hero: the sky follows the real sun, weather moves across it, and a 6-hour forecast, sunrise or sunset countdown, wind, humidity and solar output sit at the bottom. The new **Lamplight** palette is the default (see below). To check which version your browser loaded, open the browser console: it shows **DwellDeck 0.9.49**.
 
 ## New in 0.8.1
 
@@ -78,7 +78,7 @@ The built-in colors use card-mod and do not require a separately installed theme
 
 ### Manual fallback
 
-Copy `dwelldeck.js` to Home Assistant’s `www` folder, register `/local/dwelldeck.js?v=0.9.48` as a JavaScript module in dashboard Resources, and refresh. Then create the community dashboard as above. If the picker is unavailable, create a blank dashboard and paste `examples/dashboard.yaml` into its raw configuration editor.
+Copy `dwelldeck.js` to Home Assistant’s `www` folder, register `/local/dwelldeck.js?v=0.9.49` as a JavaScript module in dashboard Resources, and refresh. Then create the community dashboard as above. If the picker is unavailable, create a blank dashboard and paste `examples/dashboard.yaml` into its raw configuration editor.
 
 HACS registers its own resource URL. Do not manually add a second URL with different capitalization; use the directory HACS actually installed.
 
@@ -117,6 +117,7 @@ strategy:
   kids:
     - user: Ali            # Home Assistant user name, or user id
       rooms: [ali_room]    # area ids or area names
+      tabs: [media, weather]   # optional: other DwellDeck tabs they can see
 ```
 
 On its own, this limits what DwellDeck shows; it is not a lock. Under **Protection**, press **Save protection**: DwellDeck creates an automation, “DwellDeck · Guard”, that sets back anything a limited user changes outside their rooms (boiler and pool switches, valves, other rooms’ air conditioners, curtains, locks, automations) and notifies you. Also make the children’s accounts non-administrators, and turn on **Admin only** for your other dashboards (Settings → Dashboards).
@@ -163,7 +164,7 @@ Golden tests in `tests/golden.test.mjs` hash the generated dashboard for many co
 
 ## Publish and update
 
-Upload this folder’s contents to the repository root. Keep `dwelldeck.js`, `hacs.json`, `README.md` and `LICENSE` at the root. Publish `v0.9.48` as a pre-release and attach the JavaScript file. Include the theme folder in the repository. See `GITHUB_SETUP.md`.
+Upload this folder’s contents to the repository root. Keep `dwelldeck.js`, `hacs.json`, `README.md` and `LICENSE` at the root. Publish `v0.9.49` as a pre-release and attach the JavaScript file. Include the theme folder in the repository. See `GITHUB_SETUP.md`.
 
 Do not upload private dashboard backups, source household entity bindings, Home Assistant configuration files or unredacted screenshots. The supplied package has been checked separately for those files.
 

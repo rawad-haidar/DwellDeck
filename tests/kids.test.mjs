@@ -109,3 +109,31 @@ test('the guard sets back what a limited user changes outside their rooms', asyn
   assert.equal(decide('admin', 'switch.boiler'), false, 'other users are never touched');
   assert(g.conditions.every(c => c.value_template.includes('trigger.event')));
 });
+
+test('a limited user can also be given chosen tabs, with the subviews those tabs open', async () => {
+  delete globalThis.document; // left by the editor tests
+  const d = await Strategy.generate({...config, kids: [{user: 'Ali', rooms: ['ali_room'], tabs: ['media', 'home']}]}, hass({id: 'u1', name: 'Ali'}));
+  const paths = d.views.map(v => v.path);
+  assert.equal(paths[0], 'my-room');
+  assert(paths.includes('media') && paths.includes('home'));
+  for (const path of ['security', 'lighting', 'climate', 'energy', 'cameras', 'devices']) assert(!paths.includes(path), path);
+  const sub = d.views.filter(v => v.subview).map(v => v.path);
+  assert(sub.every(p => JSON.stringify(d.views.filter(v => !v.subview)).includes(`/${p}"`)), 'only subviews a picked tab opens');
+  const tabsOnly = await Strategy.generate({...config, kids: [{user: 'Ali', rooms: [], tabs: ['media']}]}, hass({id: 'u1', name: 'Ali'}));
+  assert.deepEqual(tabsOnly.views.filter(v => !v.subview).map(v => v.path), ['media'], 'tabs alone: no empty My room page');
+});
+
+test('the editor saves the tabs picked for a limited user', async () => {
+  const {DwellDeckOriginalEditor} = await import('../src/editor.mjs');
+  const forms = [];
+  const editor = {config: {type: 'custom:dwelldeck-original'}, _hass: {callWS: async () => [{id: 'k1', name: 'Ali', group_ids: ['system-users']}]},
+    form(schema, data, callback, labels) { if (labels.rooms) forms.push({schema, callback}); return {}; }, change(c) { this.config = c; }};
+  globalThis.document = {createElement: () => ({setAttribute() {}, append() {}, style: {}, textContent: ''}), querySelector: () => null};
+  await DwellDeckOriginalEditor.prototype.renderLimitedUsers.call(editor, {replaceChildren() {}, append() {}});
+  assert(forms[0].schema.find(f => f.name === 'tabs').selector.select.options.some(o => o.value === 'media'));
+  forms[0].callback({rooms: [], tabs: ['media']});
+  assert.deepEqual(editor.config.kids, [{user: 'k1', name: 'Ali', rooms: [], tabs: ['media']}]);
+  forms[0].callback({rooms: [], tabs: []});
+  assert.equal(editor.config.kids, undefined);
+  delete globalThis.document;
+});

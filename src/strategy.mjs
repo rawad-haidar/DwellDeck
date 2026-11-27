@@ -90,7 +90,10 @@ class DwellDeckOriginalStrategy extends HTMLElement {
     // A kid's account gets only their own rooms (see kids.mjs). Registries may be admin-only on some
     // Home Assistant versions, so fall back to the ones every signed-in user already has.
     const kid = kidFor(config, hass.user);
-    if (kid) return kidsDashboard(config, await discoveryContext(hass).catch(() => hass), kid);
+    if (kid) {
+      const context = await discoveryContext(hass).catch(() => hass);
+      return kidsDashboard(config, context, kid, () => generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, config, context));
+    }
     const needsDiscovery = config.auto_discover || config.room_controls ||
       Object.values(config.rooms || {}).some(room => room.area) ||
       (config.extra_rooms || []).some(room => room.area);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.49 — Choose tabs for limited users
+
+- **Give a limited user other tabs too.** In Edit dashboard → Limited users, each person now has a tab picker next to their rooms, for example Media, Music Assistant or Weather. They see My room first, then only the tabs you ticked. Tabs alone (no rooms) are fine too.
+- A picked tab brings along the sub-pages it opens, such as Weather from Home. The Device directory never comes along this way. Security sensors and the camera wall come along only when Security itself is picked.
+- Protection still applies on those tabs: changes outside the person's rooms are set back.
+
 ## 0.9.48 — Protection for limited users
 
 - **Limited users can no longer change what isn't theirs.** Edit dashboard → Limited users has a new Protection part. Save protection creates a Home Assistant automation, "DwellDeck · Guard", that sets back anything a limited user changes outside their rooms and leaves you a notification. That covers switches such as the boiler and pool filter, valves, other rooms' air conditioners, curtains, locks and automations. Their own rooms' lights, TVs and air conditioners are left alone.
