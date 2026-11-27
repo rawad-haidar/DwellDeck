@@ -171,14 +171,20 @@ export function walkTab(view, hass, visit) {
       }
       const refs = refsIn(card, known);
       if (!refs.length) { out.push(card); continue; }
-      const own = [card.name, card.title, friendly(card.entity)].find(v => typeof v === 'string' && v.trim() && !v.includes('[[[')) ||
-        (refs.length === 1 ? friendly(refs[0]) || refs[0] : `${refs.length} items`);
-      const where = heading || (/^\d+ items$/.test(own) ? 'Summary' : '');
-      const label = where && !own.toLowerCase().includes(where.toLowerCase()) ? `${where} · ${own}` : own;
-      const count = (seen.get(label) || 0) + 1;
-      seen.set(label, count);
-      const key = count > 1 ? `${label} (${count})` : label;
-      const kept = visit(card, {key, label: key, heading: where, refs});
+      const named = [card.name, card.title, friendly(card.entity)].find(v => typeof v === 'string' && v.trim() && !v.includes('[[[')) ||
+        (refs.length === 1 ? friendly(refs[0]) || refs[0] : '');
+      // A card without a name is known by where it is, not by how many things it shows: the count
+      // changes whenever a light is added, and a card given to someone must stay theirs.
+      const where = heading || (named ? '' : 'Summary');
+      const join = name => where && !name.toLowerCase().includes(where.toLowerCase()) ? `${where} · ${name}` : name;
+      const base = join(named || 'overview');
+      const count = (seen.get(base) || 0) + 1;
+      seen.set(base, count);
+      const number = text => count > 1 ? `${text} (${count})` : text;
+      const key = number(base);
+      // Saved before 0.9.54: the count was part of the key.
+      const before = named ? key : number(join(`${refs.length} items`));
+      const kept = visit(card, {key, before, label: number(join(named || `${refs.length} items`)), heading: where, refs});
       if (kept) out.push(kept);
     }
     return out;
@@ -205,8 +211,8 @@ export function pruneView(view, target, hass) {
   const known = new Set(Object.keys(hass.states || {}));
   const allowed = targetEntities(target, hass);
   const chosen = target?.cards ? new Set(target.cards) : null;
-  const next = walkTab(view, hass, (card, {key, refs}) =>
-    chosen ? (chosen.has(key) ? narrowCard(card, allowed, known) : null) : (refs.every(id => allowed.has(id)) ? card : null));
+  const next = walkTab(view, hass, (card, {key, before, refs}) =>
+    chosen ? (chosen.has(key) || chosen.has(before) ? narrowCard(card, allowed, known) : null) : (refs.every(id => allowed.has(id)) ? card : null));
   if (Array.isArray(view.sections) && !next.sections.length) next.sections = [{type: 'grid', cards: [{type: 'markdown', content: 'Nothing on this page has been shared with you yet.'}]}];
   return next;
 }

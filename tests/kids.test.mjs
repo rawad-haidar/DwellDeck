@@ -121,8 +121,17 @@ test('each tab lists its own cards, named with the heading above them', async ()
   assert.deepEqual(tabChoices(view, hass({})).map(c => [c.key, c.heading, c.refs.join()]), [
     ['Bedrooms · Ali TV', 'Bedrooms', 'media_player.ali_tv'],
     ['Bedrooms · Saloon TV', 'Bedrooms', 'media_player.saloon_tv'],
-    ['Bedrooms · 2 items', 'Bedrooms', 'climate.ali_ac,light.ali_ceiling'],
+    ['Bedrooms · overview', 'Bedrooms', 'climate.ali_ac,light.ali_ceiling'],
     ['Bedrooms · Ali TV (2)', 'Bedrooms', 'media_player.ali_tv']]);
+  assert.equal(tabChoices(view, hass({}))[2].label, 'Bedrooms · 2 items', 'the editor still shows how many things are on it');
+  // Adding a light to the house doesn't change which card is which.
+  const grown = JSON.parse(JSON.stringify(view));
+  grown.sections[0].cards[3].cards[0].triggers_update.push('switch.ali_lamp');
+  assert.equal(tabChoices(grown, hass({}))[2].key, 'Bedrooms · overview');
+  // A card saved before 0.9.54, under its count, is still found.
+  const {pruneView} = await import('../src/kids.mjs');
+  const kept = pruneView(view, {cards: ['Bedrooms · 2 items'], entity_id: ['climate.ali_ac', 'light.ali_ceiling']}, hass({}));
+  assert(JSON.stringify(kept).includes('triggers_update'));
 });
 
 test('a shared card can leave some of its items out', async () => {

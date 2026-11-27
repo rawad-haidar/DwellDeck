@@ -65,7 +65,7 @@ export class DwellDeckOriginalEditor extends HTMLElement {
       summary.textContent=`${label}`;return box;
     }
     const given=target?targetEntities(target,this._hass):new Set();
-    const chosen=new Set(target?.cards?.length?target.cards.filter(key=>choices.some(c=>c.key===key))
+    const chosen=new Set(target?.cards?.length?choices.filter(c=>target.cards.includes(c.key)||target.cards.includes(c.before)).map(c=>c.key)
       :target?choices.filter(c=>c.refs.every(id=>given.has(id))).map(c=>c.key):[]);
     const allowed=new Set(target?.cards?.length?(target.entity_id||[]):choices.filter(c=>chosen.has(c.key)).flatMap(c=>c.refs));
     const name=id=>this._hass?.states?.[id]?.attributes?.friendly_name||id;

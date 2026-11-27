@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.54 — Shared cards stay shared when the house grows
+
+- **A card given to a limited user stays theirs when you add devices.** Cards without a name of their own (Home's summary, "All villa lights", Recently played) were identified by their item count, for example "Summary · 142 items". Adding one light changed the count, and the person quietly lost the card. Such cards are now known by where they are ("Summary · overview"). The editor still shows the count. Cards saved under the old names keep working.
+
 ## 0.9.53 — Home follows a limited user's other tabs
 
 - **A limited user's Home shows only what they were given elsewhere.** With no cards picked for Home, it follows their other tabs. The summary at the top counts only their lights, TVs and AC, with no alarm unless it was given. Rooms in use lists only their rooms. "Everything is off" means everything of theirs. AC live status shows only their AC. Home alone, or Home with a whole tab given, is unchanged. In the editor, Home reads "only what the other tabs give" when nothing is ticked.
