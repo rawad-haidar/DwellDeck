@@ -5,6 +5,7 @@
 // the editor as "DwellDeck · Guard".
 import {roomEntities, withRegistryIndex} from './discovery.mjs';
 import {isTv, withoutDuplicatePlayers} from './tv.mjs';
+import {kidPicked} from './kids.mjs';
 
 export const GUARD_ID = 'dwelldeck_guard';
 // Domains where a change by a limited user is undone unless the entity is one of theirs.
@@ -22,7 +23,7 @@ export function allowedEntities(rooms, hass) {
       const room = {area: area.area_id, name: area.name, discover_lighting: true};
       ids.push(...roomEntities(room, hass),
         ...withoutDuplicatePlayers(roomEntities(room, hass, ['media_player']).filter(id => isTv(id, hass)), hass),
-        ...roomEntities(room, hass, ['climate']));
+        ...roomEntities(room, hass, ['climate']), ...roomEntities(room, hass, ['cover']));
     }
     return [...new Set(ids)].sort();
   });
@@ -34,7 +35,9 @@ export function guardAutomation(config, hass, users = []) {
   const allowed = {};
   for (const kid of config.kids || []) {
     const id = userId(kid);
-    if (id) allowed[id] = allowedEntities(kid.rooms, hass);
+    if (!id) continue;
+    const picked = kidPicked(kid, hass);
+    allowed[id] = [...new Set([...picked.entities, ...allowedEntities(picked.areas, hass)])].sort();
   }
   const protectedIds = [...new Set(config.protected || [])].sort();
   const domains = GUARDED_DOMAINS;

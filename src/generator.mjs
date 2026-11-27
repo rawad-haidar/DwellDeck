@@ -65,6 +65,13 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
 }
 function buildOriginal(template, slots, roomTemplates, config, hass) {
   if (config.auto_discover) config = discoverConfiguration(config, hass, roomTemplates, slots);
+  // A limited user sees only their rooms, on every page that lists rooms (see kids.mjs).
+  if (Array.isArray(config.only_areas)) {
+    const keep = new Set(config.only_areas);
+    config = {...config,
+      rooms: Object.fromEntries(Object.entries(config.rooms || {}).filter(([, room]) => keep.has(room?.area))),
+      extra_rooms: (config.extra_rooms || []).filter(room => keep.has(room?.area))};
+  }
   const bindings = config.entities || {};
   const prefix = inferDashboardPath(config,typeof location==='undefined'?'':location.pathname);
   if (!/^\/[a-z0-9_-]+$/.test(prefix)) throw new Error('Dashboard URL must be a single path, for example /dashboard-dwelldeck.');

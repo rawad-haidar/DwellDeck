@@ -92,7 +92,7 @@ class DwellDeckOriginalStrategy extends HTMLElement {
     const kid = kidFor(config, hass.user);
     if (kid) {
       const context = await discoveryContext(hass).catch(() => hass);
-      return kidsDashboard(config, context, kid, () => generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, config, context));
+      return kidsDashboard(config, context, kid, limited => generateOriginal(ORIGINAL_TEMPLATE, SLOTS, ROOM_TEMPLATES, limited, context));
     }
     const needsDiscovery = config.auto_discover || config.room_controls ||
       Object.values(config.rooms || {}).some(room => room.area) ||
