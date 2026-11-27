@@ -40,7 +40,8 @@ export function tabTarget(kid, tab) {
   if (!target) return null;
   const list = key => [].concat(target[key] || []).filter(Boolean);
   const clean = {area_id: list('area_id'), device_id: list('device_id'), entity_id: list('entity_id')};
-  return clean.area_id.length || clean.device_id.length || clean.entity_id.length ? clean : null;
+  if (list('cards').length) clean.cards = list('cards');
+  return clean.cards || clean.area_id.length || clean.device_id.length || clean.entity_id.length ? clean : null;
 }
 
 // Every entity a target stands for: its entities, the entities of its devices, and everything in its areas.
@@ -52,7 +53,7 @@ export function targetEntities(target, hass) {
   // (Music Assistant, ADB, a remote) has the same name, and entities on its device belong to it.
   const nameOf = id => normalizeName(hass.states?.[id]?.attributes?.friendly_name || '');
   const copyNames = new Set([...ids].filter(id => /^(media_player|remote)\./.test(id)).map(nameOf).filter(Boolean));
-  for (const id of ids) { const device = hass.entities?.[id]?.device_id; if (device) devices.add(device); }
+  for (const id of ids) { const device = /^(media_player|remote)\./.test(id) && hass.entities?.[id]?.device_id; if (device) devices.add(device); }
   for (const entity of Object.values(hass.entities || {})) {
     const area = entity.area_id || hass.devices?.[entity.device_id]?.area_id;
     if (devices.has(entity.device_id) || (area && areas.has(area))) ids.add(entity.entity_id);
@@ -74,11 +75,13 @@ export function kidPicked(kid, hass) {
   return {entities: [...ids].sort(), areas: [...areas].sort()};
 }
 
-// Cards on a tab that show or control anything outside what the user was given are removed.
-// Entities everyone may see (the sun, weather, zones) don't count.
+// Entities everyone may see (the sun, weather, zones) don't count as shown or controlled.
 const OPEN_DOMAINS = new Set(['sun', 'weather', 'zone']);
 const ENTITY_ID = /\b[a-z_]+\.[a-z0-9_]+\b/g;
 const SUBSTANTIVE = card => !['heading', 'markdown', 'spacer', 'custom:spacer-card'].includes(card?.type);
+const refsIn = (value, known) => [...new Set((JSON.stringify(value).match(ENTITY_ID) || []).filter(id => known.has(id) && !OPEN_DOMAINS.has(id.split('.')[0])))].sort();
+
+// Leaves the cards whose entities were all given (inside grids and stacks too).
 export function pruneCards(cards, allowed, known) {
   const out = [];
   for (const card of cards || []) {
@@ -87,54 +90,81 @@ export function pruneCards(cards, allowed, known) {
       if (kept.some(SUBSTANTIVE)) out.push({...card, cards: kept});
       continue;
     }
-    const refs = (JSON.stringify(card).match(ENTITY_ID) || []).filter(id => known.has(id) && !OPEN_DOMAINS.has(id.split('.')[0]));
-    if (refs.every(id => allowed.has(id))) out.push(card);
+    if (refsIn(card, known).every(id => allowed.has(id))) out.push(card);
   }
   return out;
 }
-export function pruneView(view, allowed, hass) {
-  const known = new Set(Object.keys(hass.states || {}));
+
+// A shared card with only some of its things given: lists of entities lose the others (so "All on"
+// switches only those) and cards inside it (a room's popup) showing the others are left out.
+export function narrowCard(card, allowed, known) {
+  const keep = id => typeof id !== 'string' || !known.has(id) || OPEN_DOMAINS.has(id.split('.')[0]) || allowed.has(id);
+  const walk = value => {
+    if (Array.isArray(value)) return value.every(item => typeof item === 'string') ? value.filter(keep) : value.map(walk);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) =>
+      [key, key === 'cards' && Array.isArray(item) ? pruneCards(item, allowed, known).map(walk) : walk(item)]));
+  };
+  return walk(card);
+}
+
+// Walks a tab's cards in order. visit(card, choice) sees every card that shows or controls something,
+// with its choice ({key, label, heading, refs}); it returns the card to keep, or null. Keys are the
+// card's label (heading · name), numbered when repeated, so the editor and the dashboard agree on them.
+export function walkTab(view, hass, visit) {
+  const known = new Set(Object.keys(hass?.states || {}));
+  const friendly = id => hass?.states?.[id]?.attributes?.friendly_name;
+  const seen = new Map();
+  let heading = '';
+  const list = cards => {
+    const out = [];
+    for (const card of cards || []) {
+      if (card?.type === 'heading') { heading = card.heading || heading; out.push(card); continue; }
+      if (Array.isArray(card?.cards) && card.type !== 'custom:button-card') {
+        const kept = list(card.cards);
+        if (kept.some(SUBSTANTIVE)) out.push({...card, cards: kept});
+        continue;
+      }
+      const refs = refsIn(card, known);
+      if (!refs.length) { out.push(card); continue; }
+      const own = [card.name, card.title, friendly(card.entity)].find(v => typeof v === 'string' && v.trim() && !v.includes('[[[')) ||
+        (refs.length === 1 ? friendly(refs[0]) || refs[0] : `${refs.length} items`);
+      const where = heading || (/^\d+ items$/.test(own) ? 'Summary' : '');
+      const label = where && !own.toLowerCase().includes(where.toLowerCase()) ? `${where} · ${own}` : own;
+      const count = (seen.get(label) || 0) + 1;
+      seen.set(label, count);
+      const key = count > 1 ? `${label} (${count})` : label;
+      const kept = visit(card, {key, label: key, heading: where, refs});
+      if (kept) out.push(kept);
+    }
+    return out;
+  };
   const next = {...view};
-  if (Array.isArray(view.sections)) {
-    next.sections = view.sections.map(section => ({...section, cards: pruneCards(section.cards, allowed, known)}))
-      .filter(section => section.cards.some(SUBSTANTIVE));
-    if (!next.sections.length) next.sections = [{type: 'grid', cards: [{type: 'markdown', content: 'Nothing on this page has been shared with you yet.'}]}];
-  }
-  if (Array.isArray(view.cards)) next.cards = pruneCards(view.cards, allowed, known);
-  if (Array.isArray(view.badges)) next.badges = pruneCards(view.badges, allowed, known);
+  if (Array.isArray(view?.sections)) next.sections = view.sections.map(section => { heading = section.title || ''; return {...section, cards: list(section.cards)}; })
+    .filter(section => section.cards.some(SUBSTANTIVE));
+  heading = '';
+  if (Array.isArray(view?.cards)) next.cards = list(view.cards);
+  if (Array.isArray(view?.badges)) next.badges = list(view.badges);
   return next;
 }
 
-// The cards on a tab that can be shared, for the editor: one choice per card showing or controlling
-// something, named after the card, its entity, or the heading above it. Cards showing the same
-// things are one choice. value: the entities the card refers to, joined by commas.
+// The cards on a tab, for the editor: [{key, label, heading, refs}].
 export function tabChoices(view, hass) {
-  const known = new Set(Object.keys(hass?.states || {}));
-  const friendly = id => hass?.states?.[id]?.attributes?.friendly_name;
-  const byKey = new Map();
-  let heading = '';
-  const walk = cards => {
-    for (const card of cards || []) {
-      if (card?.type === 'heading') { heading = card.heading || heading; continue; }
-      if (Array.isArray(card?.cards) && card.type !== 'custom:button-card') { walk(card.cards); continue; }
-      const refs = [...new Set((JSON.stringify(card).match(ENTITY_ID) || []).filter(id => known.has(id) && !OPEN_DOMAINS.has(id.split('.')[0])))].sort();
-      if (!refs.length) continue;
-      const own = [card.name, card.title, friendly(card.entity)].find(v => typeof v === 'string' && v.trim() && !v.includes('[[[')) ||
-        (refs.length === 1 ? friendly(refs[0]) || refs[0] : `${refs.length} items`);
-      const key = refs.join(',');
-      const entry = byKey.get(key);
-      if (entry) { if (!entry.names.includes(own)) entry.names.push(own); }
-      else byKey.set(key, {value: key, heading, names: [own]});
-    }
-  };
-  for (const section of view?.sections || []) { heading = section.title || ''; walk(section.cards); }
-  walk(view?.cards);
-  // The heading above says where a card is ("Kitchen · Open all / Close all"), unless the name already does.
-  return [...byKey.values()].map(({value, heading, names}) => {
-    const label = names.join(' / ');
-    const where = heading || (/^\d+ items$/.test(label) ? 'Summary' : '');
-    return {value, label: where && !label.toLowerCase().includes(where.toLowerCase()) ? `${where} · ${label}` : label};
-  });
+  const choices = [];
+  if (view) walkTab(view, hass, (card, choice) => { choices.push(choice); return card; });
+  return choices;
+}
+
+// A tab with only what was given: the chosen cards, each narrowed to the things given on it. Picks
+// made without cards (areas, devices or entities) keep the cards whose things were all given.
+export function pruneView(view, target, hass) {
+  const known = new Set(Object.keys(hass.states || {}));
+  const allowed = targetEntities(target, hass);
+  const chosen = target?.cards ? new Set(target.cards) : null;
+  const next = walkTab(view, hass, (card, {key, refs}) =>
+    chosen ? (chosen.has(key) ? narrowCard(card, allowed, known) : null) : (refs.every(id => allowed.has(id)) ? card : null));
+  if (Array.isArray(view.sections) && !next.sections.length) next.sections = [{type: 'grid', cards: [{type: 'markdown', content: 'Nothing on this page has been shared with you yet.'}]}];
+  return next;
 }
 
 // The full dashboard's views a limited user was given, with the hidden subviews those views open
@@ -163,8 +193,11 @@ export function kidsDashboard(config, hass, kid, buildFull) {
   // A sub-page follows the picks of the tab that opens it (Activity from a Home limited to one room).
   const opener = view => picked.find(other => !other.subview && JSON.stringify(other).includes(`/${view.path}"`));
   const views = picked.map(view => {
-    const target = tabTarget(kid, view.subview && !tabs.includes(view.path) ? opener(view)?.path : view.path);
-    return target ? pruneView(view, targetEntities(target, hass), hass) : view;
+    const sub = view.subview && !tabs.includes(view.path);
+    const target = tabTarget(kid, sub ? opener(view)?.path : view.path);
+    if (!target) return view;
+    // A sub-page has other cards than the tab that opens it: it keeps what shows only given things.
+    return pruneView(view, sub ? {...target, cards: undefined} : target, hass);
   });
   return views.length ? {...full, views} : nothing;
 }

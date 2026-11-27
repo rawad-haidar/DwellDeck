@@ -52,6 +52,57 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     const config={...this.config};delete config.kids;
     return strategy.generate(config,this._hass);
   }
+  // One tab's dropdown: its cards grouped under their headings. Ticking a card shares it; its own
+  // dropdown then lists what is on it, all ticked, to leave some out. Nothing ticked: the whole tab.
+  tabPicker(user,label,choices,target,onChange){
+    const box=document.createElement('details');box.className='tab-access';
+    const summary=document.createElement('summary');box.append(summary);
+    if(!choices.length){
+      box.append(this.form([{name:'pick',selector:{target:{}}}],{pick:target||{}},value=>{
+        const t=value.pick||{};const keep=Object.fromEntries(['area_id','device_id','entity_id'].map(k=>[k,[].concat(t[k]||[])]).filter(([,v])=>v.length));
+        onChange(Object.keys(keep).length?keep:null);
+      },{pick:`What ${user.name} sees on ${label} (empty: everything)`}));
+      summary.textContent=`${label}`;return box;
+    }
+    const given=target?targetEntities(target,this._hass):new Set();
+    const chosen=new Set(target?.cards?.length?target.cards.filter(key=>choices.some(c=>c.key===key))
+      :target?choices.filter(c=>c.refs.every(id=>given.has(id))).map(c=>c.key):[]);
+    const allowed=new Set(target?.cards?.length?(target.entity_id||[]):choices.filter(c=>chosen.has(c.key)).flatMap(c=>c.refs));
+    const name=id=>this._hass?.states?.[id]?.attributes?.friendly_name||id;
+    const count=()=>{summary.textContent=`${label}: ${chosen.size?`${chosen.size} of ${choices.length} cards`:'everything on this tab'}`;};
+    const emit=()=>{
+      count();
+      const picked=choices.filter(c=>chosen.has(c.key));
+      if(!picked.length){onChange(null);return;}
+      onChange({cards:picked.map(c=>c.key),entity_id:[...new Set(picked.flatMap(c=>c.refs).filter(id=>allowed.has(id)))].sort()});
+    };
+    const groups=new Map();for(const choice of choices){const g=choice.heading||label;if(!groups.has(g))groups.set(g,[]);groups.get(g).push(choice);}
+    for(const [heading,items] of groups){
+      const group=groups.size>1?document.createElement('details'):box;
+      if(group!==box){const gs=document.createElement('summary');gs.textContent=heading;group.append(gs);box.append(group);}
+      for(const choice of items){
+        const row=document.createElement('div');row.className='card-access';
+        const tick=document.createElement('label');const box1=document.createElement('input');box1.type='checkbox';box1.checked=chosen.has(choice.key);
+        tick.append(box1,document.createTextNode(` ${choice.label.startsWith(heading+' · ')?choice.label.slice(heading.length+3):choice.label}`));row.append(tick);
+        const inner=document.createElement('details');const innerSummary=document.createElement('summary');inner.append(innerSummary);
+        const innerCount=()=>{const n=choice.refs.filter(id=>allowed.has(id)).length;innerSummary.textContent=`Items on this card: ${n} of ${choice.refs.length}`;};
+        for(const id of [...choice.refs].sort((a,b)=>name(a).localeCompare(name(b)))){
+          const item=document.createElement('label');item.className='item-access';const cb=document.createElement('input');cb.type='checkbox';cb.checked=allowed.has(id);
+          cb.onchange=()=>{if(cb.checked)allowed.add(id);else allowed.delete(id);innerCount();emit();};
+          item.append(cb,document.createTextNode(` ${name(id)}`));inner.append(item);
+        }
+        innerCount();inner.hidden=!box1.checked||choice.refs.length<2;
+        box1.onchange=()=>{
+          if(box1.checked){chosen.add(choice.key);for(const id of choice.refs)allowed.add(id);
+            inner.querySelectorAll('input').forEach(cb=>{cb.checked=true;});}
+          else chosen.delete(choice.key);
+          inner.hidden=!box1.checked||choice.refs.length<2;innerCount();emit();
+        };
+        row.append(inner);group.append(row);
+      }
+    }
+    count();return box;
+  }
   async renderLimitedUsers(container){
     let users;
     try{users=await this._hass.callWS({type:'config/auth/list'});}
@@ -64,48 +115,32 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     if(!limitedUsers.length){container.textContent='No non-administrator users yet. Add one in Settings \u2192 People, with Administrator turned off.';return;}
     for(const user of limitedUsers){
       const entry=(this.config.kids||[]).find(kid=>kid.user===user.id||String(kid.user).toLowerCase()===String(user.name).toLowerCase());
-      // Tabs first; each ticked tab gets a picker for what they see on it (empty: everything on it).
+      // Tabs first; each ticked tab gets a dropdown of its cards, and each ticked card one of its items.
       const holder=document.createElement('div');container.append(holder);
       const mineNow=()=>(this.config.kids||[]).find(kid=>kid.user===user.id||String(kid.user).toLowerCase()===String(user.name).toLowerCase());
+      const write=(tabs,access)=>{
+        const others=(this.config.kids||[]).filter(kid=>kid!==mineNow());
+        const mine={user:user.id,name:user.name,tabs};if(Object.keys(access).length)mine.access=access;
+        const kids=tabs.length?[...others,mine]:others;
+        const next={...this.config};if(kids.length)next.kids=kids;else delete next.kids;
+        this.change(next);
+      };
       const draw=()=>{
         const current=mineNow();
         const tabs=kidTabs(current);
-        const labels={tabs:`${user.name}: tabs they can see`};
-        const schema=[{name:'tabs',selector:{select:{multiple:true,mode:'list',options:KID_TABS.map(([value,label])=>({value,label}))}}}];
-        const data={tabs};
-        for(const [tab,label] of KID_TABS){
-          if(!tabs.includes(tab))continue;
-          const options=choicesFor(tab);
-          labels[tab]=`${label}: cards ${user.name} sees (none ticked: everything on ${label})`;
-          const target=tabTarget(current,tab);
-          if(options.length){
-            // Only this tab's own cards are offered; a card is ticked when everything on it was given.
-            schema.push({name:tab,selector:{select:{multiple:true,mode:'list',options}}});
-            const given=target?targetEntities(target,this._hass):new Set();
-            data[tab]=target?options.filter(option=>option.value.split(',').every(id=>given.has(id))).map(option=>option.value):[];
-          }else{
-            schema.push({name:tab,selector:{target:{}}});
-            labels[tab]=`${label}: what ${user.name} sees there (empty: everything on ${label})`;
-            data[tab]=target||{};
-          }
-        }
-        holder.replaceChildren(this.form(schema,data,value=>{
-          const others=(this.config.kids||[]).filter(kid=>kid!==mineNow());
-          const nextTabs=value.tabs||[];
-          const access={};
-          for(const tab of nextTabs){
-            const t=value[tab];
-            // Ticked cards: the entities on them. A target picker (no cards to list): what was picked.
-            const keep=Array.isArray(t)?(t.length?{entity_id:[...new Set(t.flatMap(v=>v.split(',')))].sort()}:{})
-              :Object.fromEntries(['area_id','device_id','entity_id'].map(k=>[k,[].concat(t?.[k]||[])]).filter(([,v])=>v.length));
-            if(Object.keys(keep).length)access[tab]=keep;
-          }
-          const mine={user:user.id,name:user.name,tabs:nextTabs};if(Object.keys(access).length)mine.access=access;
-          const kids=nextTabs.length?[...others,mine]:others;
-          const next={...this.config};if(kids.length)next.kids=kids;else delete next.kids;
-          this.change(next);
+        const tabsForm=this.form([{name:'tabs',selector:{select:{multiple:true,mode:'list',options:KID_TABS.map(([value,label])=>({value,label}))}}}],{tabs},value=>{
+          const cur=mineNow(),nextTabs=value.tabs||[];
+          const access={};for(const tab of nextTabs){const target=tabTarget(cur,tab);if(target)access[tab]=Object.fromEntries(Object.entries(target).filter(([,v])=>v?.length));}
+          write(nextTabs,access);
           if(nextTabs.join()!==tabs.join())draw();
-        },labels));
+        },{tabs:`${user.name}: tabs they can see`});
+        const pickers=KID_TABS.filter(([tab])=>tabs.includes(tab)).map(([tab,label])=>this.tabPicker(user,label,choicesFor(tab),tabTarget(current,tab),access=>{
+          const cur=mineNow();const all={};
+          for(const t of kidTabs(cur)){const target=tabTarget(cur,t);if(target)all[t]=Object.fromEntries(Object.entries(target).filter(([,v])=>v?.length));}
+          if(access)all[tab]=access;else delete all[tab];
+          write(kidTabs(cur),all);
+        }));
+        holder.replaceChildren(tabsForm,...pickers);
       };
       draw();
     }
@@ -311,7 +346,7 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     const add=document.createElement('button');add.textContent='+ Add room';add.onclick=()=>{this.change({...this.config,extra_rooms:[...(this.config.extra_rooms||[]),{name:'New room',entities:[]}]});this.render();};roomDetails.append(add);
     this.shadowRoot.append(roomDetails);
     const limited=document.createElement('details');const limitedTitle=document.createElement('summary');limitedTitle.textContent='Limited users';limited.append(limitedTitle);
-    const limitedHelp=document.createElement('p');limitedHelp.textContent='Your non-administrator users are listed here. Tick the tabs someone can see. Each ticked tab lists its own cards: tick the ones they can see, or tick none for everything on that tab. Rooms picked for the Rooms tab are also the only rooms on their Home and Lights pages. Leave the tabs empty for the full dashboard. Protection below sets back changes to anything not picked for them. This limits what DwellDeck shows, not what Home Assistant allows: also set your other dashboards to Admin only (Settings \u2192 Dashboards).';limited.append(limitedHelp);
+    const limitedHelp=document.createElement('p');limitedHelp.textContent='Your non-administrator users are listed here. Tick the tabs someone can see. Each ticked tab opens a dropdown of its cards, grouped under their headings: tick the cards they can see, then open a ticked card to leave some of its items out. Tick no card for everything on that tab. Rooms picked for the Rooms tab are also the only rooms on their Home and Lights pages. Leave the tabs empty for the full dashboard. Protection below sets back changes to anything not picked for them. This limits what DwellDeck shows, not what Home Assistant allows: also set your other dashboards to Admin only (Settings \u2192 Dashboards).';limited.append(limitedHelp);
     const limitedList=document.createElement('div');limitedList.textContent='Loading users\u2026';limited.append(limitedList);
     if((this.config.kids||[]).length)limited.open=true;
     this.renderLimitedUsers(limitedList);
@@ -322,6 +357,6 @@ export class DwellDeckOriginalEditor extends HTMLElement {
       const domainSlots=SLOTS.filter(s=>s.domain===domain);const labels=Object.fromEntries(domainSlots.map(s=>[s.key,s.label]));
       details.append(this.form(domainSlots.map(s=>({name:s.key,selector:{entity:{filter:{domain:s.domain}}}})),Object.fromEntries(domainSlots.filter(s=>this.config.entities?.[s.key]!==undefined).map(s=>[s.key,this.config.entities[s.key]])),value=>this.change({...this.config,entities:{...this.config.entities,...value}}),labels));this.shadowRoot.append(details);
     }
-    const style=document.createElement('style');style.textContent=':host{display:block}p{line-height:1.6;color:var(--secondary-text-color)}section,details{padding:18px;margin:12px 0;border:1px solid rgba(139,185,216,.2);border-radius:18px;background:linear-gradient(135deg,rgba(71,119,157,.12),rgba(27,45,64,.06))}summary{cursor:pointer;font-weight:600;padding:4px}ha-form{display:block;margin-top:14px}button{font:inherit;font-weight:600;color:#edf5ff;padding:12px 20px;margin:6px 8px 6px 0;border:1px solid rgba(137,194,232,.45);border-radius:13px;background:linear-gradient(120deg,#244b67,#375b82,#496d84);background-size:220% 100%;box-shadow:0 5px 16px rgba(0,0,0,.14);cursor:pointer;transition:background-position .6s ease,box-shadow .3s ease,transform .2s ease}button:hover{background-position:100% 50%;border-color:#ffd16b;box-shadow:0 0 20px rgba(255,209,107,.18);transform:translateY(-1px)}button:active{transform:scale(.98);background:linear-gradient(120deg,#8b6932,#b18a46);color:#fff4d9}button:focus-visible,summary:focus-visible{outline:2px solid #ffd16b;outline-offset:4px}button:disabled{opacity:.55;cursor:wait;transform:none}a{color:#87cef1;text-underline-offset:3px}@media(prefers-reduced-motion:reduce){button{transition:none;transform:none!important}}';this.shadowRoot.append(style);
+    const style=document.createElement('style');style.textContent=':host{display:block}p{line-height:1.6;color:var(--secondary-text-color)}section,details{padding:18px;margin:12px 0;border:1px solid rgba(139,185,216,.2);border-radius:18px;background:linear-gradient(135deg,rgba(71,119,157,.12),rgba(27,45,64,.06))}summary{cursor:pointer;font-weight:600;padding:4px}ha-form{display:block;margin-top:14px}button{font:inherit;font-weight:600;color:#edf5ff;padding:12px 20px;margin:6px 8px 6px 0;border:1px solid rgba(137,194,232,.45);border-radius:13px;background:linear-gradient(120deg,#244b67,#375b82,#496d84);background-size:220% 100%;box-shadow:0 5px 16px rgba(0,0,0,.14);cursor:pointer;transition:background-position .6s ease,box-shadow .3s ease,transform .2s ease}button:hover{background-position:100% 50%;border-color:#ffd16b;box-shadow:0 0 20px rgba(255,209,107,.18);transform:translateY(-1px)}button:active{transform:scale(.98);background:linear-gradient(120deg,#8b6932,#b18a46);color:#fff4d9}button:focus-visible,summary:focus-visible{outline:2px solid #ffd16b;outline-offset:4px}button:disabled{opacity:.55;cursor:wait;transform:none}a{color:#87cef1;text-underline-offset:3px}details.tab-access{margin:10px 0;padding:10px 14px}details.tab-access details{margin:6px 0 6px 14px;padding:6px 10px;border-radius:12px}.card-access{margin:4px 0}.card-access details{margin-left:26px}.item-access{display:block;margin:4px 0 4px 6px}input[type=checkbox]{width:18px;height:18px;vertical-align:-3px}@media(prefers-reduced-motion:reduce){button{transition:none;transform:none!important}}';this.shadowRoot.append(style);
   }
 }
