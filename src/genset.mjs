@@ -6,6 +6,8 @@
 //     name: DSE 6110 MKIII
 //     mode: sensor.gen_control_mode        # DSE control mode register (0 Stop, 1 Auto, 2 Manual, …)
 //     rpm / frequency / voltage / power / coolant / oil / fuel / battery / mains: sensor ids
+//     stage: sensor.gen_engine_state       # optional: DSE engine operating state (GenComm page 5, offset 128)
+//     warmup / cooldown: seconds the card shows "Warming up" / "Cooling down" without a stage sensor
 //     scripts: {auto, manual, stop, start, mute, reset, on_load, off_load}: script ids
 import {ROOM_COLORS} from './rooms.mjs';
 import {touchSafe} from './util.mjs';
@@ -13,6 +15,8 @@ import {touchSafe} from './util.mjs';
 const GEN_C = ROOM_COLORS;
 const GEN_PREFIX = '(?:gen|generator|genset|dse)';
 // DSE GenComm control mode values.
+// DSE GenComm engine operating state values (page 5, offset 128; 15 means not available).
+export const DSE_ENGINE_STATES = {0: 'Engine stopped', 1: 'Pre-start', 2: 'Warming up', 3: 'Running', 4: 'Cooling down', 5: 'Engine stopped', 6: 'Post run'};
 export const DSE_MODES = {0: 'Stop', 1: 'Auto', 2: 'Manual', 3: 'Test on load', 4: 'Auto, manual restore', 5: 'User mode', 6: 'Test off load'};
 export const GENSET_BUTTONS = [
   ['auto', 'Auto', 'mdi:autorenew', 'Auto'],
@@ -53,6 +57,9 @@ export function gensetSetup(config = {}, hass = {}) {
     battery: pick('battery', sensor('battery_voltage')),
     // The mains the controller watches isn't always the inverter's grid input, so it is only set by hand.
     mains: pick('mains', sensor('mains_(?:l1_)?(?:n_)?voltage')),
+    stage: pick('stage', sensor('(?:engine_)?(?:operating_)?state')),
+    warmup: Number(own.warmup) > 0 ? Number(own.warmup) : 180,
+    cooldown: Number(own.cooldown) > 0 ? Number(own.cooldown) : 300,
     scripts: {
       auto: own.scripts?.auto ?? script('auto(?:_mode)?'), manual: own.scripts?.manual ?? script('manual(?:_mode)?'),
       stop: own.scripts?.stop ?? script('stop(?:_mode)?'), start: own.scripts?.start ?? script('start'),
@@ -75,9 +82,44 @@ export function dwellGenset(states, cfg) {
   const running = (rpm !== null && rpm > 100) || (hz !== null && hz > 5);
   const loaded = power !== null && power > 50;
   const kw = w => w >= 1000 ? (w / 1000).toFixed(w >= 10000 ? 0 : 1) + ' kW' : Math.round(w) + ' W';
-  const status = running ? (loaded ? 'Running on load' : 'Running off load') : 'Engine at rest';
+  // What the engine is doing right now. A stage sensor from the controller wins; without one the
+  // stage is read from the engine speed, frequency and load: cranking, starting, warming up,
+  // running, cooling down after the load came off, stopping.
+  const now = Date.now();
+  const mem = (typeof window !== 'undefined' && (window.__dwellGenStage = window.__dwellGenStage || {})) || {};
+  // The start time is only known when this page saw the engine start, not when it opened mid-run.
+  if (running && !mem.since) mem.since = mem.seen ? now : null;
+  if (!running) mem.since = 0;
+  mem.seen = true;
+  const changed = id => { const t = Date.parse(states[id]?.last_changed || ''); return Number.isFinite(t) ? (now - t) / 1000 : null; };
+  const guess = () => {
+    if (!running) return 'Engine at rest';
+    if (modeValue === 0) return 'Stopping';
+    if (rpm !== null && rpm < 500 && (hz === null || hz < 20)) return 'Cranking';
+    if ((hz !== null && hz < 45) || (hz === null && rpm !== null && rpm < 1300)) return 'Starting';
+    if (loaded) return 'Running on load';
+    // The load came off a short while ago, after the engine started: it is cooling down.
+    const offFor = changed(cfg.power);
+    if (power !== null && offFor !== null && offFor < cfg.cooldown && (!mem.since || offFor < (now - mem.since) / 1000)) return 'Cooling down';
+    if (mem.since && (now - mem.since) / 1000 < cfg.warmup) return 'Warming up';
+    const coolant = num(cfg.coolant);
+    if (coolant !== null && coolant >= 0 && coolant < 40) return 'Warming up';
+    return 'Running off load';
+  };
+  const stageValue = states[cfg.stage]?.state;
+  const stageNum = Number(stageValue);
+  let status = guess();
+  if (cfg.stage && stageValue !== undefined && !['unknown', 'unavailable', ''].includes(stageValue)) {
+    const named = Number.isFinite(stageNum) ? cfg.engineStates[stageNum] : String(stageValue).replace(/_/g, ' ').replace(/^./, ch => ch.toUpperCase());
+    // "Running" from the controller still says whether the load is on; cranking only shows from the readings.
+    if (named === 'Running') status = ['Cranking', 'Starting', 'Running on load'].includes(status) ? status : 'Running off load';
+    else if (named === 'Engine stopped') status = running ? status : 'Engine at rest';
+    else if (named && !(named === 'Pre-start' && ['Cranking', 'Starting'].includes(status))) status = named;
+  }
+  const busy = ['Cranking', 'Starting', 'Warming up', 'Cooling down', 'Stopping', 'Pre-start', 'Post run'].includes(status);
   const chip = (text, on) => `<span style="padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid ${on ? cfg.c.onText : cfg.c.line};color:${on ? cfg.c.onText : cfg.c.muted};background:${on ? cfg.c.onBg : 'transparent'}">${text}</span>`;
-  const chips = [chip(status, running), chip(`Mode · ${mode}`, false)];
+  const dot = busy ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px;background:${cfg.c.onText};animation:dwellGenPulse 1.2s ease-in-out infinite"></span>` : '';
+  const chips = [chip(dot + status, running || busy), chip(`Mode · ${mode}`, false)];
   if (mains !== null) chips.push(chip(mains > 150 ? `Mains OK · ${Math.round(mains)} V` : 'Mains off', false));
   // Sensors reporting -1 aren't fitted on this generator: no tile for them.
   const tiles = [
@@ -93,7 +135,7 @@ export function dwellGenset(states, cfg) {
   const tile = ([icon, label, value, show, on]) => `<div style="padding:8px 10px;border-radius:12px;border:1px solid ${on ? cfg.c.onText : cfg.c.line};background:${on ? cfg.c.onBg : 'rgba(0,0,0,.16)'};min-width:0">
     <div style="display:flex;align-items:center;gap:5px;color:${cfg.c.muted};font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><ha-icon icon="${icon}" style="--mdc-icon-size:14px;flex:none"></ha-icon>${label}</div>
     <div style="margin-top:3px;font-size:16px;font-weight:800;color:${on ? cfg.c.onText : cfg.c.text};white-space:nowrap">${show(value)}</div></div>`;
-  return `<div style="display:flex;align-items:center;gap:14px;text-align:left;flex-wrap:wrap">
+  return `<style>@keyframes dwellGenPulse{50%{opacity:.25}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style><div style="display:flex;align-items:center;gap:14px;text-align:left;flex-wrap:wrap">
       <div style="display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:${running ? cfg.c.onBg : 'rgba(0,0,0,.22)'};border:1px solid ${running ? cfg.c.onText : cfg.c.line}">
         <ha-icon icon="mdi:engine" style="--mdc-icon-size:24px;color:${running ? cfg.c.onText : cfg.c.muted}"></ha-icon></div>
       <div style="flex:1;min-width:160px"><div style="font-size:16px;font-weight:800;color:${cfg.c.text}">${cfg.name}</div>
@@ -269,8 +311,8 @@ const gensetButton = (setup, [key, label, icon, mode]) => {
 
 // The Generator section: the state panel and a row of controller buttons.
 export function gensetSection(setup) {
-  const watched = [setup.mode, setup.rpm, setup.frequency, setup.voltage, setup.power, setup.coolant, setup.oil, setup.fuel, setup.battery, setup.mains].filter(Boolean);
-  const cfg = {...setup, scripts: undefined, modes: DSE_MODES, c: {text: GEN_C.text, muted: GEN_C.muted, line: GEN_C.line, on: GEN_C.on, onBg: GEN_C.onBg, onText: GEN_C.onText}};
+  const watched = [setup.mode, setup.rpm, setup.frequency, setup.voltage, setup.power, setup.coolant, setup.oil, setup.fuel, setup.battery, setup.mains, setup.stage].filter(Boolean);
+  const cfg = {...setup, scripts: undefined, modes: DSE_MODES, engineStates: DSE_ENGINE_STATES, c: {text: GEN_C.text, muted: GEN_C.muted, line: GEN_C.line, on: GEN_C.on, onBg: GEN_C.onBg, onText: GEN_C.onText}};
   const panel = {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, triggers_update: watched, variables: {dwell_static: true},
