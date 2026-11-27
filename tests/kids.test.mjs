@@ -80,62 +80,94 @@ test('a limited user with no tabs gets a clear message, not the dashboard', asyn
   assert(!JSON.stringify(d).includes('light.saloon'));
 });
 
-test('each tab offers only its own cards, named after the card', async () => {
+// A small stand-in for the page: enough elements to build the editor and tick its checkboxes.
+class El {
+  constructor(tag) { this.tag = tag; this.children = []; this.style = {}; this.textContent = ''; this.hidden = false; this.checked = false; }
+  setAttribute() {} append(...kids) { this.children.push(...kids); } replaceChildren(...kids) { this.children = kids; }
+  all() { return this.children.flatMap(c => c instanceof El ? [c, ...c.all()] : []); }
+  querySelectorAll(sel) { return this.all().filter(e => e.tag === sel); }
+  get text() { return [this.textContent, ...this.children.map(c => c instanceof El ? c.text : c.data || '')].join(''); }
+}
+const page = () => { globalThis.document = {createElement: tag => new El(tag), createTextNode: data => ({data}), querySelector: () => null}; };
+
+test('each tab lists its own cards, named with the heading above them', async () => {
   const {tabChoices} = await import('../src/kids.mjs');
-  const h = hass({});
   const view = {path: 'media', sections: [
     {type: 'grid', cards: [{type: 'heading', heading: 'Bedrooms'},
       {type: 'custom:button-card', name: 'Ali TV', entity: 'media_player.ali_tv', tap_action: {action: 'call-service', service: 'media_player.toggle'}},
       {type: 'tile', entity: 'media_player.saloon_tv'},
       {type: 'vertical-stack', cards: [{type: 'custom:button-card', name: '[[[ return 1 ]]]', triggers_update: ['light.ali_ceiling', 'climate.ali_ac']}]},
-      {type: 'button', name: 'Again', entity: 'media_player.ali_tv'},
+      {type: 'button', name: 'Ali TV', entity: 'media_player.ali_tv'},
       {type: 'markdown', content: 'no entities'}]}]};
-  assert.deepEqual(tabChoices(view, h), [
-    {value: 'media_player.ali_tv', label: 'Bedrooms · Ali TV / Again'},
-    {value: 'media_player.saloon_tv', label: 'Bedrooms · Saloon TV'},
-    {value: 'climate.ali_ac,light.ali_ceiling', label: 'Bedrooms · 2 items'}]);
+  assert.deepEqual(tabChoices(view, hass({})).map(c => [c.key, c.heading, c.refs.join()]), [
+    ['Bedrooms · Ali TV', 'Bedrooms', 'media_player.ali_tv'],
+    ['Bedrooms · Saloon TV', 'Bedrooms', 'media_player.saloon_tv'],
+    ['Bedrooms · 2 items', 'Bedrooms', 'climate.ali_ac,light.ali_ceiling'],
+    ['Bedrooms · Ali TV (2)', 'Bedrooms', 'media_player.ali_tv']]);
 });
 
-test('the editor lists each ticked tab\'s cards and saves what is on the ticked ones', async () => {
+test('a shared card can leave some of its items out', async () => {
+  const room = {type: 'custom:button-card', name: 'Ali Room', variables: {lights: ['light.ali_ceiling', 'switch.ali_lamp']},
+    tap_action: {action: 'fire-dom-event', browser_mod: {data: {content: {type: 'vertical-stack', cards: [{type: 'tile', entity: 'light.ali_ceiling'}, {type: 'tile', entity: 'switch.ali_lamp'}, {type: 'tile', entity: 'climate.ali_ac'}]}}}}};
+  const view = {path: 'rooms', sections: [{type: 'grid', cards: [{type: 'heading', heading: 'Ground'}, room, {type: 'custom:button-card', name: 'Saloon', entity: 'light.saloon'}]}]};
+  const {pruneView, tabChoices} = await import('../src/kids.mjs');
+  const key = tabChoices(view, hass({}))[0].key;
+  const out = pruneView(view, {cards: [key], entity_id: ['light.ali_ceiling', 'climate.ali_ac']}, hass({}));
+  const text = JSON.stringify(out);
+  assert(text.includes('Ali Room') && !text.includes('Saloon'), 'only the chosen card');
+  assert.deepEqual(out.sections[0].cards[1].variables.lights, ['light.ali_ceiling'], 'its lists lose what was left out');
+  assert.deepEqual(out.sections[0].cards[1].tap_action.browser_mod.data.content.cards.map(c => c.entity), ['light.ali_ceiling', 'climate.ali_ac'], 'so does its popup');
+});
+
+test('the editor: a dropdown per tab, a dropdown per card, and what is saved', async () => {
   const {DwellDeckOriginalEditor} = await import('../src/editor.mjs');
-  const forms = [];
+  page();
   const full = {views: [
     {path: 'media', sections: [{type: 'grid', cards: [{type: 'tile', entity: 'media_player.ali_tv'}, {type: 'tile', entity: 'media_player.saloon_tv'}]}]},
-    {path: 'rooms', sections: [{type: 'grid', cards: [{type: 'custom:button-card', name: 'Ali Room', triggers_update: ['light.ali_ceiling', 'climate.ali_ac']}, {type: 'custom:button-card', name: 'Saloon', entity: 'light.saloon'}]}]}]};
-  const editor = {
+    {path: 'rooms', sections: [{type: 'grid', cards: [{type: 'heading', heading: 'Ground'}, {type: 'custom:button-card', name: 'Ali Room', triggers_update: ['light.ali_ceiling', 'climate.ali_ac']}, {type: 'custom:button-card', name: 'Saloon', entity: 'light.saloon'}]}]}]};
+  const tabForms = [];
+  const editor = Object.assign(Object.create(DwellDeckOriginalEditor.prototype), {
     config: {type: 'custom:dwelldeck-original', kids: [{user: 'Ali', rooms: ['ali_room']}]},
     _hass: {...hass({}), callWS: async () => [
-      {id: 'a1', name: 'Youssef', group_ids: ['system-admin']},
-      {id: 'k1', name: 'Ali', group_ids: ['system-users']},
-      {id: 'k2', name: 'Sara', group_ids: ['system-users']},
-      {id: 's1', name: 'Supervisor', system_generated: true, group_ids: ['system-users']}
-    ]},
+      {id: 'a1', name: 'Youssef', group_ids: ['system-admin']}, {id: 'k1', name: 'Ali', group_ids: ['system-users']},
+      {id: 'k2', name: 'Sara', group_ids: ['system-users']}, {id: 's1', name: 'Supervisor', system_generated: true, group_ids: ['system-users']}]},
     fullDashboard: async () => full,
-    form(schema, data, callback, labels) { if (labels.tabs) forms.push({user: labels.tabs.split(':')[0], fields: schema.map(f => f.name), schema, data, callback}); return {}; },
+    form(schema, data, callback, labels) { const el = new El('ha-form'); el.schema = schema; el.data = data; el.callback = callback; el.labels = labels; if (labels.tabs) tabForms.push(el); return el; },
     change(config) { this.config = config; }
-  };
-  globalThis.document = {createElement: () => ({setAttribute() {}, append() {}, replaceChildren() {}, style: {}, textContent: ''}), querySelector: () => null};
-  await DwellDeckOriginalEditor.prototype.renderLimitedUsers.call(editor, {replaceChildren() {}, append() {}});
-  const last = user => forms.filter(f => f.user === user).at(-1);
-  assert.deepEqual(forms.map(f => f.user), ['Ali', 'Sara'], 'admins and system users are not listed');
-  const ali = last('Ali');
-  assert.deepEqual(ali.fields, ['tabs', 'rooms'], 'an old rooms-only entry shows as the Rooms tab');
-  assert.deepEqual(ali.schema[1].selector.select.options.map(o => o.label), ['Ali Room', 'Saloon'], 'only the Rooms tab\'s own cards');
-  assert.deepEqual(ali.data.rooms, ['climate.ali_ac,light.ali_ceiling'], 'the card for the room given before is ticked');
-  last('Sara').callback({tabs: ['rooms', 'media', 'climate']});
-  const sara = last('Sara');
-  assert.deepEqual(sara.fields, ['tabs', 'rooms', 'climate', 'media'], 'one picker per ticked tab, in the dashboard\'s tab order');
-  assert.deepEqual(sara.schema[3].selector.select.options.map(o => o.value), ['media_player.ali_tv', 'media_player.saloon_tv']);
-  assert(sara.schema[2].selector.target, 'a tab with no cards to list falls back to picking entities');
-  sara.callback({tabs: ['rooms', 'media', 'climate'], rooms: ['light.saloon'], media: ['media_player.ali_tv'], climate: {entity_id: ['climate.ali_ac']}});
-  assert.deepEqual(editor.config.kids.find(k => k.user === 'k2'), {user: 'k2', name: 'Sara', tabs: ['rooms', 'media', 'climate'],
-    access: {rooms: {entity_id: ['light.saloon']}, media: {entity_id: ['media_player.ali_tv']}, climate: {entity_id: ['climate.ali_ac']}}});
-  last('Sara').callback({tabs: ['media'], media: []});
-  assert.deepEqual(last('Sara').fields, ['tabs', 'media'], 'unticking a tab removes its picker');
-  assert.deepEqual(editor.config.kids.find(k => k.user === 'k2'), {user: 'k2', name: 'Sara', tabs: ['media']}, 'no card ticked: the whole tab');
-  last('Sara').callback({tabs: []});
-  last('Ali').callback({tabs: []});
-  assert.equal(editor.config.kids, undefined, 'no tabs: back to the full dashboard');
+  });
+  const container = new El('div');
+  await editor.renderLimitedUsers(container);
+  assert.deepEqual(tabForms.map(f => f.labels.tabs.split(':')[0]), ['Ali', 'Sara'], 'admins and system users are not listed');
+  const holders = container.children.filter(c => c.tag === 'div');
+  const pickers = i => holders[i].children.filter(c => c.tag === 'details');
+  assert.equal(pickers(0).length, 1, 'Ali\'s old rooms-only entry shows as the Rooms tab');
+  const aliRooms = pickers(0)[0];
+  assert.match(aliRooms.children[0].textContent, /Rooms: 1 of 2 cards/, 'the room given before is ticked');
+  // Sara: tick Rooms and Media.
+  tabForms.at(-1).callback({tabs: ['rooms', 'media']});
+  const sara = pickers(1);
+  assert.equal(sara.length, 2, 'one dropdown per ticked tab');
+  const [rooms, media] = sara;
+  assert.match(rooms.children[0].textContent, /everything on this tab/);
+  const roomRows = rooms.querySelectorAll('div');
+  assert.deepEqual(roomRows.map(r => r.children[0].text.trim()), ['Ali Room', 'Saloon'], 'the heading is the group; rows show the card\'s own name');
+  const [aliTick] = roomRows[0].children[0].children;
+  aliTick.checked = true; aliTick.onchange();
+  const items = roomRows[0].children[1];
+  assert.equal(items.hidden, false, 'a ticked card opens the list of its items');
+  const itemBoxes = items.querySelectorAll('input');
+  assert(itemBoxes.every(b => b.checked), 'all its items are given at first');
+  const acBox = itemBoxes.find((b, i) => items.querySelectorAll('label')[i].text.includes('Ali AC'));
+  acBox.checked = false; acBox.onchange();
+  const mediaTick = media.querySelectorAll('input')[0];
+  mediaTick.checked = true; mediaTick.onchange();
+  assert.deepEqual(editor.config.kids.find(k => k.user === 'k2'), {user: 'k2', name: 'Sara', tabs: ['rooms', 'media'], access: {
+    rooms: {cards: ['Ground · Ali Room'], entity_id: ['light.ali_ceiling']},
+    media: {cards: ['Ali TV'], entity_id: ['media_player.ali_tv']}}});
+  mediaTick.checked = false; mediaTick.onchange();
+  assert.equal(editor.config.kids.find(k => k.user === 'k2').access.media, undefined, 'no card ticked: the whole tab');
+  tabForms.at(-1).callback({tabs: []});
+  assert.equal(editor.config.kids.some(k => k.user === 'k2'), false, 'no tabs: back to the full dashboard');
   delete globalThis.document;
 });
 
