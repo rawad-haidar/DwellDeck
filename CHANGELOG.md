@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.56 — Cards catch up straight after a press
+
+- **TVs, speakers and the generator update within a second or two after you press a button.** Their integrations (ADB, Modbus and the like) only report every 10–30 seconds, so the card looked stuck. After a command to a TV, speaker or remote, DwellDeck now asks Home Assistant to read the device again straight away and once more a few seconds later. That includes the same TV through its other integrations (ADB, Android TV Remote, Music Assistant). After a generator button, the generator's sensors are read three times, so a start shows while it cranks. Lights are left alone; they report on their own.
+- **A more compact generator card:** smaller header, tiles and buttons, and a shorter history chart and run list.
+
 ## 0.9.55 — Generator card and history
 
 - **A generator section on the Energy page, laid out like DSE's controller page.**

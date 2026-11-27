@@ -82,7 +82,7 @@ export function dwellGenset(states, cfg) {
   // Sensors reporting -1 aren't fitted on this generator: no tile for them.
   const tiles = [
     ['mdi:flash', 'Load', power === null ? null : power, v => kw(v), loaded],
-    ['mdi:speedometer', 'Engine speed', rpm, v => `${Math.round(v)} rpm`, running],
+    ['mdi:speedometer', 'Speed', rpm, v => `${Math.round(v)} rpm`, running],
     ['mdi:sine-wave', 'Output', volts, v => `${Math.round(v)} V`, running],
     ['mdi:current-ac', 'Frequency', hz, v => `${v.toFixed(1)} Hz`, running],
     ['mdi:thermometer', 'Coolant', num(cfg.coolant), v => `${Math.round(v)} °C`, false],
