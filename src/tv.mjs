@@ -490,9 +490,17 @@ function dwellVolume(states, cfg) {
   const entities = cfg.entities || (cfg.entity ? [cfg.entity] : []);
   const entity = entities.find(id => !gone(id)) || (cfg.step ? null : entities[0]);
   if (!entity) {
+    // Steps, with mute and the level when the TV reports them.
+    const s = states[cfg.step];
+    const m = states[cfg.mute];
+    const isMuted = !!m?.attributes?.is_volume_muted;
+    const raw = Number(s?.attributes?.volume_level);
+    const label = isMuted ? 'Muted' : Number.isFinite(raw) && s?.attributes?.volume_level !== null ? Math.round(raw * 100) + '%' : 'Volume';
+    const muteBtn = cfg.mute ? `<button style="${btn}" aria-label="${isMuted ? 'Unmute' : 'Mute'}" data-entity="${cfg.mute}" data-muted="${isMuted ? 1 : 0}" onclick="event.stopPropagation();window.__dwellVol.mute(this)">${icon(isMuted ? 'mdi:volume-off' : 'mdi:volume-high')}</button>` : '';
     return `<div style="display:flex;align-items:center;gap:8px;justify-content:center">
+      ${muteBtn}
       <button style="${btn}" aria-label="Volume down" data-entity="${cfg.step}" data-dir="down" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-minus')}</button>
-      <span style="color:${cfg.c.muted};font-size:13px">Volume</span>
+      <span style="color:${isMuted ? cfg.c.onText : cfg.c.muted};font-size:13px;min-width:56px;text-align:center;font-variant-numeric:tabular-nums">${label}</span>
       <button style="${btn}" aria-label="Volume up" data-entity="${cfg.step}" data-dir="up" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-plus')}</button></div>`;
   }
   const e = states[entity];
@@ -634,8 +642,11 @@ export function tvCard(requested, hass) {
   const sources = ma && !players.includes(ma) ? [...players, ma] : players;
   const skipPlayer = playerFor(sources, hass, FEATURE.next | FEATURE.previous) || playPlayer;
   // Every entry that sets the level; the card uses the first one that's connected (ADB drops out).
-  const sliderPlayers = sources.filter(ownVolume).filter(entry => supports(entry, hass, FEATURE.volumeSet));
+  // ADB says it sets the level, but on some Android TVs that does nothing while its volume keys work:
+  // when the TV can step its volume, a TV card steps it instead.
   const stepPlayer = playerFor(players.filter(ownVolume), hass, FEATURE.volumeStep);
+  const sliderPlayers = sources.filter(ownVolume).filter(entry => supports(entry, hass, FEATURE.volumeSet))
+    .filter(entry => !(tv && stepPlayer && hass.entities?.[entry]?.platform === 'androidtv'));
   // What plays on a sound system comes from its Music Assistant player: watch it for the title and artwork.
   const watched = [...new Set([...sources, ...(remote ? [remote.id] : [])])];
   // Status comes from whichever entry is on: the TV's own player first, then anything playing.

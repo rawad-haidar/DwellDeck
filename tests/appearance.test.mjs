@@ -912,7 +912,10 @@ test('a TV\'s volume is the TV\'s own: not its DLNA renderer\'s, and the steps w
  assert(html.includes('aria-label="Volume up" data-entity="media_player.saloon_saloon_tv"'),'ADB off: the remote\'s volume steps');
  assert(!html.includes('type="range"'));
  html=vol({...states,'media_player.saloon_saloon_tv_adb':{...states['media_player.saloon_saloon_tv_adb'],state:'on',attributes:{...states['media_player.saloon_saloon_tv_adb'].attributes,volume_level:.34}}});
- assert(html.includes('type="range"')&&html.includes('data-entity="media_player.saloon_saloon_tv_adb"'),'ADB connected: a slider on the TV\'s own volume');
- assert(html.includes('34%'));
+ assert(!html.includes('type="range"')&&html.includes('aria-label="Volume up" data-entity="media_player.saloon_saloon_tv"'),'ADB connected: still the steps (ADB volume_set does nothing on some TVs)');
+ assert(html.includes('data-entity="media_player.saloon_saloon_tv" data-muted'),'mute on the TV');
+ assert(html.includes('34%'),'the TV\'s level between the steps');
+ html=vol({...states,'media_player.saloon_saloon_tv':{...states['media_player.saloon_saloon_tv'],attributes:{...states['media_player.saloon_saloon_tv'].attributes,is_volume_muted:true}}});
+ assert(html.includes('aria-label="Unmute"')&&html.includes('Muted'),'a muted TV shows Muted and an Unmute button');
  delete globalThis.window;
 });

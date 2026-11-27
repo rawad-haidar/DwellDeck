@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.63 — TV volume buttons, with mute
+
+- **A TV that steps its volume gets − and + buttons, even when ADB is connected.** On some Android TVs, ADB's set-volume does nothing while the volume keys work.
+- **The buttons now have mute next to them, and show the level** (or "Muted"). Before, a muted TV couldn't be unmuted from the card.
+
 ## 0.9.62 — A TV's volume moves the TV
 
 - **Fixed: the volume on a TV card could do nothing.** The card set the volume of the TV's DLNA media renderer (or its Music Assistant copy), which only applies to media cast to the TV, not the TV's own speakers. A TV's volume now only uses the TV's own entries.
