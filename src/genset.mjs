@@ -76,7 +76,7 @@ export function dwellGenset(states, cfg) {
   const loaded = power !== null && power > 50;
   const kw = w => w >= 1000 ? (w / 1000).toFixed(w >= 10000 ? 0 : 1) + ' kW' : Math.round(w) + ' W';
   const status = running ? (loaded ? 'Running on load' : 'Running off load') : 'Engine at rest';
-  const chip = (text, on) => `<span style="padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid ${on ? cfg.c.onText : cfg.c.line};color:${on ? cfg.c.onText : cfg.c.muted};background:${on ? cfg.c.on : 'transparent'}">${text}</span>`;
+  const chip = (text, on) => `<span style="padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid ${on ? cfg.c.onText : cfg.c.line};color:${on ? cfg.c.onText : cfg.c.muted};background:${on ? cfg.c.onBg : 'transparent'}">${text}</span>`;
   const chips = [chip(status, running), chip(`Mode · ${mode}`, false)];
   if (mains !== null) chips.push(chip(mains > 150 ? `Mains OK · ${Math.round(mains)} V` : 'Mains off', false));
   // Sensors reporting -1 aren't fitted on this generator: no tile for them.
@@ -90,11 +90,11 @@ export function dwellGenset(states, cfg) {
     ['mdi:oil', 'Oil pressure', num(cfg.oil), v => `${Math.round(v)} kPa`, false],
     ['mdi:gas-station', 'Fuel', num(cfg.fuel), v => `${Math.round(v)} %`, false]
   ].filter(([, , v]) => v !== null && v >= 0);
-  const tile = ([icon, label, value, show, on]) => `<div style="padding:8px 10px;border-radius:12px;border:1px solid ${on ? cfg.c.onText : cfg.c.line};background:${on ? cfg.c.on : 'rgba(0,0,0,.16)'};min-width:0">
+  const tile = ([icon, label, value, show, on]) => `<div style="padding:8px 10px;border-radius:12px;border:1px solid ${on ? cfg.c.onText : cfg.c.line};background:${on ? cfg.c.onBg : 'rgba(0,0,0,.16)'};min-width:0">
     <div style="display:flex;align-items:center;gap:5px;color:${cfg.c.muted};font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><ha-icon icon="${icon}" style="--mdc-icon-size:14px;flex:none"></ha-icon>${label}</div>
     <div style="margin-top:3px;font-size:16px;font-weight:800;color:${on ? cfg.c.onText : cfg.c.text};white-space:nowrap">${show(value)}</div></div>`;
   return `<div style="display:flex;align-items:center;gap:14px;text-align:left;flex-wrap:wrap">
-      <div style="display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:${running ? cfg.c.on : 'rgba(0,0,0,.22)'};border:1px solid ${running ? cfg.c.onText : cfg.c.line}">
+      <div style="display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:${running ? cfg.c.onBg : 'rgba(0,0,0,.22)'};border:1px solid ${running ? cfg.c.onText : cfg.c.line}">
         <ha-icon icon="mdi:engine" style="--mdc-icon-size:24px;color:${running ? cfg.c.onText : cfg.c.muted}"></ha-icon></div>
       <div style="flex:1;min-width:160px"><div style="font-size:16px;font-weight:800;color:${cfg.c.text}">${cfg.name}</div>
         <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${chips.join('')}</div></div></div>
@@ -270,7 +270,7 @@ const gensetButton = (setup, [key, label, icon, mode]) => {
 // The Generator section: the state panel and a row of controller buttons.
 export function gensetSection(setup) {
   const watched = [setup.mode, setup.rpm, setup.frequency, setup.voltage, setup.power, setup.coolant, setup.oil, setup.fuel, setup.battery, setup.mains].filter(Boolean);
-  const cfg = {...setup, scripts: undefined, modes: DSE_MODES, c: {text: GEN_C.text, muted: GEN_C.muted, line: GEN_C.line, on: GEN_C.on, onText: GEN_C.onText}};
+  const cfg = {...setup, scripts: undefined, modes: DSE_MODES, c: {text: GEN_C.text, muted: GEN_C.muted, line: GEN_C.line, on: GEN_C.on, onBg: GEN_C.onBg, onText: GEN_C.onText}};
   const panel = {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, triggers_update: watched, variables: {dwell_static: true},
