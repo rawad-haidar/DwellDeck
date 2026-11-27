@@ -2,6 +2,7 @@
 import {clone, touchSafe} from './util.mjs';
 import {tvGroup, isTv, tvSignals} from './tv.mjs';
 import {ROOM_COLORS} from './rooms.mjs';
+import {gensetSetup, gensetPanel} from './genset.mjs';
 
 const HOME_C = ROOM_COLORS;
 const isPlaceholder = id => typeof id === 'string' && id.includes('.dwelldeck_slot_');
@@ -196,7 +197,7 @@ const playerLeads = hass => [...new Set(Object.keys(hass.states || {}).filter(id
 
 // Rebuilds the Home view in order of importance. Every original card is kept; only the order and the
 // surfaces change. Runs before unselected entities become setup hints.
-export function designHome(output, {prefix, hass = {}}) {
+export function designHome(output, {prefix, hass = {}, config = {}}) {
   const home = output.views.find(view => view.path === 'home');
   if (!home?.sections?.length) return output;
   const cards = home.sections.flatMap(section => section.cards || []);
@@ -238,6 +239,9 @@ export function designHome(output, {prefix, hass = {}}) {
   });
   const bound = energyTiles.filter(tile => !isPlaceholder(tile.entity));
   const energy = bound.length ? [energyCard(bound)] : energyTiles;
+  // The generator's live state (stage, load, speed, output, temperature) under the energy readings; it opens the Energy page.
+  const genset = gensetSetup(config, hass);
+  if (genset && config.generator?.home !== false) energy.push(gensetPanel(genset, path('energy')));
   const section = (items, span) => ({type: 'grid', ...(span ? {column_span: span} : {}), cards: items});
   const sections = [
     section([glance, ...activeRooms(output, prefix)], 2),

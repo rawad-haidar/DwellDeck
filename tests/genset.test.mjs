@@ -127,3 +127,44 @@ test('the state chip shows what the engine is doing: cranking, starting, warming
   assert(at({...run, 'sensor.gen_engine_state': st(15)}, withStage).includes('Warming up'), 'not available: read from the readings');
   delete globalThis.window;
 });
+
+test('the DSE status code (register 786) gives pre-start, cranking and stopping', async () => {
+  const {DSE_ENGINE_STATES, DSE_STATUS_CODES} = await import('../src/genset.mjs');
+  const withCode = {...states, 'sensor.gen_status_code': st(0)};
+  const setup = gensetSetup({}, {states: withCode});
+  assert.equal(setup.status, 'sensor.gen_status_code', 'found by its name');
+  assert(gensetSection(setup).cards[1].triggers_update.includes('sensor.gen_status_code'));
+  const cfg = {...setup, modes: DSE_MODES, engineStates: DSE_ENGINE_STATES, dseCodes: DSE_STATUS_CODES, c: {text: '#fff', muted: '#999', line: '#333', on: '#440', onBg: '#221', onText: '#fc0'}};
+  const at = over => dwellGenset({...withCode, ...over}, cfg);
+  globalThis.window = {__dwellGenStage: {seen: true, since: Date.now() - 600000}};
+  assert(at({'sensor.gen_status_code': st(9)}).includes('Pre-start'));
+  assert(at({'sensor.gen_status_code': st(5)}).includes('Cranking'), 'cranking at 0 rpm, before the speed shows');
+  assert(at({'sensor.gen_status_code': st(7)}).includes('Starting'), 'fired, readings not caught up yet');
+  const run = {'sensor.gen_engine_speed': st(1518), 'sensor.gen_frequency': st(50.6), 'sensor.gen_l1_n_voltage': st(229), 'sensor.gen_coolant_temp': st(70), 'sensor.gen_status_code': st(7)};
+  window.__dwellGenStage.since = Date.now() - 600000;
+  assert(at(run).includes('Running off load'));
+  assert(at({...run, 'sensor.electric_generator_power': st(500)}).includes('Running on load'));
+  assert(at({...run, 'sensor.gen_engine_speed': st(492), 'sensor.gen_frequency': st(16.4), 'sensor.gen_status_code': st(11)}).includes('Stopping'));
+  assert(at({}).includes('Engine at rest'));
+  // Codes set in the settings win for a controller that numbers them differently.
+  assert(dwellGenset({...withCode, 'sensor.gen_status_code': st(3)}, {...cfg, statusCodes: {3: 'Cranking'}}).includes('Cranking'));
+  delete globalThis.window;
+});
+
+test('Home shows the generator under the energy readings, opening the Energy page', async () => {
+  const {designHome} = await import('../src/home.mjs');
+  const make = () => ({views: [{path: 'home', sections: [{type: 'grid', cards: [
+    {type: 'tile', entity: 'sensor.villa_power'},
+    {type: 'custom:button-card', tap_action: {action: 'navigate', navigation_path: '/dwell/energy'}, triggers_update: []}
+  ]}]}]});
+  const out = designHome(make(), {prefix: '/dwell', hass: {states}, config: {}});
+  const section = out.views[0].sections.find(item => item.cards[0]?.heading === 'Energy and climate');
+  const panel = section.cards.find(card => card.custom_fields?.genset);
+  assert(panel, 'generator panel on Home');
+  assert.deepEqual(panel.tap_action, {action: 'navigate', navigation_path: '/dwell/energy'});
+  assert(panel.triggers_update.includes('sensor.gen_engine_speed'));
+  const off = designHome(make(), {prefix: '/dwell', hass: {states}, config: {generator: {home: false}}});
+  assert(!JSON.stringify(off).includes('"genset"'), 'generator.home: false keeps it off Home');
+  const none = designHome(make(), {prefix: '/dwell', hass: {states: {'sensor.villa_power': st(1)}}, config: {}});
+  assert(!JSON.stringify(none).includes('"genset"'), 'no generator, nothing on Home');
+});
