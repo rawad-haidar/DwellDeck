@@ -98,9 +98,38 @@ export function pruneCards(cards, allowed, known) {
 // A shared card with only some of its things given: lists of entities lose the others (so "All on"
 // switches only those) and cards inside it (a room's popup) showing the others are left out.
 export function narrowCard(card, allowed, known) {
-  const keep = id => typeof id !== 'string' || !known.has(id) || OPEN_DOMAINS.has(id.split('.')[0]) || allowed.has(id);
+  const given = id => typeof id !== 'string' || !known.has(id) || OPEN_DOMAINS.has(id.split('.')[0]) || allowed.has(id);
+  // Lists lose what wasn't given: ids, [id, …] pairs (a TV with its remote), and conditions on it
+  // (so "Everything is off" means everything of theirs).
+  const keepItem = item => typeof item === 'string' ? given(item)
+    : Array.isArray(item) ? given(item[0])
+    : item && typeof item === 'object' && typeof item.condition === 'string' && typeof item.entity === 'string' ? given(item.entity) : true;
+  // Templates carry their data as JSON ({"lights": [...]}, const ids=["light.a", ...]): narrowed the same way.
+  const inTemplate = text => {
+    let out = '', from = 0, start;
+    const next = at => { const a = text.indexOf('{"', at), b = text.indexOf('["', at); return a === -1 ? b : b === -1 ? a : Math.min(a, b); };
+    while ((start = next(from)) !== -1) {
+      // Find where this object ends, minding quoted text.
+      let depth = 0, quoted = false, end = -1;
+      for (let i = start; i < text.length; i++) {
+        const ch = text[i];
+        if (quoted) { if (ch === '\\') i++; else if (ch === '"') quoted = false; continue; }
+        if (ch === '"') quoted = true;
+        else if (ch === '{' || ch === '[') depth++;
+        else if (ch === '}' || ch === ']') { depth--; if (!depth) { end = i; break; } }
+      }
+      if (end === -1) break;
+      const json = text.slice(start, end + 1);
+      let replaced = json;
+      try { replaced = JSON.stringify(walk(JSON.parse(json))); } catch { /* not data: leave it */ }
+      out += text.slice(from, start) + replaced;
+      from = end + 1;
+    }
+    return out + text.slice(from);
+  };
   const walk = value => {
-    if (Array.isArray(value)) return value.every(item => typeof item === 'string') ? value.filter(keep) : value.map(walk);
+    if (Array.isArray(value)) return value.filter(keepItem).map(walk);
+    if (typeof value === 'string') return value.includes('[[[') && /[{[]"/.test(value) ? inTemplate(value) : value;
     if (!value || typeof value !== 'object') return value;
     return Object.fromEntries(Object.entries(value).map(([key, item]) =>
       [key, key === 'cards' && Array.isArray(item) ? pruneCards(item, allowed, known).map(walk) : walk(item)]));
@@ -192,8 +221,28 @@ export function kidsDashboard(config, hass, kid, buildFull) {
   const picked = pickedViews(full, tabs);
   // A sub-page follows the picks of the tab that opens it (Activity from a Home limited to one room).
   const opener = view => picked.find(other => !other.subview && JSON.stringify(other).includes(`/${view.path}"`));
+  // Home with nothing picked for it follows the other tabs: it shows only what was given there,
+  // and its summary and room cards are narrowed to that. (Home alone shows the whole of Home.)
+  const others = tabs.filter(tab => tab !== 'home');
+  let given = null;
+  if (tabs.includes('home') && !tabTarget(kid, 'home') && others.length) {
+    given = new Set();
+    for (const tab of others) {
+      const target = tabTarget(kid, tab);
+      const ids = target ? targetEntities(target, hass) : tabChoices(full.views.find(view => view.path === tab), hass).flatMap(choice => choice.refs);
+      for (const id of ids) given.add(id);
+    }
+  }
+  const known = new Set(Object.keys(hass.states || {}));
+  const followOthers = view => {
+    const next = walkTab(view, hass, (card, {refs}) => refs.some(id => given.has(id)) ? narrowCard(card, given, known) : null);
+    if (Array.isArray(view.sections) && !next.sections.length) next.sections = [{type: 'grid', cards: [{type: 'markdown', content: 'Nothing on this page has been shared with you yet.'}]}];
+    return next;
+  };
   const views = picked.map(view => {
+    if (given && view.path === 'home') return followOthers(view);
     const sub = view.subview && !tabs.includes(view.path);
+    if (given && sub && opener(view)?.path === 'home') return pruneView(view, {entity_id: [...given]}, hass);
     const target = tabTarget(kid, sub ? opener(view)?.path : view.path);
     if (!target) return view;
     // A sub-page has other cards than the tab that opens it: it keeps what shows only given things.

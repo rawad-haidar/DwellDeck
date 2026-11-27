@@ -75,6 +75,18 @@ test('each tab shows only what was picked for it; tabs left open show everything
   assert(JSON.stringify(all.views.find(v => v.path === 'media')).includes('media_player.saloon_tv'), 'the fixture does show the other TV when nothing is picked');
 });
 
+test('Home with nothing picked follows the other tabs; Home alone is the whole of Home', async () => {
+  const kid = {user: 'Ali', tabs: ['home', 'media'], access: {media: {entity_id: ['media_player.ali_tv']}}};
+  const d = await Strategy.generate({...config, kids: [kid]}, hass({id: 'u1', name: 'Ali'}));
+  const home = JSON.stringify(d.views.find(v => v.path === 'home'));
+  for (const id of ['light.saloon', 'media_player.saloon_tv', 'alarm_control_panel.house', 'lock.gate', 'light.ali_ceiling']) assert(!home.includes(id), `Home leaves out ${id}`);
+  for (const view of d.views.filter(v => v.subview)) assert(!JSON.stringify(view).includes('light.saloon'), `${view.path} too`);
+  const alone = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['home']}]}, hass({id: 'u1', name: 'Ali'}));
+  assert(JSON.stringify(alone.views.find(v => v.path === 'home')).includes('light.saloon'));
+  const whole = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['home', 'rooms']}]}, hass({id: 'u1', name: 'Ali'}));
+  assert(JSON.stringify(whole.views.find(v => v.path === 'home')).includes('light.saloon'), 'a whole tab given: everything on it counts');
+});
+
 test('a limited user with no tabs gets a clear message, not the dashboard', async () => {
   const d = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: []}]}, hass({id: 'u1', name: 'Ali'}));
   assert.equal(d.views.length, 1);
@@ -151,6 +163,7 @@ test('the editor: a dropdown per tab, a dropdown per card, and what is saved', a
   assert.equal(sara.length, 2, 'one dropdown per ticked tab');
   const [rooms, media] = sara;
   assert.match(rooms.children[0].textContent, /everything on this tab/);
+  assert.doesNotMatch(rooms.children[0].textContent, /other tabs/);
   const roomRows = rooms.querySelectorAll('div');
   assert.deepEqual(roomRows.map(r => r.children[0].text.trim()), ['Ali Room', 'Saloon'], 'the heading is the group; rows show the card\'s own name');
   const [aliTick] = roomRows[0].children[0].children;

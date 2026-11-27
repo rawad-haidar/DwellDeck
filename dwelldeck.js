@@ -4598,9 +4598,38 @@ function pruneCards(cards, allowed, known) {
 // A shared card with only some of its things given: lists of entities lose the others (so "All on"
 // switches only those) and cards inside it (a room's popup) showing the others are left out.
 function narrowCard(card, allowed, known) {
-  const keep = id => typeof id !== 'string' || !known.has(id) || OPEN_DOMAINS.has(id.split('.')[0]) || allowed.has(id);
+  const given = id => typeof id !== 'string' || !known.has(id) || OPEN_DOMAINS.has(id.split('.')[0]) || allowed.has(id);
+  // Lists lose what wasn't given: ids, [id, …] pairs (a TV with its remote), and conditions on it
+  // (so "Everything is off" means everything of theirs).
+  const keepItem = item => typeof item === 'string' ? given(item)
+    : Array.isArray(item) ? given(item[0])
+    : item && typeof item === 'object' && typeof item.condition === 'string' && typeof item.entity === 'string' ? given(item.entity) : true;
+  // Templates carry their data as JSON ({"lights": [...]}, const ids=["light.a", ...]): narrowed the same way.
+  const inTemplate = text => {
+    let out = '', from = 0, start;
+    const next = at => { const a = text.indexOf('{"', at), b = text.indexOf('["', at); return a === -1 ? b : b === -1 ? a : Math.min(a, b); };
+    while ((start = next(from)) !== -1) {
+      // Find where this object ends, minding quoted text.
+      let depth = 0, quoted = false, end = -1;
+      for (let i = start; i < text.length; i++) {
+        const ch = text[i];
+        if (quoted) { if (ch === '\\') i++; else if (ch === '"') quoted = false; continue; }
+        if (ch === '"') quoted = true;
+        else if (ch === '{' || ch === '[') depth++;
+        else if (ch === '}' || ch === ']') { depth--; if (!depth) { end = i; break; } }
+      }
+      if (end === -1) break;
+      const json = text.slice(start, end + 1);
+      let replaced = json;
+      try { replaced = JSON.stringify(walk(JSON.parse(json))); } catch { /* not data: leave it */ }
+      out += text.slice(from, start) + replaced;
+      from = end + 1;
+    }
+    return out + text.slice(from);
+  };
   const walk = value => {
-    if (Array.isArray(value)) return value.every(item => typeof item === 'string') ? value.filter(keep) : value.map(walk);
+    if (Array.isArray(value)) return value.filter(keepItem).map(walk);
+    if (typeof value === 'string') return value.includes('[[[') && /[{[]"/.test(value) ? inTemplate(value) : value;
     if (!value || typeof value !== 'object') return value;
     return Object.fromEntries(Object.entries(value).map(([key, item]) =>
       [key, key === 'cards' && Array.isArray(item) ? pruneCards(item, allowed, known).map(walk) : walk(item)]));
@@ -4692,8 +4721,28 @@ function kidsDashboard(config, hass, kid, buildFull) {
   const picked = pickedViews(full, tabs);
   // A sub-page follows the picks of the tab that opens it (Activity from a Home limited to one room).
   const opener = view => picked.find(other => !other.subview && JSON.stringify(other).includes(`/${view.path}"`));
+  // Home with nothing picked for it follows the other tabs: it shows only what was given there,
+  // and its summary and room cards are narrowed to that. (Home alone shows the whole of Home.)
+  const others = tabs.filter(tab => tab !== 'home');
+  let given = null;
+  if (tabs.includes('home') && !tabTarget(kid, 'home') && others.length) {
+    given = new Set();
+    for (const tab of others) {
+      const target = tabTarget(kid, tab);
+      const ids = target ? targetEntities(target, hass) : tabChoices(full.views.find(view => view.path === tab), hass).flatMap(choice => choice.refs);
+      for (const id of ids) given.add(id);
+    }
+  }
+  const known = new Set(Object.keys(hass.states || {}));
+  const followOthers = view => {
+    const next = walkTab(view, hass, (card, {refs}) => refs.some(id => given.has(id)) ? narrowCard(card, given, known) : null);
+    if (Array.isArray(view.sections) && !next.sections.length) next.sections = [{type: 'grid', cards: [{type: 'markdown', content: 'Nothing on this page has been shared with you yet.'}]}];
+    return next;
+  };
   const views = picked.map(view => {
+    if (given && view.path === 'home') return followOthers(view);
     const sub = view.subview && !tabs.includes(view.path);
+    if (given && sub && opener(view)?.path === 'home') return pruneView(view, {entity_id: [...given]}, hass);
     const target = tabTarget(kid, sub ? opener(view)?.path : view.path);
     if (!target) return view;
     // A sub-page has other cards than the tab that opens it: it keeps what shows only given things.
@@ -4823,7 +4872,7 @@ class DwellDeckOriginalEditor extends HTMLElement {
   }
   // One tab's dropdown: its cards grouped under their headings. Ticking a card shares it; its own
   // dropdown then lists what is on it, all ticked, to leave some out. Nothing ticked: the whole tab.
-  tabPicker(user,label,choices,target,onChange){
+  tabPicker(user,label,choices,target,onChange,whenEmpty='everything on this tab'){
     const box=document.createElement('details');box.className='tab-access';
     const summary=document.createElement('summary');box.append(summary);
     if(!choices.length){
@@ -4838,7 +4887,7 @@ class DwellDeckOriginalEditor extends HTMLElement {
       :target?choices.filter(c=>c.refs.every(id=>given.has(id))).map(c=>c.key):[]);
     const allowed=new Set(target?.cards?.length?(target.entity_id||[]):choices.filter(c=>chosen.has(c.key)).flatMap(c=>c.refs));
     const name=id=>this._hass?.states?.[id]?.attributes?.friendly_name||id;
-    const count=()=>{summary.textContent=`${label}: ${chosen.size?`${chosen.size} of ${choices.length} cards`:'everything on this tab'}`;};
+    const count=()=>{summary.textContent=`${label}: ${chosen.size?`${chosen.size} of ${choices.length} cards`:whenEmpty}`;};
     const emit=()=>{
       count();
       const picked=choices.filter(c=>chosen.has(c.key));
@@ -4908,7 +4957,7 @@ class DwellDeckOriginalEditor extends HTMLElement {
           for(const t of kidTabs(cur)){const target=tabTarget(cur,t);if(target)all[t]=Object.fromEntries(Object.entries(target).filter(([,v])=>v?.length));}
           if(access)all[tab]=access;else delete all[tab];
           write(kidTabs(cur),all);
-        }));
+        },tab==='home'&&tabs.length>1?'only what the other tabs give':'everything on this tab'));
         holder.replaceChildren(tabsForm,...pickers);
       };
       draw();
@@ -5094,7 +5143,9 @@ class DwellDeckOriginalEditor extends HTMLElement {
       camera_detection: 'Show camera human and vehicle detection on the Security page',
       readable_font: 'Use the Atkinson Hyperlegible font (loaded from Google Fonts). Off uses the Home Assistant font.'
     }));
-    const roomDetails=document.createElement('details');roomDetails.open=true;const summary=document.createElement('summary');summary.textContent='Home Assistant areas and controls';roomDetails.append(summary);
+    const roomDetails=document.createElement('details');
+    // Closed at first; stays as it was (open after adding or removing a room) while the editor is open.
+    roomDetails.open=!!this._roomsOpen;roomDetails.addEventListener('toggle',()=>{this._roomsOpen=roomDetails.open;});const summary=document.createElement('summary');summary.textContent='Home Assistant areas and controls';roomDetails.append(summary);
     const editorRooms = this.config.area_rooms
       ? Object.entries(this.config.rooms || {}).map(([key, room]) => ({key, name: room.name, placeholders: []}))
       : ROOM_TEMPLATES;
@@ -5105,7 +5156,7 @@ class DwellDeckOriginalEditor extends HTMLElement {
       ],this.config.rooms?.[room.key]||{entities:room.placeholders.map(id=>{const slot=SLOTS.find(s=>s.placeholder===id);return this.config.entities?.[slot?.key];}).filter(Boolean)},value=>this.change({...this.config,rooms:{...this.config.rooms,[room.key]:value}}),{name:'Room title',area:'Discover lights and switches from area',entities:'Lights and switches',exclude:'Excluded entities',discover_controls:'Discover room controls and sensors',controls:'Additional room controls and sensors',discover_lighting:'Filter automatic lighting discovery to lights and lighting switches',temperature_sensors:'Room temperature: temperature sensors or air conditioners (their current temperature); averaged when there are several, empty uses the room\'s own'}));roomDetails.append(details);
     }
     (this.config.extra_rooms||[]).forEach((room,index)=>{
-      const details=document.createElement('details');details.open=true;
+      const details=document.createElement('details');details.open=room.name==='New room';
       const title=document.createElement('summary');title.textContent=room.name||'New room';details.append(title);
       details.append(this.form([{name:'name',selector:{text:{}}},{name:'area',selector:{area:{}}},{name:'entities',selector:{entity:{multiple:true,filter:{domain:['light','switch']}}}},{name:'exclude',selector:{entity:{multiple:true}}},{name:'discover_controls',selector:{boolean:{}}},{name:'controls',selector:{entity:{multiple:true,filter:{domain:ROOM_CONTROL_DOMAINS}}}},{name:'discover_lighting',selector:{boolean:{}}},{name:'temperature_sensors',selector:{entity:{multiple:true,filter:[{domain:'sensor',device_class:'temperature'},{domain:'climate'}]}}}],room,value=>{
         const extra_rooms=[...this.config.extra_rooms];extra_rooms[index]=value;this.change({...this.config,extra_rooms});
