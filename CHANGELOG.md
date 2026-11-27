@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.46 — Kids' mode
+
+- **Kids' mode.** List a child's Home Assistant user and rooms under `kids`, and when they open DwellDeck they see one page, My room, with only their rooms' lights, TVs and air conditioners. Nothing else is built for them: no other rooms, security, cameras, alarm or energy. Holding a tile opens nothing, so the details dialog (history, related entities) is out of reach too. Everyone else gets the full dashboard as before.
+- This limits what DwellDeck shows, not what Home Assistant allows. The README explains how to pair it with non-admin accounts and admin-only dashboards.
+
 ## 0.9.45 — Every alarm mode on the alarm card
 
 - **The alarm card offers every mode your alarm supports.** Home Assistant's alarm card shows only Arm home and Arm away unless told otherwise, so Arm night, Arm vacation and Arm custom bypass were missing even when Alarmo offered them. The card now lists the modes the alarm reports. Alarmo reports the modes that are enabled in its own settings.

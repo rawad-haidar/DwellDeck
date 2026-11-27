@@ -1,6 +1,7 @@
 // Dashboard strategy and custom element registration.
 import {discoveryContext} from './discovery.mjs';
 import {generateOriginal} from './generator.mjs';
+import {kidFor, kidsDashboard} from './kids.mjs';
 import {loadDwellFont, refreshText} from './design.mjs';
 import {DwellDeckOriginalEditor} from './editor.mjs';
 import {dwellTabsCss, dwellPageCss, DEFAULT_PALETTE} from './theme.mjs';
@@ -86,6 +87,10 @@ class DwellDeckOriginalStrategy extends HTMLElement {
     // Without DwellDeck's own colours (a theme chosen instead), cards keep the theme's.
     if (config.theme || config.builtin_colors === false) page.view = page.popup = '';
     keepDwellPage({...page, tabs: config.modern_tabs !== false ? dwellTabsCss(palette) : ''});
+    // A kid's account gets only their own rooms (see kids.mjs). Registries may be admin-only on some
+    // Home Assistant versions, so fall back to the ones every signed-in user already has.
+    const kid = kidFor(config, hass.user);
+    if (kid) return kidsDashboard(config, await discoveryContext(hass).catch(() => hass), kid);
     const needsDiscovery = config.auto_discover || config.room_controls ||
       Object.values(config.rooms || {}).some(room => room.area) ||
       (config.extra_rooms || []).some(room => room.area);
