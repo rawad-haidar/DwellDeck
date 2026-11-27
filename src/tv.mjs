@@ -484,13 +484,18 @@ function dwellVolume(states, cfg) {
   };
   const btn = `all:unset;box-sizing:border-box;cursor:pointer;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:rgba(0,0,0,.18);border:1px solid ${cfg.c.line};color:${cfg.c.text}`;
   const icon = name => `<ha-icon icon="${name}" style="--mdc-icon-size:20px;width:20px;height:20px;display:block;flex:none;margin:0"></ha-icon>`;
-  if (!cfg.entity) {
+  // The first entry that sets the level and is connected; when none is, the steps (a TV whose ADB
+  // connection dropped still has its remote's volume keys).
+  const gone = id => !states[id] || ['off', 'unavailable', 'unknown'].includes(states[id].state);
+  const entities = cfg.entities || (cfg.entity ? [cfg.entity] : []);
+  const entity = entities.find(id => !gone(id)) || (cfg.step ? null : entities[0]);
+  if (!entity) {
     return `<div style="display:flex;align-items:center;gap:8px;justify-content:center">
       <button style="${btn}" aria-label="Volume down" data-entity="${cfg.step}" data-dir="down" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-minus')}</button>
       <span style="color:${cfg.c.muted};font-size:13px">Volume</span>
       <button style="${btn}" aria-label="Volume up" data-entity="${cfg.step}" data-dir="up" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-plus')}</button></div>`;
   }
-  const e = states[cfg.entity];
+  const e = states[entity];
   const level = Math.round((Number(e?.attributes?.volume_level) || 0) * 100);
   const muted = !!e?.attributes?.is_volume_muted;
   const off = !e || ['off', 'unavailable', 'unknown'].includes(e.state);
@@ -498,7 +503,7 @@ function dwellVolume(states, cfg) {
   return `<div class="vl" style="display:grid;grid-template-columns:36px 1fr 44px;align-items:center;gap:10px;opacity:${off ? 0.5 : 1}">
     ${cfg.mute ? `<button style="${btn}" aria-label="${muted ? 'Unmute' : 'Mute'}" data-entity="${cfg.mute}" data-muted="${muted ? 1 : 0}" onclick="event.stopPropagation();window.__dwellVol.mute(this)">${icon(muted ? 'mdi:volume-off' : level < 35 ? 'mdi:volume-low' : level < 70 ? 'mdi:volume-medium' : 'mdi:volume-high')}</button>`
       : `<span style="display:grid;place-items:center;color:${cfg.c.muted}">${icon('mdi:volume-high')}</span>`}
-    <input type="range" min="0" max="100" step="1" value="${level}" aria-label="Volume" data-entity="${cfg.entity}" ${off ? 'disabled' : ''}
+    <input type="range" min="0" max="100" step="1" value="${level}" aria-label="Volume" data-entity="${entity}" ${off ? 'disabled' : ''}
       style="width:100%;height:28px;margin:0;accent-color:${cfg.c.on};cursor:pointer;background:transparent;--fill:${fill}%"
       onclick="event.stopPropagation()" oninput="event.stopPropagation();window.__dwellVol.show(this)" onchange="event.stopPropagation();window.__dwellVol.set(this)">
     <span class="pc" style="font-size:13px;color:${cfg.c.text};text-align:right;font-variant-numeric:tabular-nums">${muted ? 'Muted' : level + '%'}</span></div>`;
@@ -619,13 +624,18 @@ export function tvCard(requested, hass) {
   const power = powerPlayer ? player('toggle', powerPlayer)
     : remote && remote.platform !== 'androidtv' ? {action: 'perform-action', perform_action: 'remote.toggle', target: {entity_id: remote.id}}
     : remote ? remote.send('POWER') : player('toggle');
-  const volumePlayer = playerFor(players, hass, FEATURE.volumeStep | FEATURE.volumeSet) || id;
+  // A TV's media renderer (DLNA) and its Music Assistant copy have their own volume, for what's cast
+  // to them: it doesn't move the TV's own volume, so a TV's volume only uses the TV's own entries.
+  const ownVolume = entry => !tv || !['dlna_dmr', 'music_assistant'].includes(hass.entities?.[entry]?.platform);
+  const volumePlayer = playerFor(players.filter(ownVolume), hass, FEATURE.volumeStep | FEATURE.volumeSet) || id;
   const playPlayer = playerFor(players, hass, FEATURE.play | FEATURE.pause) || id;
   // A sound system's Music Assistant player also counts: it skips tracks and sets the volume.
   const ma = musicAssistantPlayer(players, hass);
   const sources = ma && !players.includes(ma) ? [...players, ma] : players;
   const skipPlayer = playerFor(sources, hass, FEATURE.next | FEATURE.previous) || playPlayer;
-  const sliderPlayer = playerFor(sources, hass, FEATURE.volumeSet);
+  // Every entry that sets the level; the card uses the first one that's connected (ADB drops out).
+  const sliderPlayers = sources.filter(ownVolume).filter(entry => supports(entry, hass, FEATURE.volumeSet));
+  const stepPlayer = playerFor(players.filter(ownVolume), hass, FEATURE.volumeStep);
   // What plays on a sound system comes from its Music Assistant player: watch it for the title and artwork.
   const watched = [...new Set([...sources, ...(remote ? [remote.id] : [])])];
   // Status comes from whichever entry is on: the TV's own player first, then anything playing.
@@ -708,9 +718,9 @@ export function tvCard(requested, hass) {
       + '</div></div>';
   ]]]`;
   const areas = ['"i n power"', '"i l power"', '"now now now"', '"media media media"'];
-  if (sliderPlayer || volumePlayer) {
-    fields.vol = touchSafe(`${sharedCode(dwellVolume)}(states, ${JSON.stringify({entity: sliderPlayer, step: sliderPlayer ? null : volumePlayer,
-      mute: playerFor(sources, hass, FEATURE.volumeMute), c: {line: C.line, text: C.text, muted: C.muted, on: C.on, onText: C.onText, card: C.card}})})`);
+  if (sliderPlayers.length || volumePlayer) {
+    fields.vol = touchSafe(`${sharedCode(dwellVolume)}(states, ${JSON.stringify({entities: sliderPlayers, step: stepPlayer || (sliderPlayers.length ? null : volumePlayer),
+      mute: playerFor(sources.filter(ownVolume), hass, FEATURE.volumeMute) || playerFor(sources, hass, FEATURE.volumeMute), c: {line: C.line, text: C.text, muted: C.muted, on: C.on, onText: C.onText, card: C.card}})})`);
     areas.push('"vol vol vol"');
   }
   if (ma) {

@@ -893,3 +893,26 @@ test('the alarm card offers every mode the alarm supports',async()=>{
  assert.deepEqual(chosen.states,['arm_away'],'a choice already made is kept');
  assert.equal(missing.states,undefined,'an alarm Home Assistant does not know is left alone');
 });
+test('a TV\'s volume is the TV\'s own: not its DLNA renderer\'s, and the steps while ADB is disconnected',async()=>{
+ const {tvCard}=await import('../src/tv.mjs');
+ const st=(id,state,a)=>[id,{entity_id:id,state,attributes:a}];
+ const states=Object.fromEntries([
+  st('media_player.saloon_saloon_tv','on',{friendly_name:'Saloon TV',supported_features:153529,volume_level:.34,is_volume_muted:false}),
+  st('media_player.saloon_tv_192_168_14_246_2','idle',{friendly_name:'Saloon TV(192.168.14.187)',supported_features:479807,volume_level:.24}),
+  st('media_player.saloon_saloon_tv_adb','off',{friendly_name:'Saloon TV ADB',supported_features:23997})]);
+ const entities={'media_player.saloon_saloon_tv':{platform:'androidtv_remote',device_id:'r',area_id:'living_room'},
+  'media_player.saloon_tv_192_168_14_246_2':{platform:'dlna_dmr',device_id:'d',area_id:'living_room'},
+  'media_player.saloon_saloon_tv_adb':{platform:'androidtv',device_id:'a',area_id:'living_room'}};
+ const hass={states,entities,devices:{r:{name:'Saloon TV'},d:{name:'Saloon TV(192.168.14.187)'},a:{name:'Android TV 192.168.14.187'}},areas:{living_room:{name:'Living'}}};
+ const card=tvCard('media_player.saloon_saloon_tv',hass);
+ const vol=s=>{globalThis.window={};return Function('states',card.custom_fields.vol.trim().slice(3,-3))(s);};
+ const code=card.custom_fields.vol;
+ assert(!code.includes('"media_player.saloon_tv_192_168_14_246_2"'),'the DLNA renderer is left out');
+ let html=vol(states);
+ assert(html.includes('aria-label="Volume up" data-entity="media_player.saloon_saloon_tv"'),'ADB off: the remote\'s volume steps');
+ assert(!html.includes('type="range"'));
+ html=vol({...states,'media_player.saloon_saloon_tv_adb':{...states['media_player.saloon_saloon_tv_adb'],state:'on',attributes:{...states['media_player.saloon_saloon_tv_adb'].attributes,volume_level:.34}}});
+ assert(html.includes('type="range"')&&html.includes('data-entity="media_player.saloon_saloon_tv_adb"'),'ADB connected: a slider on the TV\'s own volume');
+ assert(html.includes('34%'));
+ delete globalThis.window;
+});

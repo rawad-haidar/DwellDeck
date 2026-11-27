@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.62 — A TV's volume moves the TV
+
+- **Fixed: the volume on a TV card could do nothing.** The card set the volume of the TV's DLNA media renderer (or its Music Assistant copy), which only applies to media cast to the TV, not the TV's own speakers. A TV's volume now only uses the TV's own entries.
+  - **The card uses the first one that's connected.** That's a slider when ADB is connected; when it isn't, the remote's volume buttons step it up and down.
+- **Sound systems are unchanged.**
+
 ## 0.9.61 — Generator load from the controller
 
 - **The generator card uses the controller's own output power** when it's in Home Assistant (`sensor.gen_total_power` or `sensor.gen_power`; on a DSE, register 1536). The inverter-side reading only measures what the inverters take from the generator, and it also shows mains power while the generator is off.
