@@ -4627,8 +4627,11 @@ function kidsDashboard(config, hass, kid, buildFull) {
   // Rooms chosen for the Rooms tab are the only rooms built at all, so Home and Lights list only them too.
   const rooms = tabTarget(kid, 'rooms');
   const full = buildFull(rooms?.area_id.length ? {...config, only_areas: areaIds(rooms.area_id, hass)} : config);
-  const views = pickedViews(full, tabs).map(view => {
-    const target = tabTarget(kid, view.path);
+  const picked = pickedViews(full, tabs);
+  // A sub-page follows the picks of the tab that opens it (Activity from a Home limited to one room).
+  const opener = view => picked.find(other => !other.subview && JSON.stringify(other).includes(`/${view.path}"`));
+  const views = picked.map(view => {
+    const target = tabTarget(kid, view.subview && !tabs.includes(view.path) ? opener(view)?.path : view.path);
     return target ? pruneView(view, targetEntities(target, hass), hass) : view;
   });
   return views.length ? {...full, views} : nothing;

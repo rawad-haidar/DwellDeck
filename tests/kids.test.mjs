@@ -58,6 +58,7 @@ test('each tab shows only what was picked for it; tabs left open show everything
   for (const p of ['devices', 'popup-library', 'security-sensors', 'cameras', 'rooms', 'security']) assert(!d.views.some(v => v.path === p), p);
   const sub = d.views.filter(v => v.subview).map(v => v.path);
   assert(sub.every(p => JSON.stringify(d.views.filter(v => !v.subview)).includes(`/${p}"`)), 'only subviews a picked tab opens');
+  for (const view of d.views.filter(v => v.subview)) for (const id of ['light.saloon', 'alarm_control_panel.house', 'lock.gate', 'media_player.saloon_tv']) assert(!JSON.stringify(view).includes(id), `${view.path} follows Home's picks: ${id}`);
   const home = JSON.stringify(d.views.find(v => v.path === 'home'));
   for (const id of ['light.saloon', 'alarm_control_panel.house', 'lock.gate']) assert(!home.includes(id), `Home shows only Ali Room: ${id}`);
   const full = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['home']}]}, hass({id: 'u1', name: 'Ali'}));
