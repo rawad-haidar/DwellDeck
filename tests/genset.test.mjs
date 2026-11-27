@@ -28,14 +28,32 @@ test('a DSE generator on Modbus is found by its gen_ names', () => {
   assert.equal(gensetSetup({generator: {name: 'DSE 6110', mode: 'sensor.other_mode'}}, {states}).mode, 'sensor.other_mode', 'settings win');
 });
 
-test('the state list reads like the controller', () => {
+test('the live panel shows the state and every fitted reading as tiles', () => {
   const cfg = {...gensetSetup({}, {states}), modes: DSE_MODES, c: {text: '#fff', muted: '#999', line: '#333', on: '#440', onText: '#fc0'}};
   const html = dwellGenset(states, cfg);
-  for (const text of ['Engine at rest', 'No output', 'Off load', 'Mains OK · 231 V', '>Auto<', '13.8 V', '37°C']) assert(html.includes(text), text);
-  assert(!html.includes('kPa') && !html.includes('-1%'), 'sensors reporting -1 (not fitted) are hidden');
+  for (const text of ['Engine at rest', 'Mode · Auto', 'Mains OK · 231 V', '>Load<', '0 W', '0 rpm', '13.8 V', '37 °C', 'Frequency']) assert(html.includes(text), text);
+  assert(!html.includes('Oil pressure') && !html.includes('>Fuel<'), 'sensors reporting -1 (not fitted) get no tile');
   const running = {...states, 'sensor.gen_engine_speed': st(1500), 'sensor.gen_frequency': st(50.1), 'sensor.gen_l1_n_voltage': st(229), 'sensor.electric_generator_power': st(4200), 'sensor.gen_control_mode': st(2)};
   const html2 = dwellGenset(running, cfg);
-  for (const text of ['Running · 1500 rpm', '229 V · 50.1 Hz', 'On load · 4.2 kW', '>Manual<']) assert(html2.includes(text), text);
+  for (const text of ['Running on load', '1500 rpm', '229 V', '50.1 Hz', '4.2 kW', 'Mode · Manual']) assert(html2.includes(text), text);
+});
+
+test('history: runs, running time and energy come from the recorder', async () => {
+  const {dwellGensetHistory} = await import('../src/genset.mjs');
+  const h = 3600000, from = Date.UTC(2026, 10, 27, 0), to = from + 12 * h;
+  globalThis.window = {__dwellGenHist: {g: {range: 'today', loading: false, asked: 'done', data: {from, to, error: '', rows: {
+    'sensor.gen_engine_speed': [{t: from, v: 0}, {t: from + 2 * h, v: 1500}, {t: from + 4 * h, v: 0}, {t: from + 10 * h, v: 1500}],
+    'sensor.electric_generator_power': [{t: from, v: 0}, {t: from + 2 * h, v: 3000}, {t: from + 3 * h, v: 5000}, {t: from + 4 * h, v: 0}, {t: from + 10 * h, v: 2000}],
+    'sensor.gen_coolant_temp': [{t: from + 2 * h, v: 40}, {t: from + 3 * h, v: 82}, {t: from + 4 * h, v: 70}]
+  }}}}};
+  const html = dwellGensetHistory(null, {}, {rpm: 'sensor.gen_engine_speed', power: 'sensor.electric_generator_power', coolant: 'sensor.gen_coolant_temp', c: {text: '#fff', muted: '#999', line: '#333', on: '#440', onText: '#fc0'}});
+  assert.match(html, /Running time<\/div><div class="sv">4 h 00 min/, 'two runs: 2 h + 2 h (the second still running)');
+  assert.match(html, /Energy<\/div><div class="sv">12\.0 kWh/, '3 kWh + 5 kWh in the first run, 2 kW × 2 h in the second');
+  assert.match(html, /Starts<\/div><div class="sv">2/);
+  assert.match(html, /running<\/span>/, 'the open run is marked running');
+  assert.match(html, /max 82 °C/);
+  assert.match(html, /peak 5\.0 kW/);
+  delete globalThis.window;
 });
 
 test('the buttons call the scripts, ask before acting, and mark the current mode', () => {
