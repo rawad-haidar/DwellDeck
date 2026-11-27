@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.57 — Readable generator tiles while running
+
+- **The generator card is readable while the engine runs.** Running tiles, chips and the engine icon used light amber text on a solid amber fill, so Speed, Output, Frequency and the state chips were hard to read. They now use the dim amber background with light amber text, like other active cards in DwellDeck.
+
 ## 0.9.56 — Cards catch up straight after a press
 
 - **TVs, speakers and the generator update within a second or two after you press a button.** Their integrations (ADB, Modbus and the like) only report every 10–30 seconds, so the card looked stuck. After a command to a TV, speaker or remote, DwellDeck now asks Home Assistant to read the device again straight away and once more a few seconds later. That includes the same TV through its other integrations (ADB, Android TV Remote, Music Assistant). After a generator button, the generator's sensors are read three times, so a start shows while it cranks. Lights are left alone; they report on their own.
