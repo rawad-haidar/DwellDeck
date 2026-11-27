@@ -144,7 +144,7 @@ export function narrowCard(card, allowed, known) {
     : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walkData(item)])) : value;
   const walk = value => {
     if (Array.isArray(value)) return value.filter(keepItem).map(walk);
-    if (typeof value === 'string') return value.includes('[[[') && /[{[]"/.test(value) ? inTemplate(value) : value;
+    if (typeof value === 'string') return value.includes('[[[') && /\{"|\["|\['/.test(value) ? inTemplate(value) : value;
     if (!value || typeof value !== 'object') return value;
     return Object.fromEntries(Object.entries(value).map(([key, item]) =>
       [key, key === 'cards' && Array.isArray(item) ? pruneCards(item, allowed, known).map(walk) : walk(item)]));

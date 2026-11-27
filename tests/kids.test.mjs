@@ -145,6 +145,7 @@ test('templates lose what was not given: JSON data, id lists and single ids', as
   assert.equal(out.label, '[[[ const ids=["light.a"]; const ac=[\'climate.a\']; return ids.length ]]]');
   assert.equal(out.custom_fields.glance, '[[[ return f(states, {"lights":["light.a"],"tvs":[["light.a","y"]],"alarm":null,"n":2}) ]]]');
   assert.deepEqual(out.visibility[0].conditions.map(c => c.entity), ['light.a'], 'conditions on what was not given go');
+  assert.equal(narrowCard({label: "[[[ const ac=['climate.a','climate.b']; ]]]"}, allowed, known).label, "[[[ const ac=['climate.a']; ]]]", 'single quotes alone too');
 });
 
 test('the editor: a dropdown per tab, a dropdown per card, and what is saved', async () => {
