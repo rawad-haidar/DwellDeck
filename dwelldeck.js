@@ -2268,14 +2268,22 @@ function dwellGensetHistory(card, hass, cfg) {
   // The value a series had at time t (its last reading at or before t).
   const at = (series, t) => { let v = null; for (const row of series || []) { if (row.t > t) break; v = row.v; } return v; };
   const analyse = d => {
-    const turning = cfg.rpm ? d.rows[cfg.rpm] : d.rows[cfg.frequency];
-    const limit = cfg.rpm ? 100 : 5;
+    // Running whenever the engine turns, there's output frequency, or the generator delivers power:
+    // whichever the recorder has (a sensor added later only covers part of the history).
+    const signals = [[d.rows[cfg.rpm], 100], [d.rows[cfg.frequency], 5], [d.rows[cfg.power], 50]].filter(([rows]) => rows?.length);
+    const times = [...new Set(signals.flatMap(([rows]) => rows.map(row => row.t)))].sort((a, b) => a - b);
+    const index = signals.map(() => -1);
     const runs = [];
     let open = null;
-    for (const row of turning || []) {
-      const on = Number.isFinite(row.v) && row.v > limit;
-      if (on && !open) open = {start: row.t};
-      if (!on && open) { open.end = row.t; runs.push(open); open = null; }
+    for (const t of times) {
+      let on = false;
+      signals.forEach(([rows, limit], i) => {
+        while (index[i] + 1 < rows.length && rows[index[i] + 1].t <= t) index[i]++;
+        const v = index[i] >= 0 ? rows[index[i]].v : null;
+        if (Number.isFinite(v) && v > limit) on = true;
+      });
+      if (on && !open) open = {start: t};
+      if (!on && open) { open.end = t; runs.push(open); open = null; }
     }
     if (open) { open.end = d.to; open.running = true; runs.push(open); }
     const power = d.rows[cfg.power] || [];
@@ -2300,7 +2308,7 @@ function dwellGensetHistory(card, hass, cfg) {
   const long = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`; };
   const kw = w => w >= 1000 ? (w / 1000).toFixed(1) + ' kW' : Math.round(w) + ' W';
   const chart = (d, runs) => {
-    const W = 760, H = 170, L = 44, R = 10, T = 12, B = 26;
+    const W = 1100, H = 230, L = 58, R = 12, T = 14, B = 30;
     const x = t => L + (t - d.from) / Math.max(1, d.to - d.from) * (W - L - R);
     const power = (d.rows[cfg.power] || []).filter(r => Number.isFinite(r.v));
     const top = Math.max(1000, ...power.map(r => r.v)) * 1.1;
@@ -2349,7 +2357,7 @@ function dwellGensetHistory(card, hass, cfg) {
     .sts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
     .st{padding:12px 14px;border-radius:14px;border:1px solid ${cfg.c.line};background:rgba(0,0,0,.16)}
     .sl{font-size:12.5px;color:${cfg.c.muted}}.sv{margin-top:4px;font-size:20px;font-weight:800}
-    .blk svg{display:block;width:100%;height:auto}.blk text{font-size:11px;fill:${cfg.c.muted};font-family:inherit}
+    .blk svg{display:block;width:100%;height:auto;max-height:260px}.blk text{font-size:14px;fill:${cfg.c.muted};font-family:inherit}
     .runs{display:grid;gap:8px;max-height:300px;overflow:auto}
     .run{padding:10px 12px;border-radius:12px;border:1px solid ${cfg.c.line}}
     .rt{font-size:13.5px}.now{color:${cfg.c.onText};font-weight:700}

@@ -53,6 +53,11 @@ test('history: runs, running time and energy come from the recorder', async () =
   assert.match(html, /running<\/span>/, 'the open run is marked running');
   assert.match(html, /max 82 °C/);
   assert.match(html, /peak 5\.0 kW/);
+  // A run the engine-speed sensor missed (added later) still counts from the load.
+  window.__dwellGenHist.g.data.rows['sensor.gen_engine_speed'] = [{t: from + 10 * h, v: 1500}];
+  const later = dwellGensetHistory(null, {}, {rpm: 'sensor.gen_engine_speed', power: 'sensor.electric_generator_power', coolant: 'sensor.gen_coolant_temp', c: {text: '#fff', muted: '#999', line: '#333', on: '#440', onText: '#fc0'}});
+  assert.match(later, /Starts<\/div><div class="sv">2/);
+  assert.match(later, /Energy<\/div><div class="sv">12\.0 kWh/);
   delete globalThis.window;
 });
 
