@@ -80,17 +80,37 @@ test('a limited user with no tabs gets a clear message, not the dashboard', asyn
   assert(!JSON.stringify(d).includes('light.saloon'));
 });
 
-test('the editor shows tabs, adds a picker for each ticked tab, and saves both', async () => {
+test('each tab offers only its own cards, named after the card', async () => {
+  const {tabChoices} = await import('../src/kids.mjs');
+  const h = hass({});
+  const view = {path: 'media', sections: [
+    {type: 'grid', cards: [{type: 'heading', heading: 'Bedrooms'},
+      {type: 'custom:button-card', name: 'Ali TV', entity: 'media_player.ali_tv', tap_action: {action: 'call-service', service: 'media_player.toggle'}},
+      {type: 'tile', entity: 'media_player.saloon_tv'},
+      {type: 'vertical-stack', cards: [{type: 'custom:button-card', name: '[[[ return 1 ]]]', triggers_update: ['light.ali_ceiling', 'climate.ali_ac']}]},
+      {type: 'button', name: 'Again', entity: 'media_player.ali_tv'},
+      {type: 'markdown', content: 'no entities'}]}]};
+  assert.deepEqual(tabChoices(view, h), [
+    {value: 'media_player.ali_tv', label: 'Bedrooms · Ali TV / Again'},
+    {value: 'media_player.saloon_tv', label: 'Bedrooms · Saloon TV'},
+    {value: 'climate.ali_ac,light.ali_ceiling', label: 'Bedrooms · 2 items'}]);
+});
+
+test('the editor lists each ticked tab\'s cards and saves what is on the ticked ones', async () => {
   const {DwellDeckOriginalEditor} = await import('../src/editor.mjs');
   const forms = [];
+  const full = {views: [
+    {path: 'media', sections: [{type: 'grid', cards: [{type: 'tile', entity: 'media_player.ali_tv'}, {type: 'tile', entity: 'media_player.saloon_tv'}]}]},
+    {path: 'rooms', sections: [{type: 'grid', cards: [{type: 'custom:button-card', name: 'Ali Room', triggers_update: ['light.ali_ceiling', 'climate.ali_ac']}, {type: 'custom:button-card', name: 'Saloon', entity: 'light.saloon'}]}]}]};
   const editor = {
-    config: {type: 'custom:dwelldeck-original', kids: [{user: 'Ali', rooms: ['old_room']}]},
-    _hass: {callWS: async () => [
+    config: {type: 'custom:dwelldeck-original', kids: [{user: 'Ali', rooms: ['ali_room']}]},
+    _hass: {...hass({}), callWS: async () => [
       {id: 'a1', name: 'Youssef', group_ids: ['system-admin']},
       {id: 'k1', name: 'Ali', group_ids: ['system-users']},
       {id: 'k2', name: 'Sara', group_ids: ['system-users']},
       {id: 's1', name: 'Supervisor', system_generated: true, group_ids: ['system-users']}
     ]},
+    fullDashboard: async () => full,
     form(schema, data, callback, labels) { if (labels.tabs) forms.push({user: labels.tabs.split(':')[0], fields: schema.map(f => f.name), schema, data, callback}); return {}; },
     change(config) { this.config = config; }
   };
@@ -98,21 +118,21 @@ test('the editor shows tabs, adds a picker for each ticked tab, and saves both',
   await DwellDeckOriginalEditor.prototype.renderLimitedUsers.call(editor, {replaceChildren() {}, append() {}});
   const last = user => forms.filter(f => f.user === user).at(-1);
   assert.deepEqual(forms.map(f => f.user), ['Ali', 'Sara'], 'admins and system users are not listed');
-  assert.deepEqual(last('Ali').fields, ['tabs', 'rooms'], 'an old rooms-only entry shows as the Rooms tab');
-  assert.deepEqual(last('Ali').data.rooms, {area_id: ['old_room'], device_id: [], entity_id: []});
-  assert.deepEqual(last('Sara').fields, ['tabs'], 'no pickers until a tab is ticked');
-  assert(last('Sara').schema[0].selector.select.options.some(o => o.value === 'media'));
-  last('Sara').callback({tabs: ['rooms', 'media']});
-  assert.deepEqual(last('Sara').fields, ['tabs', 'rooms', 'media'], 'one picker per ticked tab, in tab order');
-  assert(last('Sara').schema[1].selector.target);
-  last('Sara').callback({tabs: ['rooms', 'media'], rooms: {area_id: ['sara_room']}, media: {entity_id: ['media_player.sara_tv'], device_id: []}});
-  last('Ali').callback({tabs: ['rooms'], rooms: {area_id: ['ali_room']}});
-  assert.deepEqual(editor.config.kids, [
-    {user: 'k2', name: 'Sara', tabs: ['rooms', 'media'], access: {rooms: {area_id: ['sara_room']}, media: {entity_id: ['media_player.sara_tv']}}},
-    {user: 'k1', name: 'Ali', tabs: ['rooms'], access: {rooms: {area_id: ['ali_room']}}}]);
-  last('Sara').callback({tabs: ['media'], rooms: {area_id: ['sara_room']}, media: {entity_id: ['media_player.sara_tv']}});
+  const ali = last('Ali');
+  assert.deepEqual(ali.fields, ['tabs', 'rooms'], 'an old rooms-only entry shows as the Rooms tab');
+  assert.deepEqual(ali.schema[1].selector.select.options.map(o => o.label), ['Ali Room', 'Saloon'], 'only the Rooms tab\'s own cards');
+  assert.deepEqual(ali.data.rooms, ['climate.ali_ac,light.ali_ceiling'], 'the card for the room given before is ticked');
+  last('Sara').callback({tabs: ['rooms', 'media', 'climate']});
+  const sara = last('Sara');
+  assert.deepEqual(sara.fields, ['tabs', 'rooms', 'climate', 'media'], 'one picker per ticked tab, in the dashboard\'s tab order');
+  assert.deepEqual(sara.schema[3].selector.select.options.map(o => o.value), ['media_player.ali_tv', 'media_player.saloon_tv']);
+  assert(sara.schema[2].selector.target, 'a tab with no cards to list falls back to picking entities');
+  sara.callback({tabs: ['rooms', 'media', 'climate'], rooms: ['light.saloon'], media: ['media_player.ali_tv'], climate: {entity_id: ['climate.ali_ac']}});
+  assert.deepEqual(editor.config.kids.find(k => k.user === 'k2'), {user: 'k2', name: 'Sara', tabs: ['rooms', 'media', 'climate'],
+    access: {rooms: {entity_id: ['light.saloon']}, media: {entity_id: ['media_player.ali_tv']}, climate: {entity_id: ['climate.ali_ac']}}});
+  last('Sara').callback({tabs: ['media'], media: []});
   assert.deepEqual(last('Sara').fields, ['tabs', 'media'], 'unticking a tab removes its picker');
-  assert.deepEqual(editor.config.kids.find(k => k.user === 'k2'), {user: 'k2', name: 'Sara', tabs: ['media'], access: {media: {entity_id: ['media_player.sara_tv']}}}, 'and what was picked there');
+  assert.deepEqual(editor.config.kids.find(k => k.user === 'k2'), {user: 'k2', name: 'Sara', tabs: ['media']}, 'no card ticked: the whole tab');
   last('Sara').callback({tabs: []});
   last('Ali').callback({tabs: []});
   assert.equal(editor.config.kids, undefined, 'no tabs: back to the full dashboard');

@@ -105,6 +105,38 @@ export function pruneView(view, allowed, hass) {
   return next;
 }
 
+// The cards on a tab that can be shared, for the editor: one choice per card showing or controlling
+// something, named after the card, its entity, or the heading above it. Cards showing the same
+// things are one choice. value: the entities the card refers to, joined by commas.
+export function tabChoices(view, hass) {
+  const known = new Set(Object.keys(hass?.states || {}));
+  const friendly = id => hass?.states?.[id]?.attributes?.friendly_name;
+  const byKey = new Map();
+  let heading = '';
+  const walk = cards => {
+    for (const card of cards || []) {
+      if (card?.type === 'heading') { heading = card.heading || heading; continue; }
+      if (Array.isArray(card?.cards) && card.type !== 'custom:button-card') { walk(card.cards); continue; }
+      const refs = [...new Set((JSON.stringify(card).match(ENTITY_ID) || []).filter(id => known.has(id) && !OPEN_DOMAINS.has(id.split('.')[0])))].sort();
+      if (!refs.length) continue;
+      const own = [card.name, card.title, friendly(card.entity)].find(v => typeof v === 'string' && v.trim() && !v.includes('[[[')) ||
+        (refs.length === 1 ? friendly(refs[0]) || refs[0] : `${refs.length} items`);
+      const key = refs.join(',');
+      const entry = byKey.get(key);
+      if (entry) { if (!entry.names.includes(own)) entry.names.push(own); }
+      else byKey.set(key, {value: key, heading, names: [own]});
+    }
+  };
+  for (const section of view?.sections || []) { heading = section.title || ''; walk(section.cards); }
+  walk(view?.cards);
+  // The heading above says where a card is ("Kitchen · Open all / Close all"), unless the name already does.
+  return [...byKey.values()].map(({value, heading, names}) => {
+    const label = names.join(' / ');
+    const where = heading || (/^\d+ items$/.test(label) ? 'Summary' : '');
+    return {value, label: where && !label.toLowerCase().includes(where.toLowerCase()) ? `${where} · ${label}` : label};
+  });
+}
+
 // The full dashboard's views a limited user was given, with the hidden subviews those views open
 // (a Home shortcut to Weather, say). Other tabs stay out even when a picked tab links to them.
 export function pickedViews(full, tabs) {
