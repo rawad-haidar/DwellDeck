@@ -3436,23 +3436,40 @@ function groupedRoomTiles(ids, title, icon, prototype, hass) {
 }
 
 function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
+  const __A=globalThis.__dwellProf2||={};let __t=performance.now();const __m=n=>{const t=performance.now();__A[n]=(__A[n]||0)+t-__t;__t=t;};
   const lights = roomEntities(room, hass);
+  __m('1 const lights = roomEntities(room, ');
   const controls = roomControlEntities(room, hass);
+  __m('2 const controls = roomControlEntiti');
   const card = changeLists(clone(prototype), prototypeIds, lights);
+  __m('3 const card = changeLists(clone(pro');
   const lightingStatusLabel = card.label;
+  __m('4 const lightingStatusLabel = card.l');
   const originalCards = card.tap_action.browser_mod.data.content.cards;
+  __m('5 const originalCards = card.tap_act');
   const grid = originalCards.find(item => item.type === 'grid');
+  __m('6 const grid = originalCards.find(it');
   const tilePrototype = grid?.cards?.[0];
+  __m('7 const tilePrototype = grid?.cards?');
   card.name = room.name;
+  __m('8 card.name = room.name;');
   card.icon = hass.areas?.[room.area]?.icon || 'mdi:home-outline';
+  __m('9 card.icon = hass.areas?.[room.area');
   card.triggers_update = [...new Set([...lights, ...controls])];
+  __m('10 card.triggers_update = [...new Set');
   card.tap_action.browser_mod.data.title = room.name;
+  __m('11 card.tap_action.browser_mod.data.t');
   makeLightPopup(card, lights);
+  __m('12 makeLightPopup(card, lights);');
   const content = originalCards.filter(item => item.type !== 'grid');
+  __m('13 const content = originalCards.filt');
   // Keep the original summary and all-on/off controls, then organize by function.
+  __m('14 // Keep the original summary and a');
   if (!lights.length) content.splice(0, content.length);
   else content.push(...groupedRoomTiles(lights, 'Lights', 'mdi:lightbulb-group-outline', tilePrototype, hass));
+  __m('16 else content.push(...groupedRoomTi');
   // Ordered by how a room is used: what you change most first, readings last (they also sit in the strip on top).
+  __m('17 // Ordered by how a room is used: ');
   const categories = [
     ['Climate', 'mdi:thermostat', ['climate']],
     ['TVs', 'mdi:television-play', ['media_player'], id => isTv(id, hass)],
@@ -3464,6 +3481,7 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
     ['Safety and presence', 'mdi:shield-home-outline', ['binary_sensor']],
     ['All sensors', 'mdi:thermometer', ['sensor']]
   ];
+  __m('28 ];');
   for (const [title, icon, domains, only = () => true] of categories) {
     const selected = controls.filter(id => domains.includes(id.split('.')[0]) && only(id));
     const grouped = groupedRoomTiles(selected, title, icon, tilePrototype, hass);
@@ -3471,20 +3489,29 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
       content.push(grouped[0], ...curtainBulkControls(selected, prototype), ...grouped.slice(1));
     } else content.push(...grouped);
   }
+  __m('35 }');
   const groupedDomains = new Set(categories.flatMap(([, , domains]) => domains));
+  __m('36 const groupedDomains = new Set(cat');
   content.push(...groupedRoomTiles(controls.filter(id => !groupedDomains.has(id.split('.')[0])), 'Other entities', 'mdi:cog-outline', tilePrototype, hass));
+  __m('37 content.push(...groupedRoomTiles(c');
   if (!content.length) content.push({type: 'markdown', content: 'No supported controls are assigned to this area.'});
   else if (room.temperature_sensors?.length || controls.some(id => /^(sensor|binary_sensor|climate|media_player|cover)\./.test(id))) content.unshift(roomStatusStrip(controls, hass, room));
+  __m('39 else if (room.temperature_sensors?');
   card.tap_action.browser_mod.data.content.cards = content;
+  __m('40 card.tap_action.browser_mod.data.c');
   const activityIds = [...lights, ...controls.filter(id => !cameraEntity(id, hass) && !hass.entities?.[id]?.entity_category)];
+  __m('41 const activityIds = [...lights, ..');
   const active = `const ids=${JSON.stringify(activityIds)}; return ids.some(id=>{const e=states[id];if(!e)return false;const a=e.attributes?.hvac_action;if(id.startsWith('climate.'))return ['heating','cooling','drying','fan'].includes(a)||(!a&&!['off','idle','unknown','unavailable'].includes(e.state));return ['on','playing','open','opening','closing'].includes(e.state);});`;
   const condition = `(()=>{${active}})()`;
+  __m('43 const condition = `(()=>{${active}');
   card.styles.card.push({background: `[[[ return ${condition} ? 'linear-gradient(135deg,#493b24,#202936)' : 'linear-gradient(135deg,#1b2d40,#101c2b)'; ]]]`},
     {border: `[[[ return ${condition} ? '1px solid #d5a74c' : '1px solid rgba(156,199,225,.18)'; ]]]`});
   card.label = `[[[ const lights=${JSON.stringify(lights)}; const controls=${JSON.stringify(controls)}; const on=lights.filter(id=>states[id]?.state==='on').length; const scenes=controls.filter(id=>id.startsWith('scene.')).length; const unavailable=[...lights,...controls].filter(id=>!states[id]||states[id].state==='unavailable'||(!id.startsWith('scene.')&&states[id].state==='unknown')).length; const parts=[]; if(lights.length)parts.push(on+' on / '+lights.length+' lights'); if(scenes)parts.push(scenes+' scenes'); if(controls.length)parts.push(controls.length+' controls & sensors'); if(unavailable)parts.push(unavailable+' unavailable'); return parts.join(' · ')||'No controls assigned'; ]]]`;
   if (room.discover_controls === false) card.label = lightingStatusLabel;
+  __m('47 if (room.discover_controls === fal');
   designRoomCard(card, {lights, controls, hass, room});
-  return {card, lights};
+  __m('48 designRoomCard(card, {lights, cont');
+  const __ret=({card, lights});__m("return");return __ret;
 }
 
 function areaRoomSections(config, hass, prototype, prototypeIds) {
@@ -4326,23 +4353,37 @@ export function generateOriginal(template, slots, roomTemplates, config, hass = 
   return withRegistryIndex(() => buildOriginal(template, slots, roomTemplates, config, hass));
 }
 function buildOriginal(template, slots, roomTemplates, config, hass) {
+  const __A=globalThis.__dwellProf3||={};let __t=performance.now();const __m=n=>{const t=performance.now();__A[n]=(__A[n]||0)+t-__t;__t=t;};
   if (config.auto_discover) config = discoverConfiguration(config, hass, roomTemplates, slots);
+  __m('1 if (config.auto_discover) config =');
   const bindings = config.entities || {};
+  __m('2 const bindings = config.entities |');
   const prefix = inferDashboardPath(config,typeof location==='undefined'?'':location.pathname);
+  __m('3 const prefix = inferDashboardPath(');
   if (!/^\/[a-z0-9_-]+$/.test(prefix)) throw new Error('Dashboard URL must be a single path, for example /dashboard-dwelldeck.');
+  __m('4 if (!/^\\/[a-z0-9_-]+$/.test(prefix');
   const lookup = new Map(slots.map(slot => [slot.placeholder, bindings[slot.key] || slot.placeholder]));
+  __m('5 const lookup = new Map(slots.map(s');
   lookup.set('sun.sun','sun.sun');
+  __m("6 lookup.set('sun.sun','sun.sun');");
   let output = walk(template, text => {
     let result = text.replaceAll('__DWELLDECK_PATH__',prefix).replaceAll('__DWELLDECK_MUSIC_APP__',config.music_app || '');
     for (const label of LABELS) result = result.split(label.token).join(config.labels?.[label.token] || label.default);
     return result.replace(entityPattern, id => lookup.get(id) || id);
   });
+  __m('11 });');
   output.title = config.title || 'DwellDeck';
+  __m("12 output.title = config.title || 'Dw");
   skyFirst(output);
+  __m('13 skyFirst(output);');
   for (const view of output.views) if (view.theme) view.theme = config.theme || 'DwellDeck Midnight';
+  __m('14 for (const view of output.views) i');
   const lighting = output.views.find(v => v.path === 'lighting');
+  __m('15 const lighting = output.views.find');
   const lightPrototype = clone(lighting.sections[roomTemplates[0].section].cards[roomTemplates[0].card]);
+  __m('16 const lightPrototype = clone(light');
   const allLights = [];
+  __m('17 const allLights = [];');
   if (config.area_rooms) {
     const prototypeIds = new Set(roomTemplates[0].placeholders.map(id => lookup.get(id) || id));
     const generated = areaRoomSections(config, hass, lightPrototype, prototypeIds);
@@ -4352,6 +4393,7 @@ function buildOriginal(template, slots, roomTemplates, config, hass) {
     lighting.sections = [overview, ...generated.sections];
     allLights.push(...generated.lights);
   }
+  __m('26 }');
   for (const room of (config.area_rooms ? [] : roomTemplates)) {
     const options = config.rooms?.[room.key];
     let card = lighting.sections[room.section].cards[room.card];
@@ -4375,6 +4417,7 @@ function buildOriginal(template, slots, roomTemplates, config, hass) {
     lighting.sections[room.section].cards[room.card] = card;
     allLights.push(...ids.filter(id => !id.includes('.dwelldeck_slot_')));
   }
+  __m('49 }');
   if (!config.area_rooms && config.extra_rooms?.length) {
     const cards = [{type:'heading',heading:'More rooms',icon:'mdi:home-plus-outline'}];
     const prototypeIds = new Set(roomTemplates[0].placeholders.map(id => lookup.get(id) || id));
@@ -4394,7 +4437,9 @@ function buildOriginal(template, slots, roomTemplates, config, hass) {
     }
     lighting.sections.push({type:'grid',cards});
   }
+  __m('68 }');
   // Rebuild aggregate lighting summaries and targets from the room selections.
+  __m('69 // Rebuild aggregate lighting summ');
   if (Object.keys(config.rooms || {}).length || config.extra_rooms?.length) {
     const originalLightIds = new Set(roomTemplates.flatMap(r => r.placeholders.map(id => lookup.get(id) || id)));
     const aggregateIds = [...new Set(allLights)];
@@ -4412,17 +4457,29 @@ function buildOriginal(template, slots, roomTemplates, config, hass) {
     };
     output = replaceAggregates(output);
   }
+  __m('86 }');
   if (config.area_rooms) rebuildRichAreaViews(output, config, hass, lightPrototype, [...new Set(allLights)]);
+  __m('87 if (config.area_rooms) rebuildRich');
   if (config.camera_detection !== false) output.views.find(view => view.path === 'security').sections.push(cameraDetectionSection(prefix, config, hass));
+  __m('88 if (config.camera_detection !== fa');
   designHome(output, {prefix, hass});
+  __m('89 designHome(output, {prefix, hass})');
   designSecurity(output, {prefix});
+  __m('90 designSecurity(output, {prefix});');
   designEnergy(output, {config, hass});
+  __m('91 designEnergy(output, {config, hass');
   designClimate(output, {hass});
+  __m('92 designClimate(output, {hass});');
   designMusic(output, config);
+  __m('93 designMusic(output, config);');
   designMediaHistory(output, {hass});
+  __m('94 designMediaHistory(output, {hass})');
   // Rows in entity lists (history graphs, mini graphs, entities cards) are not cards:
+  __m('95 // Rows in entity lists (history g');
   // drop unselected rows, and hint only when a card has no selected rows left.
+  __m('96 // drop unselected rows, and hint ');
   const unselected = row => (typeof row === 'string' ? row : row?.entity)?.includes?.('.dwelldeck_slot_');
+  __m('97 const unselected = row => (typeof ');
   visit(output,item => {
     if (!item.type || !Array.isArray(item.entities) || !item.entities.some(unselected)) return;
     item.entities = item.entities.filter(row => !unselected(row));
@@ -4432,7 +4489,9 @@ function buildOriginal(template, slots, roomTemplates, config, hass) {
     Object.assign(item,{type:'markdown',content:'Select an entity in DwellDeck setup.'});
     if (layout) item.grid_options = layout;
   });
+  __m('106 });');
   // Native leaf cards with no selected entity become a small setup hint.
+  __m('107 // Native leaf cards with no selec');
   visit(output,item => {
     if (typeof item.entity === 'string' && item.entity.includes('.dwelldeck_slot_')) {
       const layout = item.grid_options;
@@ -4445,16 +4504,26 @@ function buildOriginal(template, slots, roomTemplates, config, hass) {
       Object.assign(item,{type:'markdown',content:'### Music Assistant\nChoose your Music Assistant app path in DwellDeck setup.'});
     }
   });
+  __m('119 });');
   // Tiles colour by state on their own; the old "state" value is no longer understood and leaves
+  __m('120 // Tiles colour by state on their ');
   // sliders (curtain position, light brightness) without a colour, so only their handle shows.
+  __m('121 // sliders (curtain position, ligh');
   visit(output, item => { if (item.type === 'tile' && item.color === 'state') delete item.color; });
+  __m('122 visit(output, item => { if (item.t');
   lightsOneByOne(output);
+  __m('123 lightsOneByOne(output);');
   if(!config.theme && config.builtin_colors!==false)addBuiltinColors(output);
+  __m('124 if(!config.theme && config.builtin');
   addLivingDesign(output);
+  __m('125 addLivingDesign(output);');
   // Shared card code gets the same rewrite as the cards: palette colours, text sizes and wording.
+  __m('126 // Shared card code gets the same ');
   const palette = paletteText(config.color_palette || DEFAULT_PALETTE);
+  __m('127 const palette = paletteText(config');
   installShared(text => palette(refreshText(text)));
-  return applyDwellPalette(applyDesignRefresh(output, config), config.color_palette || DEFAULT_PALETTE);
+  __m('128 installShared(text => palette(refr');
+  const __ret=(applyDwellPalette(applyDesignRefresh(output, config), config.color_palette || DEFAULT_PALETTE));__m("return");return __ret;
 }
 // Visual setup editor shown under Edit dashboard.
 
