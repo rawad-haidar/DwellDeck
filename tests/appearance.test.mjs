@@ -866,3 +866,19 @@ test('All on / All off: no code in the popup (it would run when the popup opens)
  assert.deepEqual(sent2,['turn_on light.x','turn_off light.x'],'the older run stops; light.y was already off, so nothing more is sent');
  assert.deepEqual(notes2,[],'no "did not turn on" after All off was pressed');
 });
+test('room popups fill a phone screen, tile names wrap, and the heading names the room',async()=>{
+ const {phoneFriendlyPopups,PHONE_POPUP_CSS,TILE_NAME_CSS}=await import('../src/generator.mjs');
+ const {makeLightPopup}=await import('../src/cards.mjs');
+ const card={tap_action:{action:'fire-dom-event',browser_mod:{service:'browser_mod.popup',data:{title:'Kitchen',popup_styles:[{style:'all',styles:'x'}],content:{type:'vertical-stack',cards:[
+  {type:'markdown',content:'### Saloon  ·  9 lights\nTap a light tile to turn it on or off.'},
+  {type:'grid',cards:[{type:'tile',entity:'light.a',card_mod:{style:'ha-card{}'}},{type:'tile',entity:'light.b',card_mod:{style:{'.':'ha-card{}'}}},{type:'tile',entity:'light.c'}]}]}}}}};
+ makeLightPopup(card,['light.a','light.b','light.c'],'Kitchen');
+ const data=card.tap_action.browser_mod.data;
+ assert.equal(data.content.cards[0].content.split('\n')[0],'### Kitchen  ·  3 lights');
+ phoneFriendlyPopups({views:[{cards:[card]}]});
+ assert.deepEqual(data.popup_styles.map(s=>s.styles),['x',PHONE_POPUP_CSS],'the popup\'s own styles stay; the phone rule is added');
+ const tiles=data.content.cards[1].cards;
+ assert(tiles[0].card_mod.style.startsWith('ha-card{}')&&tiles[0].card_mod.style.includes(TILE_NAME_CSS));
+ assert(tiles[1].card_mod.style['.'].includes(TILE_NAME_CSS));
+ assert(tiles[2].card_mod.style.includes(TILE_NAME_CSS));
+});

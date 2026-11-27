@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.44 — Room popups on phones
+
+- **Room popups fill the phone screen.** browser_mod's wide popup is 90% of the screen and not centred, so on an iPhone the cards stopped well short of the right edge. On screens narrower than 600 px, popups now use the full width, with even margins.
+- **Light and switch names in popups show in full.** Names wrap onto two lines instead of every tile reading "Kitchen Switch…".
+- **The lights heading in a room popup names that room.** It said "Saloon" in every room.
+
 ## 0.9.43 — Dashboard builds almost twice as fast
 
 - **The dashboard is built in about half the time.** Each time it opens (and each time the phone app comes back and reloads), DwellDeck builds the whole dashboard from Home Assistant's registries. To decide which entities belong to each room and whether a device has a camera, it scanned all entities again for every room and every entity checked. On a home with about 2,000 entities that took more than half of the build. DwellDeck now indexes the registries once per build. Measured on a real home in Chrome on a Mac: 395 ms → 220 ms, with identical output. Slower devices like phones save proportionally more.
