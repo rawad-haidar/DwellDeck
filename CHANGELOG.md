@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.55 — Generator card and history
+
+- **A generator section on the Energy page, laid out like DSE's controller page.**
+  - **Header:** the generator's name, its state (at rest, running on load, running off load) and its mode (Auto, Manual, Stop and so on).
+  - **Tiles for every reading the controller gives:** load, engine speed, output voltage, frequency, coolant temperature and battery voltage, plus oil pressure and fuel level when fitted.
+  - **The controller's buttons:** Auto, Manual, Mute alarm, To mains, Start, Stop, On load and Reset alarms. A red dot marks the current mode, as on the controller.
+- **Generator history,** worked out from Home Assistant's recorded history, so no energy meter or hour counter is needed:
+  - running time, energy (kWh) and number of starts for the chosen period (today, yesterday, the last 24 hours, or 3, 7 or 10 days);
+  - a load chart with the runs shaded;
+  - a log of each run with its start and stop, duration, kWh, average and peak load, and highest coolant temperature.
+
+  A run counts whenever the engine turns, there's output frequency, or the generator delivers power, so runs from before a sensor was added still show.
+- **Buttons that start, stop or move the load ask first.**
+- **Found automatically** for a DSE on Modbus, with sensors and scripts named `gen_…`. It can also be set under `generator:` (name, sensors, scripts, and a mains sensor if you have the controller's own reading).
+- **Edit dashboard → Generator**, only for homes that have a generator: set its name, turn the section off, or change or clear any of its sensors. Homes without a generator see neither the section nor these settings.
+
 ## 0.9.54 — Rooms left out stay out everywhere
 
 - **Rooms you don't give someone are left out of their other tabs too.** When a limited user's Rooms tab is limited, everything in the rooms left out disappears from their other tabs: lights, air conditioners, curtains, TVs, the pool. Things that belong to no room stay. A tab where you picked cards yourself still shows exactly those, even from a room left out.

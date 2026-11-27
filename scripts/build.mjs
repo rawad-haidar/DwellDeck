@@ -10,7 +10,7 @@ const root = new URL('../', import.meta.url);
 const read = path => fs.readFile(new URL(path, root), 'utf8');
 
 // Dependency order: each module only uses modules listed before it.
-const MODULES = ['util', 'dependencies', 'discovery', 'theme', 'weather', 'design', 'tv', 'rooms', 'home', 'security', 'energy', 'climate', 'music', 'cards', 'views', 'detection', 'generator', 'kids', 'guard', 'editor', 'strategy'];
+const MODULES = ['util', 'dependencies', 'discovery', 'theme', 'weather', 'design', 'tv', 'rooms', 'home', 'security', 'genset', 'energy', 'climate', 'music', 'cards', 'views', 'detection', 'generator', 'kids', 'guard', 'editor', 'strategy'];
 const DATA = {
   ORIGINAL_TEMPLATE: 'template', SLOTS: 'slots', ROOM_TEMPLATES: 'room-templates',
   LABELS: 'labels', BUILTIN_THEME: 'builtin-theme'

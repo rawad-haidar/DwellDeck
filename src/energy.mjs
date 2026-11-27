@@ -3,6 +3,7 @@
 // _battery_power, _grid_power, _power, _battery, _today_production ...); several inverters are added up.
 import {ROOM_COLORS} from './rooms.mjs';
 import {touchSafe} from './util.mjs';
+import {gensetSetup, gensetSection} from './genset.mjs';
 
 const EN_C = ROOM_COLORS;
 // Height shared by the top row (flow, today, battery), so they line up.
@@ -537,6 +538,8 @@ export function designEnergy(output, {config = {}, hass = {}}) {
   const sections = [
     section([enHeading('Power flow', 'mdi:transit-connection-variant'), flow], 2),
     section([enHeading('Today', 'mdi:calendar-today'), today]),
+    // A generator (DSE on Modbus, or set under `generator:`) gets its own controller card.
+    ...(gensetSetup(config, hass) ? [gensetSection(gensetSetup(config, hass))] : []),
     // One full-width section: charts two across on a wide screen, one per row on a phone.
     section([enHeading('History', 'mdi:chart-bar'), ...history], 3)
   ];
