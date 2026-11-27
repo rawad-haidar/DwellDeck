@@ -39,6 +39,18 @@ export function phoneFriendlyPopups(dashboard) {
     });
   });
 }
+// HA's alarm card shows only "Arm home" and "Arm away" unless told otherwise. List every mode the
+// alarm itself supports (Alarmo offers the modes enabled in its settings), in HA's usual order.
+const ALARM_MODES = [[1, 'arm_home'], [2, 'arm_away'], [4, 'arm_night'], [32, 'arm_vacation'], [16, 'arm_custom_bypass']];
+export function allAlarmModes(dashboard, hass) {
+  visit(dashboard, card => {
+    if (card?.type !== 'alarm-panel' || card.states) return;
+    const features = hass?.states?.[card.entity]?.attributes?.supported_features;
+    if (typeof features !== 'number') return;
+    const modes = ALARM_MODES.filter(([bit]) => features & bit).map(([, mode]) => mode);
+    if (modes.length) card.states = modes;
+  });
+}
 export function lightsOneByOne(dashboard) {
   const bulk = action => action?.action === 'perform-action' && ['light.turn_on', 'light.turn_off', 'homeassistant.turn_on', 'homeassistant.turn_off'].includes(action.perform_action)
     && Array.isArray(action.target?.entity_id) && action.target.entity_id.length > 1 && !action.data;
@@ -176,6 +188,7 @@ function buildOriginal(template, slots, roomTemplates, config, hass) {
   visit(output, item => { if (item.type === 'tile' && item.color === 'state') delete item.color; });
   lightsOneByOne(output);
   phoneFriendlyPopups(output);
+  allAlarmModes(output, hass);
   if(!config.theme && config.builtin_colors!==false)addBuiltinColors(output);
   addLivingDesign(output);
   // Shared card code gets the same rewrite as the cards: palette colours, text sizes and wording.
