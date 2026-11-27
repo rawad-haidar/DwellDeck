@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.51 — Pick cards, not entities
+
+- **Each tab lists its own cards.** In Limited users, a ticked tab no longer asks you to search every entity in Home Assistant. It lists the cards on that tab, the way Rooms lists rooms, named with the heading above them: for example "Ground · Kitchen · Open all / Close all" on Curtains, or "Heating · Diesel boiler and shared pump" on Climate. Tick the cards the person can see. Ticking none gives them the whole tab.
+- Cards showing exactly the same things are one choice (All villa lights on / All villa lights off).
+- Earlier choices still show: a card is ticked when everything on it was given before.
+
 ## 0.9.50 — Choose what limited users see on each tab
 
 - **Pick what each person sees on every tab.** In Edit dashboard → Limited users you tick the tabs a person can see. Each ticked tab then gets its own picker for areas, devices or entities. For example: Rooms → their bedroom, Media → their TV, Climate → their AC. On that tab, any card showing or controlling something not picked is left out. Leave a picker empty and they see the whole tab. The separate My room page is gone.
