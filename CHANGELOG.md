@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.52 — Dropdowns for limited users
+
+- **No more long lists.** In Limited users, each ticked tab is a dropdown. Inside it, the cards are grouped under their headings in smaller dropdowns, for example "1ST Floor" on Lights. It works the same on every tab.
+- **Share a card, then choose what's on it.** Ticking a card shares it and opens its own dropdown of the things on it, all ticked. Untick a light and that card's popup leaves it out, and its All on and All off skip it.
+- **One button of a multi-button switch no longer gives the others.** Only TVs and speakers bring the rest of their device along.
+
 ## 0.9.51 — Pick cards, not entities
 
 - **Each tab lists its own cards.** In Limited users, a ticked tab no longer asks you to search every entity in Home Assistant. It lists the cards on that tab, the way Rooms lists rooms, named with the heading above them: for example "Ground · Kitchen · Open all / Close all" on Curtains, or "Heating · Diesel boiler and shared pump" on Climate. Tick the cards the person can see. Ticking none gives them the whole tab.
