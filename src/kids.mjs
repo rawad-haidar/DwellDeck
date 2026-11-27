@@ -53,7 +53,7 @@ export function targetEntities(target, hass) {
   // (Music Assistant, ADB, a remote) has the same name, and entities on its device belong to it.
   const nameOf = id => normalizeName(hass.states?.[id]?.attributes?.friendly_name || '');
   const copyNames = new Set([...ids].filter(id => /^(media_player|remote)\./.test(id)).map(nameOf).filter(Boolean));
-  for (const id of ids) { const device = hass.entities?.[id]?.device_id; if (device) devices.add(device); }
+  for (const id of ids) { const device = /^(media_player|remote)\./.test(id) && hass.entities?.[id]?.device_id; if (device) devices.add(device); }
   for (const entity of Object.values(hass.entities || {})) {
     const area = entity.area_id || hass.devices?.[entity.device_id]?.area_id;
     if (devices.has(entity.device_id) || (area && areas.has(area))) ids.add(entity.entity_id);

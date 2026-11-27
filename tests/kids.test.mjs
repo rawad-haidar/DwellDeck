@@ -69,6 +69,8 @@ test('each tab shows only what was picked for it; tabs left open show everything
   const {targetEntities} = await import('../src/kids.mjs');
   assert(targetEntities({entity_id: ['media_player.ali_tv']}, hass({})).has('media_player.ali_tv_ma'), 'and its copy under the same name');
   assert(!targetEntities({entity_id: ['media_player.ali_tv']}, hass({})).has('media_player.saloon_tv'));
+  const twoButtons = {...hass({}), entities: {...hass({}).entities, 'light.ali_ceiling': {entity_id: 'light.ali_ceiling', device_id: 'sw', area_id: 'ali_room'}, 'switch.ali_lamp': {entity_id: 'switch.ali_lamp', device_id: 'sw', area_id: 'ali_room'}}};
+  assert(!targetEntities({entity_id: ['light.ali_ceiling']}, twoButtons).has('switch.ali_lamp'), 'one button of a two-button switch does not give the other');
   const all = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['media']}]}, hass({id: 'u1', name: 'Ali'}));
   assert(JSON.stringify(all.views.find(v => v.path === 'media')).includes('media_player.saloon_tv'), 'the fixture does show the other TV when nothing is picked');
 });
