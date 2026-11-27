@@ -2206,7 +2206,7 @@ function dwellGenset(states, cfg) {
   const loaded = power !== null && power > 50;
   const kw = w => w >= 1000 ? (w / 1000).toFixed(w >= 10000 ? 0 : 1) + ' kW' : Math.round(w) + ' W';
   const status = running ? (loaded ? 'Running on load' : 'Running off load') : 'Engine at rest';
-  const chip = (text, on) => `<span style="padding:4px 11px;border-radius:999px;font-size:12.5px;font-weight:600;border:1px solid ${on ? cfg.c.onText : cfg.c.line};color:${on ? cfg.c.onText : cfg.c.muted};background:${on ? cfg.c.on : 'transparent'}">${text}</span>`;
+  const chip = (text, on) => `<span style="padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid ${on ? cfg.c.onText : cfg.c.line};color:${on ? cfg.c.onText : cfg.c.muted};background:${on ? cfg.c.on : 'transparent'}">${text}</span>`;
   const chips = [chip(status, running), chip(`Mode · ${mode}`, false)];
   if (mains !== null) chips.push(chip(mains > 150 ? `Mains OK · ${Math.round(mains)} V` : 'Mains off', false));
   // Sensors reporting -1 aren't fitted on this generator: no tile for them.
@@ -2220,15 +2220,15 @@ function dwellGenset(states, cfg) {
     ['mdi:oil', 'Oil pressure', num(cfg.oil), v => `${Math.round(v)} kPa`, false],
     ['mdi:gas-station', 'Fuel', num(cfg.fuel), v => `${Math.round(v)} %`, false]
   ].filter(([, , v]) => v !== null && v >= 0);
-  const tile = ([icon, label, value, show, on]) => `<div style="padding:12px 14px;border-radius:16px;border:1px solid ${on ? cfg.c.onText : cfg.c.line};background:${on ? cfg.c.on : 'rgba(0,0,0,.16)'};min-width:0">
-    <div style="display:flex;align-items:center;gap:6px;color:${cfg.c.muted};font-size:12.5px"><ha-icon icon="${icon}" style="--mdc-icon-size:16px"></ha-icon>${label}</div>
-    <div style="margin-top:6px;font-size:21px;font-weight:800;color:${on ? cfg.c.onText : cfg.c.text};white-space:nowrap">${show(value)}</div></div>`;
+  const tile = ([icon, label, value, show, on]) => `<div style="padding:8px 10px;border-radius:12px;border:1px solid ${on ? cfg.c.onText : cfg.c.line};background:${on ? cfg.c.on : 'rgba(0,0,0,.16)'};min-width:0">
+    <div style="display:flex;align-items:center;gap:5px;color:${cfg.c.muted};font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><ha-icon icon="${icon}" style="--mdc-icon-size:14px;flex:none"></ha-icon>${label}</div>
+    <div style="margin-top:3px;font-size:16px;font-weight:800;color:${on ? cfg.c.onText : cfg.c.text};white-space:nowrap">${show(value)}</div></div>`;
   return `<div style="display:flex;align-items:center;gap:14px;text-align:left;flex-wrap:wrap">
-      <div style="display:grid;place-items:center;width:58px;height:58px;border-radius:18px;background:${running ? cfg.c.on : 'rgba(0,0,0,.22)'};border:1px solid ${running ? cfg.c.onText : cfg.c.line}">
-        <ha-icon icon="mdi:engine" style="--mdc-icon-size:32px;color:${running ? cfg.c.onText : cfg.c.muted}"></ha-icon></div>
-      <div style="flex:1;min-width:180px"><div style="font-size:20px;font-weight:800;color:${cfg.c.text}">${cfg.name}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${chips.join('')}</div></div></div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:16px">${tiles.map(tile).join('')}</div>`;
+      <div style="display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:${running ? cfg.c.on : 'rgba(0,0,0,.22)'};border:1px solid ${running ? cfg.c.onText : cfg.c.line}">
+        <ha-icon icon="mdi:engine" style="--mdc-icon-size:24px;color:${running ? cfg.c.onText : cfg.c.muted}"></ha-icon></div>
+      <div style="flex:1;min-width:160px"><div style="font-size:16px;font-weight:800;color:${cfg.c.text}">${cfg.name}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${chips.join('')}</div></div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:7px;margin-top:10px">${tiles.map(tile).join('')}</div>`;
 }
 
 // Generator history, read from the recorder: runs are the stretches with the engine turning (or
@@ -2311,7 +2311,7 @@ function dwellGensetHistory(card, hass, cfg) {
   const long = ms => { const m = Math.round(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`; };
   const kw = w => w >= 1000 ? (w / 1000).toFixed(1) + ' kW' : Math.round(w) + ' W';
   const chart = (d, runs) => {
-    const W = 1100, H = 230, L = 58, R = 12, T = 14, B = 30;
+    const W = 1100, H = 170, L = 58, R = 12, T = 12, B = 28;
     const x = t => L + (t - d.from) / Math.max(1, d.to - d.from) * (W - L - R);
     const power = (d.rows[cfg.power] || []).filter(r => Number.isFinite(r.v));
     const top = Math.max(1000, ...power.map(r => r.v)) * 1.1;
@@ -2355,15 +2355,15 @@ function dwellGensetHistory(card, hass, cfg) {
     });
   }, 0);
   const style = `<style>
-    .gnh{display:grid;gap:14px;text-align:left;color:${cfg.c.text}}
+    .gnh{display:grid;gap:10px;text-align:left;color:${cfg.c.text}}
     .rg{justify-self:start;font:inherit;color:${cfg.c.text};background:rgba(0,0,0,.2);border:1px solid ${cfg.c.line};border-radius:10px;padding:7px 10px}
     .sts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-    .st{padding:12px 14px;border-radius:14px;border:1px solid ${cfg.c.line};background:rgba(0,0,0,.16)}
-    .sl{font-size:12.5px;color:${cfg.c.muted}}.sv{margin-top:4px;font-size:20px;font-weight:800}
-    .blk svg{display:block;width:100%;height:auto;max-height:260px}.blk text{font-size:14px;fill:${cfg.c.muted};font-family:inherit}
-    .runs{display:grid;gap:8px;max-height:300px;overflow:auto}
-    .run{padding:10px 12px;border-radius:12px;border:1px solid ${cfg.c.line}}
-    .rt{font-size:13.5px}.now{color:${cfg.c.onText};font-weight:700}
+    .st{padding:8px 12px;border-radius:12px;border:1px solid ${cfg.c.line};background:rgba(0,0,0,.16)}
+    .sl{font-size:11.5px;color:${cfg.c.muted}}.sv{margin-top:2px;font-size:16px;font-weight:800}
+    .blk svg{display:block;width:100%;height:auto;max-height:190px}.blk text{font-size:14px;fill:${cfg.c.muted};font-family:inherit}
+    .runs{display:grid;gap:6px;max-height:210px;overflow:auto}
+    .run{padding:7px 10px;border-radius:10px;border:1px solid ${cfg.c.line}}
+    .rt{font-size:13px}.now{color:${cfg.c.onText};font-weight:700}
     .rm{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:4px;font-size:12.5px;color:${cfg.c.muted}}
     .msg{padding:20px;text-align:center;color:${cfg.c.muted};font-size:14px}
   </style>`;
@@ -2385,13 +2385,13 @@ const gensetButton = (setup, [key, label, icon, mode]) => {
     hold_action: {action: 'none'},
     custom_fields: {dot: ' '},
     styles: {
-      card: [{padding: '10px 4px'}, {background: 'transparent'}, {border: 'none'}, {'box-shadow': 'none'}, {overflow: 'visible'}],
-      grid: [{'grid-template-areas': '"i" "n"'}, {'grid-template-rows': '64px auto'}, {'justify-items': 'center'}, {gap: '6px'}],
-      img_cell: [{width: '58px'}, {height: '58px'}, {'border-radius': '50%'}, {background: tone || 'rgba(255,255,255,.92)'},
+      card: [{padding: '4px 2px'}, {background: 'transparent'}, {border: 'none'}, {'box-shadow': 'none'}, {overflow: 'visible'}],
+      grid: [{'grid-template-areas': '"i" "n"'}, {'grid-template-rows': '46px auto'}, {'justify-items': 'center'}, {gap: '3px'}],
+      img_cell: [{width: '42px'}, {height: '42px'}, {'border-radius': '50%'}, {background: tone || 'rgba(255,255,255,.92)'},
         {border: `2px solid ${tone ? 'rgba(255,255,255,.35)' : GEN_C.line}`}],
-      icon: [{width: '28px'}, {color: tone ? '#fff' : '#1b1f24'}],
-      name: [{'font-size': '12px'}, {color: GEN_C.muted}, {'white-space': 'normal'}, {'line-height': '1.2'}],
-      custom_fields: {dot: [{position: 'absolute'}, {top: '6px'}, {right: 'calc(50% - 34px)'}, {width: '14px'}, {height: '14px'},
+      icon: [{width: '21px'}, {color: tone ? '#fff' : '#1b1f24'}],
+      name: [{'font-size': '11px'}, {color: GEN_C.muted}, {'white-space': 'normal'}, {'line-height': '1.2'}],
+      custom_fields: {dot: [{position: 'absolute'}, {top: '1px'}, {right: 'calc(50% - 25px)'}, {width: '11px'}, {height: '11px'},
         {'border-radius': '50%'}, {background: '#d24a3c'}, {border: '2px solid rgba(255,255,255,.85)'}, {display: dot}]}
     }
   };
@@ -2406,15 +2406,18 @@ function gensetSection(setup) {
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, triggers_update: watched, variables: {dwell_static: true},
     custom_fields: {genset: touchSafe(`(${dwellGenset.toString()})(states, ${JSON.stringify(cfg)})`)},
     styles: {
-      card: [{padding: '18px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${GEN_C.surface},${GEN_C.card})`}, {border: `1px solid ${GEN_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
+      card: [{padding: '12px'}, {'border-radius': '18px'}, {background: `linear-gradient(135deg,${GEN_C.surface},${GEN_C.card})`}, {border: `1px solid ${GEN_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"genset"'}, {'grid-template-columns': '1fr'}],
       custom_fields: {genset: [{width: '100%'}, {'pointer-events': 'auto'}]}
     },
     grid_options: {columns: 'full', rows: 'auto'}
   };
+  // After a button, the generator's sensors are read again at once (see installQuickRefresh).
+  globalThis.__dwellFollowers = {...(globalThis.__dwellFollowers || {}),
+    ...Object.fromEntries(Object.values(setup.scripts).filter(Boolean).map(script => [script, watched]))};
   const buttons = GENSET_BUTTONS.map(item => gensetButton(setup, item)).filter(Boolean);
   const cards = [{type: 'heading', heading: 'Generator', icon: 'mdi:engine', heading_style: 'title'}, panel];
-  if (buttons.length) cards.push({type: 'grid', columns: 4, square: false, cards: buttons, grid_options: {columns: 'full'}});
+    if (buttons.length) cards.push({type: 'grid', columns: 4, square: false, cards: buttons, grid_options: {columns: 'full'}});
   // History: runs, running time and energy, worked out from the recorder (no counters needed).
   const historyCfg = {rpm: setup.rpm, frequency: setup.frequency, power: setup.power, coolant: setup.coolant, voltage: setup.voltage, c: cfg.c};
   cards.push({type: 'heading', heading: 'Generator history', icon: 'mdi:history', heading_style: 'subtitle'}, {
@@ -2422,7 +2425,7 @@ function gensetSection(setup) {
     tap_action: {action: 'none'}, hold_action: {action: 'none'}, variables: {dwell_static: true}, triggers_update: [setup.rpm || setup.frequency].filter(Boolean),
     custom_fields: {history: touchSafe(`(${dwellGensetHistory.toString()})(this, hass, ${JSON.stringify(historyCfg)})`)},
     styles: {
-      card: [{padding: '16px'}, {'border-radius': '20px'}, {background: `linear-gradient(135deg,${GEN_C.surface},${GEN_C.card})`}, {border: `1px solid ${GEN_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
+      card: [{padding: '12px'}, {'border-radius': '18px'}, {background: `linear-gradient(135deg,${GEN_C.surface},${GEN_C.card})`}, {border: `1px solid ${GEN_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
       grid: [{'grid-template-areas': '"history"'}, {'grid-template-columns': '1fr'}],
       custom_fields: {history: [{width: '100%'}, {'pointer-events': 'auto'}]}
     },
@@ -5634,6 +5637,55 @@ async function dwellSwitchLights({service, entity_id: ids}, hass, notify, wait =
   if (left.length) notify(`${left.length === 1 ? '1 light' : left.length + ' lights'} did not turn ${want}: ${[...new Set(left.map(id => states[id].attributes?.friendly_name || id))].join(', ')}`);
   return left;
 }
+// After a command to a TV, speaker or remote, or a script with sensors to follow (the generator's),
+// ask Home Assistant to read the device again now rather than at its next poll: ADB, Modbus and
+// similar integrations only check every 10–30 seconds, so the card looked stuck after a press.
+function refreshTargets(domain, service, entityIds, hass, followers = {}) {
+  if (domain === 'homeassistant') return [];
+  const ids = new Set();
+  const nameOf = id => String(hass?.states?.[id]?.attributes?.friendly_name || '').trim().toLowerCase();
+  for (const id of entityIds) {
+    for (const follower of followers[id] || []) ids.add(follower);
+    if (!/^(media_player|remote)\./.test(id)) continue;
+    ids.add(id);
+    // The same TV through its other integrations: the same device, or the same name (Music Assistant).
+    const device = hass?.entities?.[id]?.device_id, name = nameOf(id);
+    for (const other of Object.keys(hass?.states || {})) {
+      if (other === id || !/^(media_player|remote)\./.test(other)) continue;
+      if ((device && hass.entities?.[other]?.device_id === device) || (name && nameOf(other) === name)) ids.add(other);
+    }
+  }
+  return [...ids];
+}
+function installQuickRefresh(hass, wait = ms => new Promise(resolve => setTimeout(resolve, ms))) {
+  const connection = hass?.connection;
+  if (!connection?.sendMessagePromise || connection.__dwellQuick) return false;
+  connection.__dwellQuick = true;
+  const send = connection.sendMessagePromise.bind(connection);
+  connection.sendMessagePromise = message => {
+    const reply = send(message);
+    if (message?.type === 'call_service') {
+      const ids = [message.target?.entity_id, message.service_data?.entity_id].flat().filter(id => typeof id === 'string');
+      const followers = globalThis.__dwellFollowers || {};
+      const current = (typeof document !== 'undefined' && document.querySelector?.('home-assistant')?.hass) || hass;
+      const targets = refreshTargets(message.domain, message.service, ids, current, followers);
+      if (targets.length) {
+        // A generator start takes a while to crank: its sensors are read a third time.
+        const delays = ids.some(id => followers[id]) ? [1500, 5000, 12000] : [1200, 4000];
+        reply.then(async () => {
+          let waited = 0;
+          for (const delay of delays) {
+            await wait(delay - waited);
+            waited = delay;
+            send({type: 'call_service', domain: 'homeassistant', service: 'update_entity', service_data: {entity_id: targets}}).catch(() => {});
+          }
+        }, () => {});
+      }
+    }
+    return reply;
+  };
+  return true;
+}
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function' && !window.__dwellLights) {
   window.__dwellLights = true;
   window.addEventListener('ll-custom', event => {
@@ -5650,6 +5702,7 @@ class DwellDeckOriginalStrategy extends HTMLElement {
   static getConfigElement(){return document.createElement('dwelldeck-original-editor');}
   static getCreateSuggestions(){return {title:'DwellDeck',icon:'mdi:view-dashboard'};}
   static async generate(config, hass) {
+    installQuickRefresh(hass);
     loadDwellFont(config);
     const palette = config.color_palette || DEFAULT_PALETTE;
     const page = dwellPageCss(palette);
