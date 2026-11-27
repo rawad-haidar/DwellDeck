@@ -81,6 +81,11 @@ test('Home with nothing picked follows the other tabs; Home alone is the whole o
   const home = JSON.stringify(d.views.find(v => v.path === 'home'));
   for (const id of ['light.saloon', 'media_player.saloon_tv', 'alarm_control_panel.house', 'lock.gate', 'light.ali_ceiling']) assert(!home.includes(id), `Home leaves out ${id}`);
   for (const view of d.views.filter(v => v.subview)) assert(!JSON.stringify(view).includes('light.saloon'), `${view.path} too`);
+  const nav = [];
+  const collect = o => { if (o && typeof o === 'object') { if (o.tap_action?.action === 'navigate') nav.push(o.tap_action.navigation_path.split('/').pop()); Object.values(o).forEach(collect); } };
+  collect(d.views.filter(v => !v.subview));
+  const mainPaths = ['home', 'rooms', 'lighting', 'curtains', 'climate', 'energy', 'music-assistant', 'media', 'security', 'outdoor', 'devices', 'cameras'];
+  assert(nav.every(p => !mainPaths.includes(p) || d.views.some(v => v.path === p)), `shortcuts only to their pages: ${nav.join()}`);
   const alone = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['home']}]}, hass({id: 'u1', name: 'Ali'}));
   assert(JSON.stringify(alone.views.find(v => v.path === 'home')).includes('light.saloon'));
   const whole = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['home', 'rooms']}]}, hass({id: 'u1', name: 'Ali'}));

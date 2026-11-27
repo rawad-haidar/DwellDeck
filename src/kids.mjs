@@ -263,5 +263,16 @@ export function kidsDashboard(config, hass, kid, buildFull) {
     // A sub-page has other cards than the tab that opens it: it keeps what shows only given things.
     return pruneView(view, sub ? {...target, cards: undefined} : target, hass);
   });
-  return views.length ? {...full, views} : nothing;
+  if (!views.length) return nothing;
+  // Shortcuts to pages this person doesn't have would lead nowhere: they go.
+  const paths = new Set(views.map(view => view.path));
+  const leadsNowhere = card => {
+    const to = card?.tap_action?.action === 'navigate' && String(card.tap_action.navigation_path || '');
+    const page = to && to.split('/').filter(Boolean).pop();
+    return !!page && full.views.some(view => view.path === page) && !paths.has(page);
+  };
+  const tidy = cards => (cards || []).filter(card => !leadsNowhere(card)).map(card => Array.isArray(card?.cards) ? {...card, cards: tidy(card.cards)} : card);
+  return {...full, views: views.map(view => ({...view,
+    ...(Array.isArray(view.sections) ? {sections: view.sections.map(section => ({...section, cards: tidy(section.cards)})).filter(section => section.cards.some(SUBSTANTIVE))} : {}),
+    ...(Array.isArray(view.cards) ? {cards: tidy(view.cards)} : {})}))};
 }
