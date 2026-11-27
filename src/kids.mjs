@@ -107,8 +107,19 @@ export function narrowCard(card, allowed, known) {
   // Templates carry their data as JSON ({"lights": [...]}, const ids=["light.a", ...]): narrowed the same way.
   const inTemplate = text => {
     let out = '', from = 0, start;
-    const next = at => { const a = text.indexOf('{"', at), b = text.indexOf('["', at); return a === -1 ? b : b === -1 ? a : Math.min(a, b); };
-    while ((start = next(from)) !== -1) {
+    const next = at => Math.min(...['{"', '["', "['"].map(open => text.indexOf(open, at)).map(i => i === -1 ? Infinity : i));
+    while ((start = next(from)) !== Infinity) {
+      // A list in single quotes (const ac=['climate.a', ...]): only ids and names, so filter it as is.
+      if (text.startsWith("['", start)) {
+        const end = text.indexOf(']', start);
+        const body = end === -1 ? '' : text.slice(start + 1, end);
+        if (end !== -1 && /^\s*'[^'\\]*'(\s*,\s*'[^'\\]*')*\s*$/.test(body)) {
+          const items = body.split(',').map(item => item.trim().slice(1, -1)).filter(given);
+          out += text.slice(from, start) + '[' + items.map(item => `'${item}'`).join(',') + ']';
+          from = end + 1;
+        } else { out += text.slice(from, start + 2); from = start + 2; }
+        continue;
+      }
       // Find where this object ends, minding quoted text.
       let depth = 0, quoted = false, end = -1;
       for (let i = start; i < text.length; i++) {
@@ -121,12 +132,16 @@ export function narrowCard(card, allowed, known) {
       if (end === -1) break;
       const json = text.slice(start, end + 1);
       let replaced = json;
-      try { replaced = JSON.stringify(walk(JSON.parse(json))); } catch { /* not data: leave it */ }
+      try { replaced = JSON.stringify(walkData(JSON.parse(json))); } catch { /* not data: leave it */ }
       out += text.slice(from, start) + replaced;
       from = end + 1;
     }
     return out + text.slice(from);
   };
+  // Inside a template's data, a single id that wasn't given becomes null ("alarm": null: no alarm shown).
+  const walkData = value => Array.isArray(value) ? value.filter(keepItem).map(walkData)
+    : typeof value === 'string' ? (given(value) ? value : null)
+    : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walkData(item)])) : value;
   const walk = value => {
     if (Array.isArray(value)) return value.filter(keepItem).map(walk);
     if (typeof value === 'string') return value.includes('[[[') && /[{[]"/.test(value) ? inTemplate(value) : value;

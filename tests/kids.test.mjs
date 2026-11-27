@@ -133,6 +133,20 @@ test('a shared card can leave some of its items out', async () => {
   assert.deepEqual(out.sections[0].cards[1].tap_action.browser_mod.data.content.cards.map(c => c.entity), ['light.ali_ceiling', 'climate.ali_ac'], 'so does its popup');
 });
 
+test('templates lose what was not given: JSON data, id lists and single ids', async () => {
+  const {narrowCard} = await import('../src/kids.mjs');
+  const known = new Set(['light.a', 'light.b', 'climate.a', 'climate.b', 'alarm_control_panel.x']);
+  const allowed = new Set(['light.a', 'climate.a']);
+  const card = {type: 'custom:button-card',
+    label: '[[[ const ids=["light.a","light.b"]; const ac=[\'climate.a\',\'climate.b\']; return ids.length ]]]',
+    custom_fields: {glance: '[[[ return f(states, {"lights":["light.a","light.b"],"tvs":[["light.b","x"],["light.a","y"]],"alarm":"alarm_control_panel.x","n":2}) ]]]'},
+    visibility: [{condition: 'and', conditions: [{condition: 'state', entity: 'light.a', state: 'off'}, {condition: 'state', entity: 'light.b', state: 'off'}]}]};
+  const out = narrowCard(card, allowed, known);
+  assert.equal(out.label, '[[[ const ids=["light.a"]; const ac=[\'climate.a\']; return ids.length ]]]');
+  assert.equal(out.custom_fields.glance, '[[[ return f(states, {"lights":["light.a"],"tvs":[["light.a","y"]],"alarm":null,"n":2}) ]]]');
+  assert.deepEqual(out.visibility[0].conditions.map(c => c.entity), ['light.a'], 'conditions on what was not given go');
+});
+
 test('the editor: a dropdown per tab, a dropdown per card, and what is saved', async () => {
   const {DwellDeckOriginalEditor} = await import('../src/editor.mjs');
   page();
