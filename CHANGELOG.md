@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.53 — Home follows a limited user's other tabs
+
+- **A limited user's Home shows only what they were given elsewhere.** With no cards picked for Home, it follows their other tabs. The summary at the top counts only their lights, TVs and AC, with no alarm unless it was given. Rooms in use lists only their rooms. "Everything is off" means everything of theirs. AC live status shows only their AC. Home alone, or Home with a whole tab given, is unchanged. In the editor, Home reads "only what the other tabs give" when nothing is ticked.
+- **Narrowing reaches inside cards.** When something isn't given, it's also taken out of the lists a card's templates read, the conditions that show or hide the card, and paired lists (a TV with its remote).
+- **No shortcuts to pages they don't have.** Home's Shortcuts leave out tabs the person can't see. Other cards that would open such a page stay, but do nothing when tapped.
+- **Editor:** "Home Assistant areas and controls" starts closed. It stays open while you add or remove rooms.
+
 ## 0.9.52 — Dropdowns for limited users
 
 - **No more long lists.** In Limited users, each ticked tab is a dropdown. Inside it, the cards are grouped under their headings in smaller dropdowns, for example "1ST Floor" on Lights. It works the same on every tab.
