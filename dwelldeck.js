@@ -4605,6 +4605,33 @@ function pruneView(view, allowed, hass) {
   return next;
 }
 
+// The cards on a tab that can be shared, for the editor: one choice per card showing or controlling
+// something, named after the card, its entity, or the heading above it. Cards showing the same
+// things are one choice. value: the entities the card refers to, joined by commas.
+function tabChoices(view, hass) {
+  const known = new Set(Object.keys(hass?.states || {}));
+  const friendly = id => hass?.states?.[id]?.attributes?.friendly_name;
+  const byKey = new Map();
+  let heading = '';
+  const walk = cards => {
+    for (const card of cards || []) {
+      if (card?.type === 'heading') { heading = card.heading || heading; continue; }
+      if (Array.isArray(card?.cards) && card.type !== 'custom:button-card') { walk(card.cards); continue; }
+      const refs = [...new Set((JSON.stringify(card).match(ENTITY_ID) || []).filter(id => known.has(id) && !OPEN_DOMAINS.has(id.split('.')[0])))].sort();
+      if (!refs.length) continue;
+      const name = [card.name, card.title, friendly(card.entity)].find(v => typeof v === 'string' && v.trim() && !v.includes('[[[')) ||
+        (refs.length === 1 ? friendly(refs[0]) || refs[0] : `${heading || 'Card'} · ${refs.length} items`);
+      const key = refs.join(',');
+      const entry = byKey.get(key);
+      if (entry) { if (!entry.names.includes(name)) entry.names.push(name); }
+      else byKey.set(key, {value: key, names: [name]});
+    }
+  };
+  for (const section of view?.sections || []) { heading = section.title || ''; walk(section.cards); }
+  walk(view?.cards);
+  return [...byKey.values()].map(entry => ({value: entry.value, label: entry.names.join(' / ')}));
+}
+
 // The full dashboard's views a limited user was given, with the hidden subviews those views open
 // (a Home shortcut to Weather, say). Other tabs stay out even when a picked tab links to them.
 function pickedViews(full, tabs) {
@@ -4750,6 +4777,12 @@ class DwellDeckOriginalEditor extends HTMLElement {
     }
     const check=document.createElement('button');check.textContent='Check again';check.onclick=()=>this.renderDependencies();container.append(check);
   }
+  // The whole dashboard as an administrator sees it, to list each tab's cards for limited users.
+  async fullDashboard(){
+    const strategy=customElements.get('ll-strategy-dashboard-dwelldeck-original');
+    const config={...this.config};delete config.kids;
+    return strategy.generate(config,this._hass);
+  }
   async renderLimitedUsers(container){
     let users;
     try{users=await this._hass.callWS({type:'config/auth/list'});}
@@ -4757,6 +4790,8 @@ class DwellDeckOriginalEditor extends HTMLElement {
     const limitedUsers=users.filter(user=>!user.system_generated&&user.is_active!==false&&!(user.group_ids||[]).includes('system-admin'))
       .sort((a,b)=>String(a.name).localeCompare(String(b.name)));
     container.replaceChildren();
+    const full=await this.fullDashboard().catch(()=>null);
+    const choicesFor=tab=>tabChoices(full?.views?.find(view=>view.path===tab),this._hass);
     if(!limitedUsers.length){container.textContent='No non-administrator users yet. Add one in Settings \u2192 People, with Administrator turned off.';return;}
     for(const user of limitedUsers){
       const entry=(this.config.kids||[]).find(kid=>kid.user===user.id||String(kid.user).toLowerCase()===String(user.name).toLowerCase());
@@ -4771,15 +4806,31 @@ class DwellDeckOriginalEditor extends HTMLElement {
         const data={tabs};
         for(const [tab,label] of KID_TABS){
           if(!tabs.includes(tab))continue;
-          schema.push({name:tab,selector:{target:{}}});
-          labels[tab]=`${label}: what ${user.name} sees there (empty: everything on ${label})`;
-          data[tab]=tabTarget(current,tab)||{};
+          const options=choicesFor(tab);
+          labels[tab]=`${label}: cards ${user.name} sees (none ticked: everything on ${label})`;
+          const target=tabTarget(current,tab);
+          if(options.length){
+            // Only this tab's own cards are offered; a card is ticked when everything on it was given.
+            schema.push({name:tab,selector:{select:{multiple:true,mode:'list',options}}});
+            const given=target?targetEntities(target,this._hass):new Set();
+            data[tab]=target?options.filter(option=>option.value.split(',').every(id=>given.has(id))).map(option=>option.value):[];
+          }else{
+            schema.push({name:tab,selector:{target:{}}});
+            labels[tab]=`${label}: what ${user.name} sees there (empty: everything on ${label})`;
+            data[tab]=target||{};
+          }
         }
         holder.replaceChildren(this.form(schema,data,value=>{
           const others=(this.config.kids||[]).filter(kid=>kid!==mineNow());
           const nextTabs=value.tabs||[];
           const access={};
-          for(const tab of nextTabs){const t=value[tab]||{};const keep=Object.fromEntries(['area_id','device_id','entity_id'].map(k=>[k,[].concat(t[k]||[])]).filter(([,v])=>v.length));if(Object.keys(keep).length)access[tab]=keep;}
+          for(const tab of nextTabs){
+            const t=value[tab];
+            // Ticked cards: the entities on them. A target picker (no cards to list): what was picked.
+            const keep=Array.isArray(t)?(t.length?{entity_id:[...new Set(t.flatMap(v=>v.split(',')))].sort()}:{})
+              :Object.fromEntries(['area_id','device_id','entity_id'].map(k=>[k,[].concat(t?.[k]||[])]).filter(([,v])=>v.length));
+            if(Object.keys(keep).length)access[tab]=keep;
+          }
           const mine={user:user.id,name:user.name,tabs:nextTabs};if(Object.keys(access).length)mine.access=access;
           const kids=nextTabs.length?[...others,mine]:others;
           const next={...this.config};if(kids.length)next.kids=kids;else delete next.kids;
@@ -4991,7 +5042,7 @@ class DwellDeckOriginalEditor extends HTMLElement {
     const add=document.createElement('button');add.textContent='+ Add room';add.onclick=()=>{this.change({...this.config,extra_rooms:[...(this.config.extra_rooms||[]),{name:'New room',entities:[]}]});this.render();};roomDetails.append(add);
     this.shadowRoot.append(roomDetails);
     const limited=document.createElement('details');const limitedTitle=document.createElement('summary');limitedTitle.textContent='Limited users';limited.append(limitedTitle);
-    const limitedHelp=document.createElement('p');limitedHelp.textContent='Your non-administrator users are listed here. Tick the tabs someone can see. Each ticked tab gets a picker: choose the areas, devices or entities they see on it, or leave it empty for everything on that tab. Rooms picked for the Rooms tab are also the only rooms on their Home and Lights pages. Leave the tabs empty for the full dashboard. Protection below sets back changes to anything not picked for them. This limits what DwellDeck shows, not what Home Assistant allows: also set your other dashboards to Admin only (Settings \u2192 Dashboards).';limited.append(limitedHelp);
+    const limitedHelp=document.createElement('p');limitedHelp.textContent='Your non-administrator users are listed here. Tick the tabs someone can see. Each ticked tab lists its own cards: tick the ones they can see, or tick none for everything on that tab. Rooms picked for the Rooms tab are also the only rooms on their Home and Lights pages. Leave the tabs empty for the full dashboard. Protection below sets back changes to anything not picked for them. This limits what DwellDeck shows, not what Home Assistant allows: also set your other dashboards to Admin only (Settings \u2192 Dashboards).';limited.append(limitedHelp);
     const limitedList=document.createElement('div');limitedList.textContent='Loading users\u2026';limited.append(limitedList);
     if((this.config.kids||[]).length)limited.open=true;
     this.renderLimitedUsers(limitedList);
