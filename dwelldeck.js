@@ -4644,7 +4644,8 @@ function narrowCard(card, allowed, known) {
     : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walkData(item)])) : value;
   const walk = value => {
     if (Array.isArray(value)) return value.filter(keepItem).map(walk);
-    if (typeof value === 'string') return value.includes('[[[') && /\{"|\["|\['/.test(value) ? inTemplate(value) : value;
+    // JavaScript ([[[ ]]]) and Jinja ({% %}, {{ }}) templates both carry their lists this way.
+    if (typeof value === 'string') return /\[\[\[|\{%|\{\{/.test(value) && /\{"|\["|\['/.test(value) ? inTemplate(value) : value;
     if (!value || typeof value !== 'object') return value;
     return Object.fromEntries(Object.entries(value).map(([key, item]) =>
       [key, key === 'cards' && Array.isArray(item) ? pruneCards(item, allowed, known).map(walk) : walk(item)]));
@@ -4740,6 +4741,38 @@ function kidsDashboard(config, hass, kid, buildFull) {
   const rooms = tabTarget(kid, 'rooms');
   const full = buildFull(rooms?.area_id.length ? {...config, only_areas: areaIds(rooms.area_id, hass)} : config);
   const picked = pickedViews(full, tabs);
+  const known = new Set(Object.keys(hass.states || {}));
+  // Rooms not given: when the Rooms tab is limited, every area left out of it is left out of the
+  // other tabs too (its lights, AC, curtains, TV), unless cards were picked on that tab.
+  const denied = new Set();
+  if (rooms) {
+    const areaOf = id => { const entity = hass.entities?.[id]; return entity?.area_id || hass.devices?.[entity?.device_id]?.area_id || null; };
+    const mainArea = refs => {
+      const counts = new Map();
+      for (const area of refs.map(areaOf).filter(Boolean)) counts.set(area, (counts.get(area) || 0) + 1);
+      return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    };
+    const givenAreas = new Set(areaIds(rooms.area_id, hass));
+    if (rooms.cards) {
+      const chosen = new Set(rooms.cards);
+      for (const choice of tabChoices(full.views.find(view => view.path === 'rooms'), hass)) {
+        const area = (chosen.has(choice.key) || chosen.has(choice.before)) && mainArea(choice.refs);
+        if (area) givenAreas.add(area);
+      }
+    }
+    for (const entity of Object.values(hass.entities || {})) {
+      const area = areaOf(entity.entity_id);
+      if (area && !givenAreas.has(area)) denied.add(entity.entity_id);
+    }
+  }
+  const open = new Set([...known].filter(id => !denied.has(id)));
+  const withoutDenied = view => {
+    if (!denied.size) return view;
+    const next = walkTab(view, hass, (card, {refs}) => refs.every(id => denied.has(id)) ? null
+      : refs.some(id => denied.has(id)) ? narrowCard(card, open, known) : card);
+    if (Array.isArray(view.sections) && !next.sections.length) next.sections = [{type: 'grid', cards: [{type: 'markdown', content: 'Nothing on this page has been shared with you yet.'}]}];
+    return next;
+  };
   // A sub-page follows the picks of the tab that opens it (Activity from a Home limited to one room).
   const opener = view => picked.find(other => !other.subview && JSON.stringify(other).includes(`/${view.path}"`));
   // Home with nothing picked for it follows the other tabs: it shows only what was given there,
@@ -4750,11 +4783,10 @@ function kidsDashboard(config, hass, kid, buildFull) {
     given = new Set();
     for (const tab of others) {
       const target = tabTarget(kid, tab);
-      const ids = target ? targetEntities(target, hass) : tabChoices(full.views.find(view => view.path === tab), hass).flatMap(choice => choice.refs);
+      const ids = target ? targetEntities(target, hass) : tabChoices(full.views.find(view => view.path === tab), hass).flatMap(choice => choice.refs).filter(id => !denied.has(id));
       for (const id of ids) given.add(id);
     }
   }
-  const known = new Set(Object.keys(hass.states || {}));
   const followOthers = view => {
     const next = walkTab(view, hass, (card, {refs}) => refs.some(id => given.has(id)) ? narrowCard(card, given, known) : null);
     if (Array.isArray(view.sections) && !next.sections.length) next.sections = [{type: 'grid', cards: [{type: 'markdown', content: 'Nothing on this page has been shared with you yet.'}]}];
@@ -4765,7 +4797,7 @@ function kidsDashboard(config, hass, kid, buildFull) {
     const sub = view.subview && !tabs.includes(view.path);
     if (given && sub && opener(view)?.path === 'home') return pruneView(view, {entity_id: [...given]}, hass);
     const target = tabTarget(kid, sub ? opener(view)?.path : view.path);
-    if (!target) return view;
+    if (!target) return withoutDenied(view);
     // A sub-page has other cards than the tab that opens it: it keeps what shows only given things.
     return pruneView(view, sub ? {...target, cards: undefined} : target, hass);
   });
