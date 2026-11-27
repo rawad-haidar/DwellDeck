@@ -48,9 +48,15 @@ export function targetEntities(target, hass) {
   const ids = new Set(target?.entity_id || []);
   const areas = new Set(areaIds(target?.area_id, hass));
   const devices = new Set(target?.device_id || []);
+  // A picked player brings its copies: the same speaker or TV seen through another integration
+  // (Music Assistant, ADB, a remote) has the same name, and entities on its device belong to it.
+  const nameOf = id => normalizeName(hass.states?.[id]?.attributes?.friendly_name || '');
+  const copyNames = new Set([...ids].filter(id => /^(media_player|remote)\./.test(id)).map(nameOf).filter(Boolean));
+  for (const id of ids) { const device = hass.entities?.[id]?.device_id; if (device) devices.add(device); }
   for (const entity of Object.values(hass.entities || {})) {
     const area = entity.area_id || hass.devices?.[entity.device_id]?.area_id;
     if (devices.has(entity.device_id) || (area && areas.has(area))) ids.add(entity.entity_id);
+    else if (/^(media_player|remote)\./.test(entity.entity_id) && copyNames.has(nameOf(entity.entity_id))) ids.add(entity.entity_id);
   }
   return ids;
 }

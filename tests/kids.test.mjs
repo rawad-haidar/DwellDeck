@@ -17,6 +17,7 @@ const states = {
   'binary_sensor.ali_window': st('off', {device_class: 'window'}),
   'light.saloon': st('on', {friendly_name: 'Saloon'}),
   'media_player.saloon_tv': st('playing', {friendly_name: 'Saloon TV', device_class: 'tv'}),
+  'media_player.ali_tv_ma': st('idle', {friendly_name: 'Ali TV'}),
   'alarm_control_panel.house': st('disarmed', {supported_features: 3}),
   'lock.gate': st('locked')
 };
@@ -64,6 +65,9 @@ test('each tab shows only what was picked for it; tabs left open show everything
   const media = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['media'], access: {media: {entity_id: ['media_player.ali_tv']}}}]}, hass({id: 'u1', name: 'Ali'}));
   const mediaText = JSON.stringify(media.views.find(v => v.path === 'media'));
   assert(mediaText.includes('media_player.ali_tv') && !mediaText.includes('media_player.saloon_tv'), 'Media shows only the picked player');
+  const {targetEntities} = await import('../src/kids.mjs');
+  assert(targetEntities({entity_id: ['media_player.ali_tv']}, hass({})).has('media_player.ali_tv_ma'), 'and its copy under the same name');
+  assert(!targetEntities({entity_id: ['media_player.ali_tv']}, hass({})).has('media_player.saloon_tv'));
   const all = await Strategy.generate({...config, kids: [{user: 'Ali', tabs: ['media']}]}, hass({id: 'u1', name: 'Ali'}));
   assert(JSON.stringify(all.views.find(v => v.path === 'media')).includes('media_player.saloon_tv'), 'the fixture does show the other TV when nothing is picked');
 });
