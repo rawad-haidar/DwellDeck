@@ -128,7 +128,7 @@ test('the guard sets back what a limited user changes outside their rooms', asyn
   const g = guardAutomation({kids: [{user: 'Ali', tabs: ['rooms'], access: {rooms: {area_id: ['ali_room']}}}, {user: 'k2', tabs: ['media'], access: {media: {entity_id: ['media_player.ali_tv']}}},
     {user: 'Old', rooms: ['ali_room']}, {user: 'Ghost', tabs: ['rooms'], access: {rooms: {area_id: ['x']}}}], protected: ['light.ali_ceiling']}, h, users);
   assert.deepEqual(Object.keys(g.variables.allowed), ['k1', 'k2', 'k3'], 'names become user ids; unknown users are skipped');
-  assert.deepEqual(g.variables.allowed.k2, ['media_player.ali_tv'], 'what was picked one by one');
+  assert.deepEqual(g.variables.allowed.k2, ['media_player.ali_tv', 'media_player.ali_tv_ma'], 'what was picked one by one, with its copy');
   assert(!g.variables.allowed.k1.includes('camera.ali_cam') && !g.variables.allowed.k1.includes('binary_sensor.ali_window'), 'an area gives its lights, TVs, ACs and curtains, not everything in it');
   assert(g.variables.allowed.k3.includes('climate.ali_ac'), 'an entry from before tabs keeps its rooms');
   assert.deepEqual(g.variables.protected, ['light.ali_ceiling']);
