@@ -52,3 +52,30 @@ test('a kid with no room set up gets a clear message, not other rooms', async ()
   assert(JSON.stringify(d).includes('No rooms are set up for you yet'));
   assert(!JSON.stringify(d).includes('light.saloon'));
 });
+
+test('the editor lists non-admin users and saves the rooms picked for each', async () => {
+  const {DwellDeckOriginalEditor} = await import('../src/editor.mjs');
+  const forms = [];
+  const editor = {
+    config: {type: 'custom:dwelldeck-original', kids: [{user: 'Ali', rooms: ['old_room']}]},
+    _hass: {callWS: async () => [
+      {id: 'a1', name: 'Youssef', group_ids: ['system-admin']},
+      {id: 'k1', name: 'Ali', group_ids: ['system-users']},
+      {id: 'k2', name: 'Sara', group_ids: ['system-users']},
+      {id: 's1', name: 'Supervisor', system_generated: true, group_ids: ['system-users']}
+    ]},
+    form(schema, data, callback, labels) { forms.push({data, callback, label: labels.rooms}); return {}; },
+    change(config) { this.config = config; }
+  };
+  const container = {replaceChildren() {}, append() {}, textContent: ''};
+  await DwellDeckOriginalEditor.prototype.renderLimitedUsers.call(editor, container);
+  assert.deepEqual(forms.map(f => f.label), ['Ali: rooms they can use', 'Sara: rooms they can use'], 'admins and system users are not listed');
+  assert.deepEqual(forms[0].data.rooms, ['old_room'], 'an entry written by name is found');
+  forms[0].callback({rooms: ['ali_room']});
+  forms[1].callback({rooms: ['sara_room']});
+  assert.deepEqual(editor.config.kids, [{user: 'k1', name: 'Ali', rooms: ['ali_room']}, {user: 'k2', name: 'Sara', rooms: ['sara_room']}]);
+  forms[0].callback({rooms: []});
+  assert.deepEqual(editor.config.kids, [{user: 'k2', name: 'Sara', rooms: ['sara_room']}], 'emptying the rooms gives the full dashboard back');
+  forms[1].callback({rooms: []});
+  assert.equal(editor.config.kids, undefined);
+});

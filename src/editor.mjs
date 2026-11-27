@@ -44,6 +44,25 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     }
     const check=document.createElement('button');check.textContent='Check again';check.onclick=()=>this.renderDependencies();container.append(check);
   }
+  async renderLimitedUsers(container){
+    let users;
+    try{users=await this._hass.callWS({type:'config/auth/list'});}
+    catch(error){container.textContent='The user list could not be read. Only an administrator can set up limited users.';return;}
+    const limitedUsers=users.filter(user=>!user.system_generated&&user.is_active!==false&&!(user.group_ids||[]).includes('system-admin'))
+      .sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+    container.replaceChildren();
+    if(!limitedUsers.length){container.textContent='No non-administrator users yet. Add one in Settings \u2192 People, with Administrator turned off.';return;}
+    for(const user of limitedUsers){
+      const entry=(this.config.kids||[]).find(kid=>kid.user===user.id||String(kid.user).toLowerCase()===String(user.name).toLowerCase());
+      container.append(this.form([{name:'rooms',selector:{area:{multiple:true}}}],{rooms:entry?.rooms||[]},value=>{
+        const others=(this.config.kids||[]).filter(kid=>kid!==entry&&kid.user!==user.id&&String(kid.user).toLowerCase()!==String(user.name).toLowerCase());
+        const rooms=value.rooms||[];
+        const kids=rooms.length?[...others,{user:user.id,name:user.name,rooms}]:others;
+        const next={...this.config};if(kids.length)next.kids=kids;else delete next.kids;
+        this.change(next);
+      },{rooms:`${user.name}: rooms they can use`}));
+    }
+  }
   render(){
     if(!this.config)return;
     this.shadowRoot.replaceChildren();
@@ -214,6 +233,12 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     });
     const add=document.createElement('button');add.textContent='+ Add room';add.onclick=()=>{this.change({...this.config,extra_rooms:[...(this.config.extra_rooms||[]),{name:'New room',entities:[]}]});this.render();};roomDetails.append(add);
     this.shadowRoot.append(roomDetails);
+    const limited=document.createElement('details');const limitedTitle=document.createElement('summary');limitedTitle.textContent='Limited users';limited.append(limitedTitle);
+    const limitedHelp=document.createElement('p');limitedHelp.textContent='Your non-administrator users are listed here. Pick rooms for someone and DwellDeck shows them only a My room page with those rooms\u2019 lights, TVs and air conditioners. Leave the rooms empty for the full dashboard. This limits what DwellDeck shows, not what Home Assistant allows: also set your other dashboards to Admin only (Settings \u2192 Dashboards).';limited.append(limitedHelp);
+    const limitedList=document.createElement('div');limitedList.textContent='Loading users\u2026';limited.append(limitedList);
+    if((this.config.kids||[]).length)limited.open=true;
+    this.renderLimitedUsers(limitedList);
+    this.shadowRoot.append(limited);
     const domains=[...new Set(SLOTS.map(s=>s.domain))];
     for(const domain of domains){
       const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent=`${domain.replaceAll('_',' ')} entities`;details.append(summary);

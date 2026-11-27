@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.47 — Limited users in the editor
+
+- **Set up limited users without YAML.** Edit dashboard now has a Limited users section that lists your non-administrator users. Pick rooms for someone and they get only the My room page for those rooms. Clear the rooms to give them the full dashboard back. Administrators and Home Assistant's own system accounts aren't listed.
+
 ## 0.9.46 — Kids' mode
 
 - **Kids' mode.** List a child's Home Assistant user and rooms under `kids`, and when they open DwellDeck they see one page, My room, with only their rooms' lights, TVs and air conditioners. Nothing else is built for them: no other rooms, security, cameras, alarm or energy. Holding a tile opens nothing, so the details dialog (history, related entities) is out of reach too. Everyone else gets the full dashboard as before.
