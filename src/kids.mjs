@@ -1,35 +1,103 @@
-// Kids' mode: a person listed under `kids` sees one page with their own rooms' lights, TVs and air
-// conditioners, and nothing else. The dashboard is built in the viewer's browser for the signed-in
-// user, so other pages (security, cameras, alarm, other rooms) are never built for them at all.
+// Limited users: a person listed under `kids` sees only the DwellDeck tabs picked for them. When the
+// Rooms tab is one of them, it (and every other page that lists rooms) shows only the rooms picked
+// for them. The dashboard is built in the viewer's browser for the signed-in user, so the other
+// tabs are never built for them at all.
 //
 //   kids:
-//     - user: Ali            # Home Assistant user name (or user id)
-//       rooms: [ali_room]    # area ids or area names
+//     - user: Ali                 # Home Assistant user name (or user id)
+//       tabs: [rooms, media]      # DwellDeck tabs they can see
+//       rooms: [ali_room]         # with the Rooms tab: area ids or area names they can see
 //
-// This limits what DwellDeck shows. It is not a security boundary: Home Assistant itself lets any
-// signed-in user control any entity, so the kids' accounts should not be administrators.
-import {normalizeName, visit, installShared} from './util.mjs';
-import {roomEntities, withRegistryIndex} from './discovery.mjs';
-import {roomTile} from './cards.mjs';
-import {isTv, withoutDuplicatePlayers} from './tv.mjs';
-import {addBuiltinColors, addLivingDesign, applyDwellPalette, DEFAULT_PALETTE, paletteText} from './theme.mjs';
-import {applyDesignRefresh, refreshText} from './design.mjs';
-import {lightsOneByOne, phoneFriendlyPopups} from './generator.mjs';
+// This limits what DwellDeck shows; the guard (guard.mjs) is what sets back changes outside their
+// rooms. Entries from before tabs existed (rooms only) mean the Rooms tab with those rooms.
+import {normalizeName} from './util.mjs';
+
+// Tabs a limited user can be given (their paths in the full dashboard).
+export const KID_TABS = [['home', 'Home'], ['rooms', 'Rooms'], ['lighting', 'Lights'], ['curtains', 'Curtains'],
+  ['climate', 'Climate'], ['energy', 'Energy'], ['music-assistant', 'Music Assistant'], ['media', 'Media'],
+  ['security', 'Security'], ['outdoor', 'Pool & garden'], ['weather', 'Weather'], ['cameras', 'All cameras']];
 
 export function kidFor(config, user) {
   if (!user || !Array.isArray(config?.kids)) return null;
   return config.kids.find(kid => kid?.user && (kid.user === user.id || normalizeName(kid.user) === normalizeName(user.name))) || null;
 }
 
-function areaFor(room, hass) {
-  if (hass.areas?.[room]) return hass.areas[room];
-  return Object.values(hass.areas || {}).find(area => normalizeName(area.name) === normalizeName(room)) || null;
+export function kidTabs(kid) {
+  const tabs = [].concat(kid?.tabs || []).filter(Boolean);
+  return tabs.length ? tabs : (kid?.rooms?.length ? ['rooms'] : []);
 }
 
-// Tabs a limited user can be given besides My room (their paths in the full dashboard).
-export const KID_TABS = [['home', 'Home'], ['rooms', 'Rooms'], ['lighting', 'Lights'], ['curtains', 'Curtains'],
-  ['climate', 'Climate'], ['energy', 'Energy'], ['music-assistant', 'Music Assistant'], ['media', 'Media'],
-  ['security', 'Security'], ['outdoor', 'Pool & garden'], ['weather', 'Weather'], ['cameras', 'All cameras']];
+export function areaIds(rooms, hass) {
+  return [].concat(rooms || []).map(room => hass.areas?.[room]?.area_id ||
+    Object.values(hass.areas || {}).find(area => normalizeName(area.name) === normalizeName(room))?.area_id).filter(Boolean);
+}
+
+// What a limited user may see on one tab: Home Assistant target ({area_id, device_id, entity_id}),
+// or null for everything on it. Entries from before per-tab choices kept their rooms in `rooms`.
+export function tabTarget(kid, tab) {
+  if (!kidTabs(kid).includes(tab)) return null;
+  const target = kid.access?.[tab] || (tab === 'rooms' && kid.rooms?.length ? {area_id: [].concat(kid.rooms)} : null);
+  if (!target) return null;
+  const list = key => [].concat(target[key] || []).filter(Boolean);
+  const clean = {area_id: list('area_id'), device_id: list('device_id'), entity_id: list('entity_id')};
+  return clean.area_id.length || clean.device_id.length || clean.entity_id.length ? clean : null;
+}
+
+// Every entity a target stands for: its entities, the entities of its devices, and everything in its areas.
+export function targetEntities(target, hass) {
+  const ids = new Set(target?.entity_id || []);
+  const areas = new Set(areaIds(target?.area_id, hass));
+  const devices = new Set(target?.device_id || []);
+  for (const entity of Object.values(hass.entities || {})) {
+    const area = entity.area_id || hass.devices?.[entity.device_id]?.area_id;
+    if (devices.has(entity.device_id) || (area && areas.has(area))) ids.add(entity.entity_id);
+  }
+  return ids;
+}
+
+// Entities picked one by one, or as devices, on any tab. Whole areas are handled by the guard,
+// which gives only their lights, TVs, air conditioners and curtains.
+export function kidPicked(kid, hass) {
+  const ids = new Set(), areas = new Set();
+  for (const tab of kidTabs(kid)) {
+    const target = tabTarget(kid, tab);
+    if (!target) continue;
+    for (const id of targetEntities({entity_id: target.entity_id, device_id: target.device_id}, hass)) ids.add(id);
+    for (const area of areaIds(target.area_id, hass)) areas.add(area);
+  }
+  return {entities: [...ids].sort(), areas: [...areas].sort()};
+}
+
+// Cards on a tab that show or control anything outside what the user was given are removed.
+// Entities everyone may see (the sun, weather, zones) don't count.
+const OPEN_DOMAINS = new Set(['sun', 'weather', 'zone']);
+const ENTITY_ID = /\b[a-z_]+\.[a-z0-9_]+\b/g;
+const SUBSTANTIVE = card => !['heading', 'markdown', 'spacer', 'custom:spacer-card'].includes(card?.type);
+export function pruneCards(cards, allowed, known) {
+  const out = [];
+  for (const card of cards || []) {
+    if (Array.isArray(card?.cards) && card.type !== 'custom:button-card') {
+      const kept = pruneCards(card.cards, allowed, known);
+      if (kept.some(SUBSTANTIVE)) out.push({...card, cards: kept});
+      continue;
+    }
+    const refs = (JSON.stringify(card).match(ENTITY_ID) || []).filter(id => known.has(id) && !OPEN_DOMAINS.has(id.split('.')[0]));
+    if (refs.every(id => allowed.has(id))) out.push(card);
+  }
+  return out;
+}
+export function pruneView(view, allowed, hass) {
+  const known = new Set(Object.keys(hass.states || {}));
+  const next = {...view};
+  if (Array.isArray(view.sections)) {
+    next.sections = view.sections.map(section => ({...section, cards: pruneCards(section.cards, allowed, known)}))
+      .filter(section => section.cards.some(SUBSTANTIVE));
+    if (!next.sections.length) next.sections = [{type: 'grid', cards: [{type: 'markdown', content: 'Nothing on this page has been shared with you yet.'}]}];
+  }
+  if (Array.isArray(view.cards)) next.cards = pruneCards(view.cards, allowed, known);
+  if (Array.isArray(view.badges)) next.badges = pruneCards(view.badges, allowed, known);
+  return next;
+}
 
 // The full dashboard's views a limited user was given, with the hidden subviews those views open
 // (a Home shortcut to Weather, say). Other tabs stay out even when a picked tab links to them.
@@ -44,45 +112,18 @@ export function pickedViews(full, tabs) {
   return [...views, ...subviews];
 }
 
-// buildFull: builds the whole dashboard, used only when the user was given tabs from it.
-export function kidsDashboard(config, hass, kid, buildFull = null) {
-  const tabs = [].concat(kid.tabs || []).filter(Boolean);
-  const full = tabs.length && buildFull ? buildFull() : null;
-  return withRegistryIndex(() => {
-    const sections = [];
-    for (const roomName of [].concat(kid.rooms || [])) {
-      const area = areaFor(roomName, hass);
-      if (!area) continue;
-      const room = {area: area.area_id, name: area.name, discover_lighting: true};
-      const lights = roomEntities(room, hass);
-      const tvs = withoutDuplicatePlayers(roomEntities(room, hass, ['media_player']).filter(id => isTv(id, hass)), hass);
-      const climates = roomEntities(room, hass, ['climate']);
-      const cards = [{type: 'heading', heading: area.name, icon: area.icon || 'mdi:bed'}];
-      if (lights.length) {
-        cards.push({type: 'heading', heading: 'Lights', heading_style: 'subtitle', icon: 'mdi:lightbulb-group-outline'},
-          {type: 'grid', columns: 3, square: false, cards: lights.map(id => roomTile(id, null, hass))});
-      }
-      for (const [title, icon, ids] of [['TV', 'mdi:television-play', tvs], ['Air conditioning', 'mdi:thermostat', climates]]) {
-        if (!ids.length) continue;
-        cards.push({type: 'heading', heading: title, heading_style: 'subtitle', icon}, ...ids.map(id => roomTile(id, null, hass)));
-      }
-      if (cards.length === 1) cards.push({type: 'markdown', content: 'Nothing to control in this room yet.'});
-      sections.push({type: 'grid', cards});
-    }
-    const picked = full ? pickedViews(full, tabs) : [];
-    if (!sections.length && !picked.length) sections.push({type: 'grid', cards: [{type: 'markdown', content: 'No rooms are set up for you yet. Ask a parent to add your room.'}]});
-    const dashboard = {title: config.title || 'DwellDeck', views: sections.length ? [{title: 'My room', path: 'my-room', icon: 'mdi:bed', type: 'sections', max_columns: 2, sections}] : []};
-    // More-info dialogs open everything about a device (history, related entities, settings links):
-    // holding a tile toggles nothing extra and opens nothing.
-    visit(dashboard, card => { if (card?.hold_action?.action === 'more-info') card.hold_action = {action: 'none'}; });
-    lightsOneByOne(dashboard);
-    phoneFriendlyPopups(dashboard);
-    if (!config.theme && config.builtin_colors !== false) addBuiltinColors(dashboard);
-    addLivingDesign(dashboard);
-    const palette = paletteText(config.color_palette || DEFAULT_PALETTE);
-    installShared(text => palette(refreshText(text)));
-    const own = applyDwellPalette(applyDesignRefresh(dashboard, config), config.color_palette || DEFAULT_PALETTE);
-    // The picked tabs come from the full build, already finished; only their order follows the full dashboard.
-    return full ? {...full, views: [...own.views, ...picked]} : own;
+// buildFull(config): builds the whole dashboard for a config.
+export function kidsDashboard(config, hass, kid, buildFull) {
+  const tabs = kidTabs(kid);
+  const nothing = {title: config.title || 'DwellDeck', views: [{title: 'Home', path: 'home', icon: 'mdi:home', type: 'sections',
+    sections: [{type: 'grid', cards: [{type: 'markdown', content: 'Nothing is set up for you yet. Ask a parent to give you access.'}]}]}]};
+  if (!tabs.length) return nothing;
+  // Rooms chosen for the Rooms tab are the only rooms built at all, so Home and Lights list only them too.
+  const rooms = tabTarget(kid, 'rooms');
+  const full = buildFull(rooms?.area_id.length ? {...config, only_areas: areaIds(rooms.area_id, hass)} : config);
+  const views = pickedViews(full, tabs).map(view => {
+    const target = tabTarget(kid, view.path);
+    return target ? pruneView(view, targetEntities(target, hass), hass) : view;
   });
+  return views.length ? {...full, views} : nothing;
 }

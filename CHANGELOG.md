@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.50 — Choose what limited users see on each tab
+
+- **Pick what each person sees on every tab.** In Edit dashboard → Limited users you tick the tabs a person can see. Each ticked tab then gets its own picker for areas, devices or entities. For example: Rooms → their bedroom, Media → their TV, Climate → their AC. On that tab, any card showing or controlling something not picked is left out. Leave a picker empty and they see the whole tab. The separate My room page is gone.
+- **Rooms picked for the Rooms tab are the only rooms built for that person**, so their Home and Lights pages list only those rooms too.
+- **Protection follows what you picked.** Devices and entities you pick are theirs to use. A picked area gives them its lights, TVs, air conditioners and curtains, but not, say, a boiler switch in that room. Everything else is set back.
+- Settings from 0.9.46–0.9.49 keep working: a person with rooms but no tabs gets the Rooms tab with those rooms.
+
 ## 0.9.49 — Choose tabs for limited users
 
 - **Give a limited user other tabs too.** In Edit dashboard → Limited users, each person now has a tab picker next to their rooms, for example Media, Music Assistant or Weather. They see My room first, then only the tabs you ticked. Tabs alone (no rooms) are fine too.
