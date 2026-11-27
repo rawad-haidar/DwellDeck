@@ -1,6 +1,6 @@
 // Original layout generator: one entity binding updates every reference.
 import {clone, entityPattern, listPattern, walk, visit, changeLists, installShared} from './util.mjs';
-import {discoverConfiguration, roomEntities} from './discovery.mjs';
+import {discoverConfiguration, roomEntities, withRegistryIndex} from './discovery.mjs';
 import {addBuiltinColors, applyDwellPalette, addLivingDesign, DEFAULT_PALETTE, paletteText} from './theme.mjs';
 import {applyDesignRefresh, skyFirst, refreshText} from './design.mjs';
 import {addRoomControls, makeLightPopup, areaRoomSections, scenesOverview} from './cards.mjs';
@@ -31,6 +31,9 @@ export function lightsOneByOne(dashboard) {
 }
 
 export function generateOriginal(template, slots, roomTemplates, config, hass = {}) {
+  return withRegistryIndex(() => buildOriginal(template, slots, roomTemplates, config, hass));
+}
+function buildOriginal(template, slots, roomTemplates, config, hass) {
   if (config.auto_discover) config = discoverConfiguration(config, hass, roomTemplates, slots);
   const bindings = config.entities || {};
   const prefix = inferDashboardPath(config,typeof location==='undefined'?'':location.pathname);

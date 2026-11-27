@@ -28,6 +28,38 @@ export function usableRegistryEntity(entity, hass) {
     !hass.states?.[entity.entity_id]?.attributes?.restored;
 }
 
+// Indexes of the registries, built once per dashboard build and dropped when it ends (the registries
+// can change between builds). Looking up "which entities does this device have" by scanning every
+// entity for every room and every entity took most of the build on a large home.
+let INDEXES = null;
+export function withRegistryIndex(build) {
+  const outer = INDEXES;
+  INDEXES = outer || new WeakMap();
+  try { return build(); } finally { INDEXES = outer; }
+}
+function registryIndex(hass) {
+  const entities = hass?.entities || {};
+  let index = INDEXES?.get(entities);
+  if (index && index.devices === hass.devices && index.states === hass.states) return index;
+  const devices = hass?.devices || {};
+  index = {devices: hass?.devices, states: hass?.states, deviceDomains: new Map(), byArea: new Map()};
+  for (const entity of Object.values(entities)) {
+    const domain = entity.entity_id.split('.')[0];
+    if (entity.device_id) {
+      if (!index.deviceDomains.has(entity.device_id)) index.deviceDomains.set(entity.device_id, new Set());
+      index.deviceDomains.get(entity.device_id).add(domain);
+    }
+    const area = entity.area_id || devices[entity.device_id]?.area_id;
+    if (area && usableRegistryEntity(entity, hass)) {
+      if (!index.byArea.has(area)) index.byArea.set(area, []);
+      index.byArea.get(area).push(entity.entity_id);
+    }
+  }
+  INDEXES?.set(entities, index);
+  return index;
+}
+const deviceHas = (hass, deviceId, test) => [...(registryIndex(hass).deviceDomains.get(deviceId) || [])].some(test);
+
 function lightingCandidate(id, hass) {
   const entry = hass.entities?.[id];
   if (cameraEntity(id, hass) || entry?.entity_category || entry?.platform === 'group') return false;
@@ -42,9 +74,7 @@ function lightingCandidate(id, hass) {
     'tapo_control', 'frigate', 'alexa_media', 'sonos', 'synology_dsm'
   ]);
   if (settingPlatforms.has(entry?.platform)) return false;
-  const siblings = Object.values(hass.entities || {}).filter(entity =>
-    entry?.device_id && entity.device_id === entry.device_id);
-  if (siblings.some(entity => /^(camera|climate|media_player|vacuum|fan|water_heater|alarm_control_panel|lock|cover)\./.test(entity.entity_id))) return false;
+  if (entry?.device_id && deviceHas(hass, entry.device_id, domain => /^(camera|climate|media_player|vacuum|fan|water_heater|alarm_control_panel|lock|cover)$/.test(domain))) return false;
   const text = normalizeName(`${id} ${state?.attributes?.friendly_name || ''} ${device?.model || ''}`);
   return state?.attributes?.device_class !== 'outlet' &&
     !/\b(camera|recording|privacy|detection|reboot|restart|pump|valve|irrigation|eregation|heater|boiler|socket|outlet|siren|alarm|fan|purifier|vacuum)\b/.test(text);
@@ -100,10 +130,7 @@ export function roomControlEntities(room, hass) {
 }
 
 export function roomEntities(room, hass, domains = ['light']) {
-  const devices = hass?.devices || {}, entities = hass?.entities || {};
-  const areaIds = Object.values(entities).filter(e => room.area && usableRegistryEntity(e, hass) &&
-    (e.area_id || devices[e.device_id]?.area_id) === room.area && domains.includes(e.entity_id.split('.')[0])
-  ).map(e => e.entity_id);
+  const areaIds = room.area ? (registryIndex(hass).byArea.get(room.area) || []).filter(id => domains.includes(id.split('.')[0])) : [];
   const excluded = new Set(room.exclude || []);
   return [...new Set([...areaIds,...(room.entities || [])])].filter(id => !excluded.has(id) && domains.includes(id.split('.')[0]) &&
     (!room.discover_lighting || domains.length !== 1 || domains[0] !== 'light' || lightingCandidate(id, hass)));
@@ -124,8 +151,7 @@ export function cameraEntity(id, hass) {
   const device = hass.devices?.[entry?.device_id];
   if (entityLabels(id, hass).some(label => normalizeName(label.name) === 'camera')) return true;
   if (['dahua', 'onvif', 'reolink', 'frigate', 'ezviz', 'ring'].includes(entry?.platform)) return true;
-  return !!entry?.device_id && Object.values(hass.entities || {}).some(other =>
-    other.device_id === entry.device_id && other.entity_id.startsWith('camera.'));
+  return !!entry?.device_id && deviceHas(hass, entry.device_id, domain => domain === 'camera');
 }
 
 export function roomSensorCandidate(id, hass) {
