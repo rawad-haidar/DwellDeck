@@ -10,13 +10,13 @@ The Security page shows live **human** and **vehicle** detection for your camera
 
 Each camera appears as a tile that glows while something is detected. Tap a tile to see the latest **snapshot** of each human and vehicle detection and the live camera view. To save snapshots, open **Edit dashboard**, press **Set up detection snapshots**, then **Save**. This creates one automation, *DwellDeck · Detection snapshots*, that saves a picture from the sensor's camera each time a detection starts, replacing the previous one. Pictures are stored in `/media/dwelldeck/snapshots`, which needs a Home Assistant login to view. A sensor is linked to the camera on the same device, or else to a camera whose name starts with the camera name (for example *Front Gate Main* for *Front Gate Smart Motion Human*); main streams are preferred over sub streams. Press the button again after adding cameras or sensors. UI automations must be enabled (`automation: !include automations.yaml` in `configuration.yaml`, the default).
 
-## New in 0.9.59
+## New in 0.9.60
 
 Each TV is one compact card: its status and what is playing, power, volume, and tabs that open inside the card: **Remote**, **Apps**, **Sources** (HDMI, TV, home screen) and **Keyboard**. It works with the Android TV Remote, Android Debug Bridge and Apple TV integrations, and a TV added through more than one of them shows as one card. For the Android TV keyboard, turn on the integration's option for the current app name and keyboard input.
 
 ## New in 0.9.0
 
-The Home page opens with a live weather hero: the sky follows the real sun, weather moves across it, and a 6-hour forecast, sunrise or sunset countdown, wind, humidity and solar output sit at the bottom. The new **Lamplight** palette is the default (see below). To check which version your browser loaded, open the browser console: it shows **DwellDeck 0.9.59**.
+The Home page opens with a live weather hero: the sky follows the real sun, weather moves across it, and a 6-hour forecast, sunrise or sunset countdown, wind, humidity and solar output sit at the bottom. The new **Lamplight** palette is the default (see below). To check which version your browser loaded, open the browser console: it shows **DwellDeck 0.9.60**.
 
 ## New in 0.8.1
 
@@ -78,7 +78,7 @@ The built-in colors use card-mod and do not require a separately installed theme
 
 ### Manual fallback
 
-Copy `dwelldeck.js` to Home Assistant’s `www` folder, register `/local/dwelldeck.js?v=0.9.59` as a JavaScript module in dashboard Resources, and refresh. Then create the community dashboard as above. If the picker is unavailable, create a blank dashboard and paste `examples/dashboard.yaml` into its raw configuration editor.
+Copy `dwelldeck.js` to Home Assistant’s `www` folder, register `/local/dwelldeck.js?v=0.9.60` as a JavaScript module in dashboard Resources, and refresh. Then create the community dashboard as above. If the picker is unavailable, create a blank dashboard and paste `examples/dashboard.yaml` into its raw configuration editor.
 
 HACS registers its own resource URL. Do not manually add a second URL with different capitalization; use the directory HACS actually installed.
 
@@ -109,7 +109,7 @@ For Music Assistant, enter the app’s path from your Home Assistant sidebar URL
 
 ## Generator
 
-With a generator controller in Home Assistant (for example a DSE on Modbus with sensors and scripts named `gen_…`), the Energy page gets a generator section. It shows tiles for every reading (load, engine speed, output, frequency, coolant, battery, oil and fuel), the controller's buttons (Auto, Manual, Mute, To mains, Start, Stop, On load and Reset; the ones that act ask first), and a history. The history gives running time, kWh and number of starts, a load chart, and a log of each run, worked out from the recorder with no energy meter needed.
+With a generator controller in Home Assistant (for example a DSE on Modbus with sensors and scripts named `gen_…`), the Energy page gets a generator section. It shows tiles for every reading (load, engine speed, output, frequency, coolant, battery, oil and fuel), the controller's buttons (Auto, Manual, Mute, To mains, Start, Stop, On load and Reset; the ones that act ask first), and a history. Its live state (stage, load, speed, output, temperature) is also on Home under Energy and climate, and opens the Energy page. The history gives running time, kWh and number of starts, a load chart, and a log of each run, worked out from the recorder with no energy meter needed.
 
 The state chip shows what the engine is doing: cranking, starting, warming up, running on or off load, cooling down after the load comes off, and stopping. DwellDeck works this out from the engine speed, frequency and load. If your controller's engine operating state is in Home Assistant (DSE GenComm page 5, offset 128, register 1408), set it as `stage` and its warming-up and cooling-down states are used instead. DSE's status code (register 786, `sensor.gen_status_code`) gives pre-start, cranking and stopping straight from the controller; set `status_codes` if your model numbers them differently. To set it by hand:
 
@@ -120,6 +120,7 @@ strategy:
     name: DSE 6110 MKIII
     mode: sensor.gen_control_mode      # DSE control mode: 0 Stop, 1 Auto, 2 Manual, …
     mains: sensor.gen_mains_voltage    # optional: only the controller's own mains reading
+    home: false                        # optional: keep the live state off the Home page
     stage: sensor.gen_engine_state     # optional: DSE engine operating state (0 stopped … 4 cooling down)
     status: sensor.gen_status_code     # optional: DSE status code, register 786 (9 pre-start, 5 cranking, 7 running, 11 stopping)
     warmup: 180                        # seconds shown as "Warming up" after a start (no stage sensor)
@@ -186,7 +187,7 @@ Golden tests in `tests/golden.test.mjs` hash the generated dashboard for many co
 
 ## Publish and update
 
-Upload this folder’s contents to the repository root. Keep `dwelldeck.js`, `hacs.json`, `README.md` and `LICENSE` at the root. Publish `v0.9.59` as a pre-release and attach the JavaScript file. Include the theme folder in the repository. See `GITHUB_SETUP.md`.
+Upload this folder’s contents to the repository root. Keep `dwelldeck.js`, `hacs.json`, `README.md` and `LICENSE` at the root. Publish `v0.9.60` as a pre-release and attach the JavaScript file. Include the theme folder in the repository. See `GITHUB_SETUP.md`.
 
 Do not upload private dashboard backups, source household entity bindings, Home Assistant configuration files or unredacted screenshots. The supplied package has been checked separately for those files.
 

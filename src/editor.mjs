@@ -55,18 +55,19 @@ export class DwellDeckOriginalEditor extends HTMLElement {
     if(!found&&!this.config.generator)return;
     const own=this.config.generator||{};
     const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Generator';details.append(summary);
-    const help=document.createElement('p');help.textContent='Shown on the Energy page: live readings, the controller buttons and its history. Sensors are found by their gen_ names; change any of them here.';details.append(help);
+    const help=document.createElement('p');help.textContent='Shown on the Energy page: live readings, the controller buttons and its history; its live state is on Home too. Sensors are found by their gen_ names; change any of them here.';details.append(help);
     const sensor=name=>({name,selector:{entity:{filter:{domain:'sensor'}}}});
-    details.append(this.form([{name:'show',selector:{boolean:{}}},{name:'name',selector:{text:{}}},
+    details.append(this.form([{name:'show',selector:{boolean:{}}},{name:'home',selector:{boolean:{}}},{name:'name',selector:{text:{}}},
       sensor('mode'),sensor('power'),sensor('rpm'),sensor('voltage'),sensor('frequency'),sensor('coolant'),sensor('battery'),sensor('oil'),sensor('fuel'),sensor('mains'),sensor('stage'),sensor('status')],
-      {show:own.show!==false,name:own.name||'',...Object.fromEntries(['mode','power','rpm','voltage','frequency','coolant','battery','oil','fuel','mains','stage','status'].map(k=>[k,own[k]??found?.[k]??undefined]).filter(([,v])=>v))},
+      {show:own.show!==false,home:own.home!==false,name:own.name||'',...Object.fromEntries(['mode','power','rpm','voltage','frequency','coolant','battery','oil','fuel','mains','stage','status'].map(k=>[k,own[k]??found?.[k]??undefined]).filter(([,v])=>v))},
       value=>{
         const next={...own};
         next.show=value.show!==false;if(next.show)delete next.show;
+        next.home=value.home!==false;if(next.home)delete next.home;
         if(value.name)next.name=value.name;else delete next.name;
         for(const k of ['mode','power','rpm','voltage','frequency','coolant','battery','oil','fuel','mains','stage','status']){if(value[k]&&value[k]!==found?.[k])next[k]=value[k];else if(!value[k]&&found?.[k])next[k]=null;else delete next[k];}
         const config={...this.config};if(Object.keys(next).length)config.generator=next;else delete config.generator;this.change(config);
-      },{show:'Show the generator on the Energy page',name:'Name (for example DSE 6110 MKIII)',mode:'Control mode',power:'Load (power)',rpm:'Engine speed',voltage:'Output voltage',frequency:'Frequency',coolant:'Coolant temperature',battery:'Battery voltage',oil:'Oil pressure',fuel:'Fuel level',mains:'Mains voltage (the controller\'s own reading)',stage:'Engine state (optional, from the controller)',status:'Status code (optional, DSE register 786)'}));
+      },{show:'Show the generator on the Energy page',home:'Also show its live state on Home',name:'Name (for example DSE 6110 MKIII)',mode:'Control mode',power:'Load (power)',rpm:'Engine speed',voltage:'Output voltage',frequency:'Frequency',coolant:'Coolant temperature',battery:'Battery voltage',oil:'Oil pressure',fuel:'Fuel level',mains:'Mains voltage (the controller\'s own reading)',stage:'Engine state (optional, from the controller)',status:'Status code (optional, DSE register 786)'}));
     box.append(details);
   }
   async fullDashboard(){

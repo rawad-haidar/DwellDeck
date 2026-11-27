@@ -323,21 +323,31 @@ const gensetButton = (setup, [key, label, icon, mode]) => {
   };
 };
 
-// The Generator section: the state panel and a row of controller buttons.
-export function gensetSection(setup) {
-  const watched = [setup.mode, setup.rpm, setup.frequency, setup.voltage, setup.power, setup.coolant, setup.oil, setup.fuel, setup.battery, setup.mains, setup.stage, setup.status].filter(Boolean);
-  const cfg = {...setup, scripts: undefined, modes: DSE_MODES, engineStates: DSE_ENGINE_STATES, dseCodes: DSE_STATUS_CODES, c: {text: GEN_C.text, muted: GEN_C.muted, line: GEN_C.line, on: GEN_C.on, onBg: GEN_C.onBg, onText: GEN_C.onText}};
-  const panel = {
+const gensetWatched = setup => [setup.mode, setup.rpm, setup.frequency, setup.voltage, setup.power, setup.coolant, setup.oil, setup.fuel, setup.battery, setup.mains, setup.stage, setup.status].filter(Boolean);
+const gensetCfg = setup => ({...setup, scripts: undefined, modes: DSE_MODES, engineStates: DSE_ENGINE_STATES, dseCodes: DSE_STATUS_CODES,
+  c: {text: GEN_C.text, muted: GEN_C.muted, line: GEN_C.line, on: GEN_C.on, onBg: GEN_C.onBg, onText: GEN_C.onText}});
+
+// The live state panel. On the Energy page it sits above the buttons; on Home it opens the Energy page.
+export function gensetPanel(setup, path = null) {
+  return {
     type: 'custom:button-card', show_name: false, show_icon: false, show_state: false, show_label: false,
-    tap_action: {action: 'none'}, hold_action: {action: 'none'}, triggers_update: watched, variables: {dwell_static: true},
-    custom_fields: {genset: touchSafe(`(${dwellGenset.toString()})(states, ${JSON.stringify(cfg)})`)},
+    tap_action: path ? {action: 'navigate', navigation_path: path} : {action: 'none'}, hold_action: {action: 'none'},
+    triggers_update: gensetWatched(setup), variables: {dwell_static: true},
+    custom_fields: {genset: touchSafe(`(${dwellGenset.toString()})(states, ${JSON.stringify(gensetCfg(setup))})`)},
     styles: {
-      card: [{padding: '12px'}, {'border-radius': '18px'}, {background: `linear-gradient(135deg,${GEN_C.surface},${GEN_C.card})`}, {border: `1px solid ${GEN_C.line}`}, {'box-shadow': 'none'}, {cursor: 'default'}],
+      card: [{padding: '12px'}, {'border-radius': path ? '20px' : '18px'}, {background: `linear-gradient(135deg,${GEN_C.surface},${GEN_C.card})`}, {border: `1px solid ${GEN_C.line}`}, {'box-shadow': 'none'}, {cursor: path ? 'pointer' : 'default'}],
       grid: [{'grid-template-areas': '"genset"'}, {'grid-template-columns': '1fr'}],
-      custom_fields: {genset: [{width: '100%'}, {'pointer-events': 'auto'}]}
+      custom_fields: {genset: [{width: '100%'}, {'pointer-events': path ? 'none' : 'auto'}]}
     },
     grid_options: {columns: 'full', rows: 'auto'}
   };
+}
+
+// The Generator section: the state panel and a row of controller buttons.
+export function gensetSection(setup) {
+  const watched = gensetWatched(setup);
+  const cfg = gensetCfg(setup);
+  const panel = gensetPanel(setup);
   // After a button, the generator's sensors are read again at once (see installQuickRefresh).
   globalThis.__dwellFollowers = {...(globalThis.__dwellFollowers || {}),
     ...Object.fromEntries(Object.values(setup.scripts).filter(Boolean).map(script => [script, watched]))};

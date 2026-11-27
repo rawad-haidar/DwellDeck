@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.60 — Generator on Home
+
+- **The generator's live state is on Home,** under Energy and climate: what the engine is doing (pre-start, cranking, warming up, on or off load, cooling down), with its load, speed, output, frequency, coolant and battery. Tap it to open the Energy page with the buttons and history.
+  - It only shows when DwellDeck finds a generator.
+  - **To keep it off Home,** untick "Also show its live state on Home" in the generator settings, or set `home: false`.
+
 ## 0.9.59 — Generator stages from the controller's status code
 
 - **The generator card reads the DSE status code** (register 786, found as `sensor.gen_status_code`). Pre-start, cranking and stopping now come straight from the controller, so a start shows as Pre-start then Cranking even before the engine speed updates.

@@ -159,7 +159,7 @@ function buildOriginal(template, slots, roomTemplates, config, hass) {
   }
   if (config.area_rooms) rebuildRichAreaViews(output, config, hass, lightPrototype, [...new Set(allLights)]);
   if (config.camera_detection !== false) output.views.find(view => view.path === 'security').sections.push(cameraDetectionSection(prefix, config, hass));
-  designHome(output, {prefix, hass});
+  designHome(output, {prefix, hass, config});
   designSecurity(output, {prefix});
   designEnergy(output, {config, hass});
   designClimate(output, {hass});

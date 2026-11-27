@@ -150,3 +150,21 @@ test('the DSE status code (register 786) gives pre-start, cranking and stopping'
   assert(dwellGenset({...withCode, 'sensor.gen_status_code': st(3)}, {...cfg, statusCodes: {3: 'Cranking'}}).includes('Cranking'));
   delete globalThis.window;
 });
+
+test('Home shows the generator under the energy readings, opening the Energy page', async () => {
+  const {designHome} = await import('../src/home.mjs');
+  const make = () => ({views: [{path: 'home', sections: [{type: 'grid', cards: [
+    {type: 'tile', entity: 'sensor.villa_power'},
+    {type: 'custom:button-card', tap_action: {action: 'navigate', navigation_path: '/dwell/energy'}, triggers_update: []}
+  ]}]}]});
+  const out = designHome(make(), {prefix: '/dwell', hass: {states}, config: {}});
+  const section = out.views[0].sections.find(item => item.cards[0]?.heading === 'Energy and climate');
+  const panel = section.cards.find(card => card.custom_fields?.genset);
+  assert(panel, 'generator panel on Home');
+  assert.deepEqual(panel.tap_action, {action: 'navigate', navigation_path: '/dwell/energy'});
+  assert(panel.triggers_update.includes('sensor.gen_engine_speed'));
+  const off = designHome(make(), {prefix: '/dwell', hass: {states}, config: {generator: {home: false}}});
+  assert(!JSON.stringify(off).includes('"genset"'), 'generator.home: false keeps it off Home');
+  const none = designHome(make(), {prefix: '/dwell', hass: {states: {'sensor.villa_power': st(1)}}, config: {}});
+  assert(!JSON.stringify(none).includes('"genset"'), 'no generator, nothing on Home');
+});
