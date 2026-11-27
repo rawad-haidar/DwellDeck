@@ -109,7 +109,7 @@ For Music Assistant, enter the app’s path from your Home Assistant sidebar URL
 
 ## Generator
 
-With a generator controller in Home Assistant (for example a DSE on Modbus with sensors and scripts named `gen_…`), the Energy page gets a generator card. It shows the engine, output, load and mode, and has buttons for Auto, Manual, Mute, To mains, Start, Stop, On load and Reset. The buttons that act ask first. To set it by hand:
+With a generator controller in Home Assistant (for example a DSE on Modbus with sensors and scripts named `gen_…`), the Energy page gets a generator section. It shows tiles for every reading (load, engine speed, output, frequency, coolant, battery, oil and fuel), the controller's buttons (Auto, Manual, Mute, To mains, Start, Stop, On load and Reset; the ones that act ask first), and a history. The history gives running time, kWh and number of starts, a load chart, and a log of each run, worked out from the recorder with no energy meter needed. To set it by hand:
 
 ```yaml
 strategy:
