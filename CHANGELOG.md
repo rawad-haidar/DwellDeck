@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.55 — Generator card
+
+- **A generator card on the Energy page, laid out like DSE's controller page.** It shows:
+  - the engine (at rest, or running at N rpm);
+  - the generator output (volts and hertz);
+  - the load (on or off, in kW);
+  - the control mode (Auto, Manual, Stop and so on);
+  - coolant temperature, oil pressure, fuel level and battery voltage, where fitted.
+
+  Below it is a row of controller buttons: Auto, Manual, Mute alarm, To mains, Start, Stop, On load and Reset alarms. A red dot marks the current mode, as on the controller.
+- **Buttons that start, stop or move the load ask first.**
+- **Found automatically** for a DSE on Modbus, with sensors and scripts named `gen_…`. The card can also be set under `generator:` in the strategy config (name, sensors, scripts, and a mains sensor if you have one).
+
 ## 0.9.54 — Rooms left out stay out everywhere
 
 - **Rooms you don't give someone are left out of their other tabs too.** When a limited user's Rooms tab is limited, everything in the rooms left out disappears from their other tabs: lights, air conditioners, curtains, TVs, the pool. Things that belong to no room stay. A tab where you picked cards yourself still shows exactly those, even from a room left out.

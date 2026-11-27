@@ -49,7 +49,8 @@ export function gensetSetup(config = {}, hass = {}) {
     oil: own.oil ?? sensor('oil_pressure'),
     fuel: own.fuel ?? sensor('fuel_level'),
     battery: own.battery ?? sensor('battery_voltage'),
-    mains: own.mains ?? (find(/^sensor\..*grid_l1_voltage$/) || find(/^sensor\..*grid_voltage$/)),
+    // The mains the controller watches isn't always the inverter's grid input, so it is only set by hand.
+    mains: own.mains ?? sensor('mains_(?:l1_)?(?:n_)?voltage'),
     scripts: {
       auto: own.scripts?.auto ?? script('auto(?:_mode)?'), manual: own.scripts?.manual ?? script('manual(?:_mode)?'),
       stop: own.scripts?.stop ?? script('stop(?:_mode)?'), start: own.scripts?.start ?? script('start'),

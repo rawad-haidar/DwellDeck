@@ -7,7 +7,8 @@ const states = {
   'sensor.gen_control_mode': st(1), 'sensor.gen_engine_speed': st(0, 'rpm'), 'sensor.gen_frequency': st(0, 'Hz'),
   'sensor.gen_l1_n_voltage': st(0, 'V'), 'sensor.gen_coolant_temp': st(37, '°C'), 'sensor.gen_oil_pressure': st(-1, 'kPa'),
   'sensor.gen_fuel_level': st(-1, '%'), 'sensor.gen_battery_voltage': st(13.8, 'V'), 'sensor.electric_generator_power': st(0, 'W'),
-  'sensor.inverter_master_grid_l1_voltage': st(231, 'V'),
+  'sensor.inverter_master_grid_l1_voltage': st(5.9, 'V'),
+  'sensor.gen_mains_voltage': st(231, 'V'),
   ...Object.fromEntries(['stop_mode', 'auto_mode', 'manual_mode', 'start', 'reset_alarms', 'mute_alarm', 'on_load', 'off_load'].map(n => [`script.gen_${n}`, st('off')]))
 };
 
@@ -18,7 +19,9 @@ test('a DSE generator on Modbus is found by its gen_ names', () => {
   assert.equal(setup.voltage, 'sensor.gen_l1_n_voltage');
   assert.equal(setup.battery, 'sensor.gen_battery_voltage');
   assert.equal(setup.power, 'sensor.electric_generator_power');
-  assert.equal(setup.mains, 'sensor.inverter_master_grid_l1_voltage');
+  assert.equal(setup.mains, 'sensor.gen_mains_voltage', 'the controller\'s own mains reading, never the inverter\'s grid input');
+  const {['sensor.gen_mains_voltage']: _, ...noMains} = states;
+  assert.equal(gensetSetup({}, {states: noMains}).mains, null);
   assert.deepEqual(setup.scripts, {auto: 'script.gen_auto_mode', manual: 'script.gen_manual_mode', stop: 'script.gen_stop_mode', start: 'script.gen_start',
     mute: 'script.gen_mute_alarm', reset: 'script.gen_reset_alarms', on_load: 'script.gen_on_load', off_load: 'script.gen_off_load'});
   assert.equal(gensetSetup({}, {states: {'sensor.kitchen_temp': st(20)}}), null, 'no generator, no card');
