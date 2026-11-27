@@ -72,3 +72,28 @@ test('the buttons call the scripts, ask before acting, and mark the current mode
   assert.match(buttons.find(b => b.name === 'Auto').styles.custom_fields.dot.find(s => s.display).display, /=== 1/);
   assert.equal(buttons.find(b => b.name === 'Start').styles.custom_fields.dot.find(s => s.display).display, 'none');
 });
+
+test('turned off or cleared in the editor: no card, or no reading', () => {
+  assert.equal(gensetSetup({generator: {show: false}}, {states}), null, 'show: false hides the generator');
+  assert.equal(gensetSetup({generator: {coolant: null}}, {states}).coolant, null, 'a cleared sensor stays empty');
+  assert.equal(gensetSetup({generator: {coolant: 'sensor.other_temp'}}, {states}).coolant, 'sensor.other_temp');
+});
+
+test('the editor offers the Generator settings only when there is a generator', async () => {
+  globalThis.HTMLElement ??= class {};
+  const {DwellDeckOriginalEditor} = await import('../src/editor.mjs');
+  class El { constructor(tag) { this.tag = tag; this.children = []; this.textContent = ''; } append(...k) { this.children.push(...k); } replaceChildren(...k) { this.children = k; } setAttribute() {} }
+  globalThis.document = {createElement: tag => new El(tag)};
+  const forms = [];
+  const editor = Object.assign(Object.create(DwellDeckOriginalEditor.prototype), {config: {}, _hass: {states}, _generatorBox: new El('div'),
+    form(schema, data, callback) { forms.push({schema, data, callback}); return new El('ha-form'); }, change(c) { this.config = c; }});
+  editor.renderGenerator();
+  assert.equal(editor._generatorBox.children.length, 1, 'a generator: the section is there');
+  assert.equal(forms[0].data.mode, 'sensor.gen_control_mode', 'with what was found');
+  forms[0].callback({...forms[0].data, show: false, name: 'DSE 6110 MKIII'});
+  assert.deepEqual(editor.config.generator, {show: false, name: 'DSE 6110 MKIII'});
+  const none = Object.assign(Object.create(DwellDeckOriginalEditor.prototype), {config: {}, _hass: {states: {'sensor.kitchen_temp': st(20)}}, _generatorBox: new El('div'), form: () => new El('ha-form')});
+  none.renderGenerator();
+  assert.equal(none._generatorBox.children.length, 0, 'no generator: nothing to set');
+  delete globalThis.document;
+});

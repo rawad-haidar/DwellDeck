@@ -2168,19 +2168,21 @@ function gensetSetup(config = {}, hass = {}) {
   const find = pattern => ids.find(id => pattern.test(id)) || null;
   const sensor = tail => find(new RegExp(`^sensor\\.${GEN_PREFIX}_(?:.*_)?${tail}$`));
   const script = name => find(new RegExp(`^script\\.${GEN_PREFIX}_${name}$`));
+  // A sensor set in the editor wins; one cleared there (null) stays empty instead of being found again.
+  const pick = (key, found) => key in own ? own[key] || null : found;
   const setup = {
     name: own.name || 'Generator',
-    mode: own.mode ?? sensor('control_mode'),
-    rpm: own.rpm ?? sensor('(?:engine_speed|rpm)'),
-    frequency: own.frequency ?? sensor('frequency'),
-    voltage: own.voltage ?? sensor('(?:l1_n_voltage|l1_voltage|output_voltage)'),
-    power: own.power ?? find(/^sensor\.(?:electric_)?generator_(?:.*_)?power$/),
-    coolant: own.coolant ?? sensor('coolant_temp(?:erature)?'),
-    oil: own.oil ?? sensor('oil_pressure'),
-    fuel: own.fuel ?? sensor('fuel_level'),
-    battery: own.battery ?? sensor('battery_voltage'),
+    mode: pick('mode', sensor('control_mode')),
+    rpm: pick('rpm', sensor('(?:engine_speed|rpm)')),
+    frequency: pick('frequency', sensor('frequency')),
+    voltage: pick('voltage', sensor('(?:l1_n_voltage|l1_voltage|output_voltage)')),
+    power: pick('power', find(/^sensor\.(?:electric_)?generator_(?:.*_)?power$/)),
+    coolant: pick('coolant', sensor('coolant_temp(?:erature)?')),
+    oil: pick('oil', sensor('oil_pressure')),
+    fuel: pick('fuel', sensor('fuel_level')),
+    battery: pick('battery', sensor('battery_voltage')),
     // The mains the controller watches isn't always the inverter's grid input, so it is only set by hand.
-    mains: own.mains ?? sensor('mains_(?:l1_)?(?:n_)?voltage'),
+    mains: pick('mains', sensor('mains_(?:l1_)?(?:n_)?voltage')),
     scripts: {
       auto: own.scripts?.auto ?? script('auto(?:_mode)?'), manual: own.scripts?.manual ?? script('manual(?:_mode)?'),
       stop: own.scripts?.stop ?? script('stop(?:_mode)?'), start: own.scripts?.start ?? script('start'),
@@ -2188,7 +2190,8 @@ function gensetSetup(config = {}, hass = {}) {
       on_load: own.scripts?.on_load ?? script('on_load'), off_load: own.scripts?.off_load ?? script('off_load')
     }
   };
-  // Only a generator that reports its mode or engine speed gets a card.
+  // Only a generator that reports its mode or engine speed gets a card, unless it was turned off.
+  if (own.show === false) return null;
   return setup.mode || setup.rpm ? setup : null;
 }
 
@@ -5204,7 +5207,7 @@ class DwellDeckOriginalEditor extends HTMLElement {
     if(JSON.stringify(this.config)===JSON.stringify(config))return;
     this.config=clone(config);this.render();
   }
-  set hass(hass){this._hass=hass;this.shadowRoot.querySelectorAll('ha-form').forEach(f=>{f.hass=hass;});this.renderDependencies();
+  set hass(hass){const first=!this._hass;this._hass=hass;if(first)this.renderGenerator();this.shadowRoot.querySelectorAll('ha-form').forEach(f=>{f.hass=hass;});this.renderDependencies();
     // The energy fields show what is found, which needs Home Assistant's states: fill them once these arrive.
     if(this._energyForm&&!this._energyFilled&&!this.config.energy&&Object.keys(hass?.states||{}).length){this._energyFilled=true;this._energyForm.data=energyEditorValues(this.config,hass);}}
   change(config){
@@ -5235,6 +5238,27 @@ class DwellDeckOriginalEditor extends HTMLElement {
     const check=document.createElement('button');check.textContent='Check again';check.onclick=()=>this.renderDependencies();container.append(check);
   }
   // The whole dashboard as an administrator sees it, to list each tab's cards for limited users.
+  renderGenerator(){
+    const box=this._generatorBox;if(!box||!this._hass?.states)return;
+    const found=gensetSetup({...this.config,generator:{...(this.config.generator||{}),show:true}},this._hass);
+    box.replaceChildren();
+    if(!found&&!this.config.generator)return;
+    const own=this.config.generator||{};
+    const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Generator';details.append(summary);
+    const help=document.createElement('p');help.textContent='Shown on the Energy page: live readings, the controller buttons and its history. Sensors are found by their gen_ names; change any of them here.';details.append(help);
+    const sensor=name=>({name,selector:{entity:{filter:{domain:'sensor'}}}});
+    details.append(this.form([{name:'show',selector:{boolean:{}}},{name:'name',selector:{text:{}}},
+      sensor('mode'),sensor('power'),sensor('rpm'),sensor('voltage'),sensor('frequency'),sensor('coolant'),sensor('battery'),sensor('oil'),sensor('fuel'),sensor('mains')],
+      {show:own.show!==false,name:own.name||'',...Object.fromEntries(['mode','power','rpm','voltage','frequency','coolant','battery','oil','fuel','mains'].map(k=>[k,own[k]??found?.[k]??undefined]).filter(([,v])=>v))},
+      value=>{
+        const next={...own};
+        next.show=value.show!==false;if(next.show)delete next.show;
+        if(value.name)next.name=value.name;else delete next.name;
+        for(const k of ['mode','power','rpm','voltage','frequency','coolant','battery','oil','fuel','mains']){if(value[k]&&value[k]!==found?.[k])next[k]=value[k];else if(!value[k]&&found?.[k])next[k]=null;else delete next[k];}
+        const config={...this.config};if(Object.keys(next).length)config.generator=next;else delete config.generator;this.change(config);
+      },{show:'Show the generator on the Energy page',name:'Name (for example DSE 6110 MKIII)',mode:'Control mode',power:'Load (power)',rpm:'Engine speed',voltage:'Output voltage',frequency:'Frequency',coolant:'Coolant temperature',battery:'Battery voltage',oil:'Oil pressure',fuel:'Fuel level',mains:'Mains voltage (the controller\'s own reading)'}));
+    box.append(details);
+  }
   async fullDashboard(){
     const strategy=customElements.get('ll-strategy-dashboard-dwelldeck-original');
     const config={...this.config};delete config.kids;
@@ -5494,6 +5518,9 @@ class DwellDeckOriginalEditor extends HTMLElement {
       energy.append(auto);
     }
     this.shadowRoot.append(energy);
+    // Generator: only for homes that have one (found by its sensors, or set by hand). Filled once
+    // Home Assistant's states arrive.
+    this._generatorBox=document.createElement('div');this.shadowRoot.append(this._generatorBox);this.renderGenerator();
     const discoverySummary = document.createElement('p');
     discoverySummary.textContent = `${Object.values(this.config.rooms || {}).filter(room => room.area).length + (this.config.extra_rooms || []).length} rooms configured · ${Object.keys(this.config.entities || {}).length} entity bindings. Save the dashboard configuration to apply changes.`;
     this.shadowRoot.append(discoverySummary);

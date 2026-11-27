@@ -38,19 +38,21 @@ export function gensetSetup(config = {}, hass = {}) {
   const find = pattern => ids.find(id => pattern.test(id)) || null;
   const sensor = tail => find(new RegExp(`^sensor\\.${GEN_PREFIX}_(?:.*_)?${tail}$`));
   const script = name => find(new RegExp(`^script\\.${GEN_PREFIX}_${name}$`));
+  // A sensor set in the editor wins; one cleared there (null) stays empty instead of being found again.
+  const pick = (key, found) => key in own ? own[key] || null : found;
   const setup = {
     name: own.name || 'Generator',
-    mode: own.mode ?? sensor('control_mode'),
-    rpm: own.rpm ?? sensor('(?:engine_speed|rpm)'),
-    frequency: own.frequency ?? sensor('frequency'),
-    voltage: own.voltage ?? sensor('(?:l1_n_voltage|l1_voltage|output_voltage)'),
-    power: own.power ?? find(/^sensor\.(?:electric_)?generator_(?:.*_)?power$/),
-    coolant: own.coolant ?? sensor('coolant_temp(?:erature)?'),
-    oil: own.oil ?? sensor('oil_pressure'),
-    fuel: own.fuel ?? sensor('fuel_level'),
-    battery: own.battery ?? sensor('battery_voltage'),
+    mode: pick('mode', sensor('control_mode')),
+    rpm: pick('rpm', sensor('(?:engine_speed|rpm)')),
+    frequency: pick('frequency', sensor('frequency')),
+    voltage: pick('voltage', sensor('(?:l1_n_voltage|l1_voltage|output_voltage)')),
+    power: pick('power', find(/^sensor\.(?:electric_)?generator_(?:.*_)?power$/)),
+    coolant: pick('coolant', sensor('coolant_temp(?:erature)?')),
+    oil: pick('oil', sensor('oil_pressure')),
+    fuel: pick('fuel', sensor('fuel_level')),
+    battery: pick('battery', sensor('battery_voltage')),
     // The mains the controller watches isn't always the inverter's grid input, so it is only set by hand.
-    mains: own.mains ?? sensor('mains_(?:l1_)?(?:n_)?voltage'),
+    mains: pick('mains', sensor('mains_(?:l1_)?(?:n_)?voltage')),
     scripts: {
       auto: own.scripts?.auto ?? script('auto(?:_mode)?'), manual: own.scripts?.manual ?? script('manual(?:_mode)?'),
       stop: own.scripts?.stop ?? script('stop(?:_mode)?'), start: own.scripts?.start ?? script('start'),
@@ -58,7 +60,8 @@ export function gensetSetup(config = {}, hass = {}) {
       on_load: own.scripts?.on_load ?? script('on_load'), off_load: own.scripts?.off_load ?? script('off_load')
     }
   };
-  // Only a generator that reports its mode or engine speed gets a card.
+  // Only a generator that reports its mode or engine speed gets a card, unless it was turned off.
+  if (own.show === false) return null;
   return setup.mode || setup.rpm ? setup : null;
 }
 

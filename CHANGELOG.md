@@ -14,6 +14,7 @@
   A run counts whenever the engine turns, there's output frequency, or the generator delivers power, so runs from before a sensor was added still show.
 - **Buttons that start, stop or move the load ask first.**
 - **Found automatically** for a DSE on Modbus, with sensors and scripts named `gen_…`. It can also be set under `generator:` (name, sensors, scripts, and a mains sensor if you have the controller's own reading).
+- **Edit dashboard → Generator**, only for homes that have a generator: set its name, turn the section off, or change or clear any of its sensors. Homes without a generator see neither the section nor these settings.
 
 ## 0.9.54 — Rooms left out stay out everywhere
 
