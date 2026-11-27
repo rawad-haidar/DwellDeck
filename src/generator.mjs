@@ -21,6 +21,24 @@ export function inferDashboardPath(config, pathname = '') {
 // "All on" / "All off": one command for every light makes a hub (LifeSmart) miss confirmations, and one late
 // confirmation fails the whole tap. The button now sends a plain signal (no code: a popup's settings are
 // evaluated when the popup opens, and code there would run), and DwellDeck switches the lights one at a time.
+// On a phone, browser_mod's "wide" popup is 90% of the screen and not centred, so room popups
+// showed a strip of empty space on the right. Popups fill the screen on narrow screens, and tile
+// names inside popups wrap onto two lines instead of all reading "Kitchen Switch…".
+export const PHONE_POPUP_CSS = '@media (max-width: 600px) { ha-dialog, ha-adaptive-dialog { --popup-wide-width: 100vw !important; --ha-dialog-width-md: 100vw !important; --ha-dialog-width-full: 100vw !important; --ha-dialog-max-width: 100vw !important; --ha-dialog-border-radius: 0 !important; } }';
+export const TILE_NAME_CSS = 'ha-tile-info span[slot=primary] { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; line-height: 1.25; }';
+export function phoneFriendlyPopups(dashboard) {
+  visit(dashboard, item => {
+    const data = item?.browser_mod?.data;
+    if (!data?.content) return;
+    data.popup_styles = [...(data.popup_styles || []), {style: 'all', styles: PHONE_POPUP_CSS}];
+    visit(data.content, card => {
+      if (card?.type !== 'tile') return;
+      const style = card.card_mod?.style;
+      if (style && typeof style === 'object') style['.'] = `${style['.'] || ''}\n${TILE_NAME_CSS}`;
+      else card.card_mod = {...(card.card_mod || {}), style: `${style || ''}\n${TILE_NAME_CSS}`};
+    });
+  });
+}
 export function lightsOneByOne(dashboard) {
   const bulk = action => action?.action === 'perform-action' && ['light.turn_on', 'light.turn_off', 'homeassistant.turn_on', 'homeassistant.turn_off'].includes(action.perform_action)
     && Array.isArray(action.target?.entity_id) && action.target.entity_id.length > 1 && !action.data;
@@ -157,6 +175,7 @@ function buildOriginal(template, slots, roomTemplates, config, hass) {
   // sliders (curtain position, light brightness) without a colour, so only their handle shows.
   visit(output, item => { if (item.type === 'tile' && item.color === 'state') delete item.color; });
   lightsOneByOne(output);
+  phoneFriendlyPopups(output);
   if(!config.theme && config.builtin_colors!==false)addBuiltinColors(output);
   addLivingDesign(output);
   // Shared card code gets the same rewrite as the cards: palette colours, text sizes and wording.

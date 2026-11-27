@@ -34,7 +34,7 @@ export function addRoomControls(card, room, hass) {
   content.cards.push({type: 'heading', heading: 'Room controls', icon: 'mdi:home-automation'},
     {type: 'grid', columns: originalGrid?.columns || 3, square: false, cards: tiles});
 }
-export function makeLightPopup(card, ids) {
+export function makeLightPopup(card, ids, roomName) {
   const data = card.tap_action?.browser_mod?.data;
   if (!data?.content) return;
   visit(data.content, item => {
@@ -46,7 +46,11 @@ export function makeLightPopup(card, ids) {
         tile.entity = id; delete tile.name; return tile;
       });
     }
-    if (item.type === 'markdown') item.content = item.content.replace(/\b\d+ lights\b/g, `${ids.length} lights`);
+    if (item.type === 'markdown') {
+      item.content = item.content.replace(/\b\d+ lights\b/g, `${ids.length} lights`);
+      // The template's heading names the room it was written for ("### Saloon  ·  9 lights").
+      if (roomName) item.content = item.content.replace(/^### .*?(\s+·\s+\d+ lights)/m, (_, count) => `### ${roomName}${count}`);
+    }
     const action = item.tap_action;
     if (action?.target?.entity_id && ['light.turn_on','light.turn_off'].includes(action.perform_action)) {
       action.target.entity_id = ids;
@@ -111,7 +115,7 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
   card.icon = hass.areas?.[room.area]?.icon || 'mdi:home-outline';
   card.triggers_update = [...new Set([...lights, ...controls])];
   card.tap_action.browser_mod.data.title = room.name;
-  makeLightPopup(card, lights);
+  makeLightPopup(card, lights, room.name);
   const content = originalCards.filter(item => item.type !== 'grid');
   // Keep the original summary and all-on/off controls, then organize by function.
   if (!lights.length) content.splice(0, content.length);
