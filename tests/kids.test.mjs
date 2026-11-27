@@ -64,9 +64,11 @@ test('the editor lists non-admin users and saves the rooms picked for each', asy
       {id: 'k2', name: 'Sara', group_ids: ['system-users']},
       {id: 's1', name: 'Supervisor', system_generated: true, group_ids: ['system-users']}
     ]},
-    form(schema, data, callback, labels) { forms.push({data, callback, label: labels.rooms}); return {}; },
+    form(schema, data, callback, labels) { if (labels.rooms) forms.push({data, callback, label: labels.rooms}); return {}; },
     change(config) { this.config = config; }
   };
+  const el = () => ({setAttribute() {}, append() {}, style: {}, textContent: ''});
+  globalThis.document = {createElement: el, querySelector: () => null};
   const container = {replaceChildren() {}, append() {}, textContent: ''};
   await DwellDeckOriginalEditor.prototype.renderLimitedUsers.call(editor, container);
   assert.deepEqual(forms.map(f => f.label), ['Ali: rooms they can use', 'Sara: rooms they can use'], 'admins and system users are not listed');
@@ -78,4 +80,32 @@ test('the editor lists non-admin users and saves the rooms picked for each', asy
   assert.deepEqual(editor.config.kids, [{user: 'k2', name: 'Sara', rooms: ['sara_room']}], 'emptying the rooms gives the full dashboard back');
   forms[1].callback({rooms: []});
   assert.equal(editor.config.kids, undefined);
+});
+
+test('the guard sets back what a limited user changes outside their rooms', async () => {
+  const {guardAutomation, allowedEntities, GUARDED_DOMAINS} = await import('../src/guard.mjs');
+  const h = hass({id: 'a', name: 'Youssef'});
+  const allowedAli = allowedEntities(['Ali Room'], h);
+  for (const id of ['light.ali_ceiling', 'media_player.ali_tv', 'climate.ali_ac']) assert(allowedAli.includes(id), id);
+  assert(!allowedAli.includes('light.saloon'));
+  const users = [{id: 'k1', name: 'Ali'}, {id: 'k2', name: 'Sara'}];
+  const g = guardAutomation({kids: [{user: 'Ali', rooms: ['ali_room']}, {user: 'k2', rooms: []}, {user: 'Ghost', rooms: ['x']}], protected: ['light.ali_ceiling']}, h, users);
+  assert.deepEqual(Object.keys(g.variables.allowed), ['k1', 'k2'], 'names become user ids; unknown users are skipped');
+  assert.deepEqual(g.variables.allowed.k2, [], 'no rooms: nothing guarded is theirs');
+  assert.deepEqual(g.variables.protected, ['light.ali_ceiling']);
+  for (const d of ['switch', 'valve', 'climate', 'water_heater', 'automation', 'lock']) assert(GUARDED_DOMAINS.includes(d), d);
+  assert(!GUARDED_DOMAINS.includes('light') && !GUARDED_DOMAINS.includes('media_player'), 'other rooms\' lights and TVs are not guarded unless protected');
+  // The condition decides with the real lists: render it the way Home Assistant would.
+  const decide = (userId, entityId) => {
+    const allowed = g.variables.allowed;
+    if (!(userId in allowed)) return false;
+    return g.variables.protected.includes(entityId) || (!allowed[userId].includes(entityId) && g.variables.guarded_domains.includes(entityId.split('.')[0]));
+  };
+  assert.equal(decide('k1', 'switch.boiler'), true);
+  assert.equal(decide('k1', 'climate.saloon_ac'), true);
+  assert.equal(decide('k1', 'climate.ali_ac'), false, 'their own AC');
+  assert.equal(decide('k1', 'light.saloon'), false);
+  assert.equal(decide('k1', 'light.ali_ceiling'), true, 'protected even in their room');
+  assert.equal(decide('admin', 'switch.boiler'), false, 'other users are never touched');
+  assert(g.conditions.every(c => c.value_template.includes('trigger.event')));
 });
