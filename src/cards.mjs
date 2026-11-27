@@ -100,23 +100,40 @@ function groupedRoomTiles(ids, title, icon, prototype, hass) {
 }
 
 function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
+  const __A=globalThis.__dwellProf2||={};let __t=performance.now();const __m=n=>{const t=performance.now();__A[n]=(__A[n]||0)+t-__t;__t=t;};
   const lights = roomEntities(room, hass);
+  __m('1 const lights = roomEntities(room, ');
   const controls = roomControlEntities(room, hass);
+  __m('2 const controls = roomControlEntiti');
   const card = changeLists(clone(prototype), prototypeIds, lights);
+  __m('3 const card = changeLists(clone(pro');
   const lightingStatusLabel = card.label;
+  __m('4 const lightingStatusLabel = card.l');
   const originalCards = card.tap_action.browser_mod.data.content.cards;
+  __m('5 const originalCards = card.tap_act');
   const grid = originalCards.find(item => item.type === 'grid');
+  __m('6 const grid = originalCards.find(it');
   const tilePrototype = grid?.cards?.[0];
+  __m('7 const tilePrototype = grid?.cards?');
   card.name = room.name;
+  __m('8 card.name = room.name;');
   card.icon = hass.areas?.[room.area]?.icon || 'mdi:home-outline';
+  __m('9 card.icon = hass.areas?.[room.area');
   card.triggers_update = [...new Set([...lights, ...controls])];
+  __m('10 card.triggers_update = [...new Set');
   card.tap_action.browser_mod.data.title = room.name;
+  __m('11 card.tap_action.browser_mod.data.t');
   makeLightPopup(card, lights);
+  __m('12 makeLightPopup(card, lights);');
   const content = originalCards.filter(item => item.type !== 'grid');
+  __m('13 const content = originalCards.filt');
   // Keep the original summary and all-on/off controls, then organize by function.
+  __m('14 // Keep the original summary and a');
   if (!lights.length) content.splice(0, content.length);
   else content.push(...groupedRoomTiles(lights, 'Lights', 'mdi:lightbulb-group-outline', tilePrototype, hass));
+  __m('16 else content.push(...groupedRoomTi');
   // Ordered by how a room is used: what you change most first, readings last (they also sit in the strip on top).
+  __m('17 // Ordered by how a room is used: ');
   const categories = [
     ['Climate', 'mdi:thermostat', ['climate']],
     ['TVs', 'mdi:television-play', ['media_player'], id => isTv(id, hass)],
@@ -128,6 +145,7 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
     ['Safety and presence', 'mdi:shield-home-outline', ['binary_sensor']],
     ['All sensors', 'mdi:thermometer', ['sensor']]
   ];
+  __m('28 ];');
   for (const [title, icon, domains, only = () => true] of categories) {
     const selected = controls.filter(id => domains.includes(id.split('.')[0]) && only(id));
     const grouped = groupedRoomTiles(selected, title, icon, tilePrototype, hass);
@@ -135,19 +153,30 @@ function makeAreaRoomCard(room, prototype, prototypeIds, hass) {
       content.push(grouped[0], ...curtainBulkControls(selected, prototype), ...grouped.slice(1));
     } else content.push(...grouped);
   }
+  __m('35 }');
   const groupedDomains = new Set(categories.flatMap(([, , domains]) => domains));
+  __m('36 const groupedDomains = new Set(cat');
   content.push(...groupedRoomTiles(controls.filter(id => !groupedDomains.has(id.split('.')[0])), 'Other entities', 'mdi:cog-outline', tilePrototype, hass));
+  __m('37 content.push(...groupedRoomTiles(c');
   if (!content.length) content.push({type: 'markdown', content: 'No supported controls are assigned to this area.'});
   else if (room.temperature_sensors?.length || controls.some(id => /^(sensor|binary_sensor|climate|media_player|cover)\./.test(id))) content.unshift(roomStatusStrip(controls, hass, room));
+  __m('39 else if (room.temperature_sensors?');
   card.tap_action.browser_mod.data.content.cards = content;
+  __m('40 card.tap_action.browser_mod.data.c');
   const activityIds = [...lights, ...controls.filter(id => !cameraEntity(id, hass) && !hass.entities?.[id]?.entity_category)];
+  __m('41 const activityIds = [...lights, ..');
   const active = `const ids=${JSON.stringify(activityIds)}; return ids.some(id=>{const e=states[id];if(!e)return false;const a=e.attributes?.hvac_action;if(id.startsWith('climate.'))return ['heating','cooling','drying','fan'].includes(a)||(!a&&!['off','idle','unknown','unavailable'].includes(e.state));return ['on','playing','open','opening','closing'].includes(e.state);});`;
+  __m('42 const active = `const ids=${JSON.s');
   const condition = `(()=>{${active}})()`;
+  __m('43 const condition = `(()=>{${active}');
   card.styles.card.push({background: `[[[ return ${condition} ? 'linear-gradient(135deg,#493b24,#202936)' : 'linear-gradient(135deg,#1b2d40,#101c2b)'; ]]]`},
     {border: `[[[ return ${condition} ? '1px solid #d5a74c' : '1px solid rgba(156,199,225,.18)'; ]]]`});
   card.label = `[[[ const lights=${JSON.stringify(lights)}; const controls=${JSON.stringify(controls)}; const on=lights.filter(id=>states[id]?.state==='on').length; const scenes=controls.filter(id=>id.startsWith('scene.')).length; const unavailable=[...lights,...controls].filter(id=>!states[id]||states[id].state==='unavailable'||(!id.startsWith('scene.')&&states[id].state==='unknown')).length; const parts=[]; if(lights.length)parts.push(on+' on / '+lights.length+' lights'); if(scenes)parts.push(scenes+' scenes'); if(controls.length)parts.push(controls.length+' controls & sensors'); if(unavailable)parts.push(unavailable+' unavailable'); return parts.join(' · ')||'No controls assigned'; ]]]`;
+  __m('46 card.label = `[[[ const lights=${J');
   if (room.discover_controls === false) card.label = lightingStatusLabel;
+  __m('47 if (room.discover_controls === fal');
   designRoomCard(card, {lights, controls, hass, room});
+  __m('48 designRoomCard(card, {lights, cont');
   return {card, lights};
 }
 
