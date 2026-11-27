@@ -475,13 +475,25 @@ function dwellTvPanel(states, cfg) {
 // Runs inside a button-card template: the volume as a slider, with mute and the level in %. When the player
 // only steps the volume, two buttons instead. Self-contained: serialised with toString.
 function dwellVolume(states, cfg) {
-  window.__dwellVol = window.__dwellVol || {
+  // Always the latest controls, even on a page that ran an older DwellDeck.
+  window.__dwellVol = Object.assign(window.__dwellVol || {}, {
     hass: () => document.querySelector('home-assistant')?.hass,
     show(el) { el.closest('.vl').querySelector('.pc').textContent = el.value + '%'; },
-    set(el) { this.hass()?.callService('media_player', 'volume_set', {entity_id: el.dataset.entity, volume_level: Number(el.value) / 100}); },
+    set(el) {
+      const hass = this.hass();
+      if (!hass) return;
+      if (el.dataset.mode !== 'steps') return hass.callService('media_player', 'volume_set', {entity_id: el.dataset.entity, volume_level: Number(el.value) / 100});
+      // A TV that only steps: press its volume key once per percent between here and there.
+      const diff = Number(el.value) - Number(el.dataset.level);
+      const presses = Math.min(100, Math.abs(Math.round(diff)));
+      if (!presses) return;
+      el.dataset.level = el.value;
+      if (el.dataset.keys) return hass.callService('remote', 'send_command', {entity_id: el.dataset.keys, command: diff > 0 ? 'VOLUME_UP' : 'VOLUME_DOWN', num_repeats: presses, delay_secs: 0.05});
+      (async () => { for (let i = 0; i < presses; i++) { await hass.callService('media_player', diff > 0 ? 'volume_up' : 'volume_down', {entity_id: el.dataset.entity}); } })();
+    },
     mute(el) { this.hass()?.callService('media_player', 'volume_mute', {entity_id: el.dataset.entity, is_volume_muted: el.dataset.muted !== '1'}); },
     step(el) { this.hass()?.callService('media_player', el.dataset.dir === 'up' ? 'volume_up' : 'volume_down', {entity_id: el.dataset.entity}); }
-  };
+  });
   const btn = `all:unset;box-sizing:border-box;cursor:pointer;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:rgba(0,0,0,.18);border:1px solid ${cfg.c.line};color:${cfg.c.text}`;
   const icon = name => `<ha-icon icon="${name}" style="--mdc-icon-size:20px;width:20px;height:20px;display:block;flex:none;margin:0"></ha-icon>`;
   // The first entry that sets the level and is connected; when none is, the steps (a TV whose ADB
@@ -489,29 +501,29 @@ function dwellVolume(states, cfg) {
   const gone = id => !states[id] || ['off', 'unavailable', 'unknown'].includes(states[id].state);
   const entities = cfg.entities || (cfg.entity ? [cfg.entity] : []);
   const entity = entities.find(id => !gone(id)) || (cfg.step ? null : entities[0]);
-  if (!entity) {
-    // Steps, with mute and the level when the TV reports them.
-    const s = states[cfg.step];
-    const m = states[cfg.mute];
-    const isMuted = !!m?.attributes?.is_volume_muted;
-    const raw = Number(s?.attributes?.volume_level);
-    const label = isMuted ? 'Muted' : Number.isFinite(raw) && s?.attributes?.volume_level !== null ? Math.round(raw * 100) + '%' : 'Volume';
-    const muteBtn = cfg.mute ? `<button style="${btn}" aria-label="${isMuted ? 'Unmute' : 'Mute'}" data-entity="${cfg.mute}" data-muted="${isMuted ? 1 : 0}" onclick="event.stopPropagation();window.__dwellVol.mute(this)">${icon(isMuted ? 'mdi:volume-off' : 'mdi:volume-high')}</button>` : '';
+  const steps = !entity;
+  const e = states[entity || cfg.step];
+  const raw = e?.attributes?.volume_level;
+  const known = raw !== null && raw !== undefined && Number.isFinite(Number(raw));
+  const m = states[cfg.mute] || e;
+  const muted = !!m?.attributes?.is_volume_muted;
+  const muteBtn = cfg.mute ? `<button style="${btn}" aria-label="${muted ? 'Unmute' : 'Mute'}" data-entity="${cfg.mute}" data-muted="${muted ? 1 : 0}" onclick="event.stopPropagation();window.__dwellVol.mute(this)">${icon(muted ? 'mdi:volume-off' : !known ? 'mdi:volume-high' : raw < 0.35 ? 'mdi:volume-low' : raw < 0.7 ? 'mdi:volume-medium' : 'mdi:volume-high')}</button>` : '';
+  if (steps && !known) {
+    // The TV doesn't say its level: two buttons.
     return `<div style="display:flex;align-items:center;gap:8px;justify-content:center">
       ${muteBtn}
       <button style="${btn}" aria-label="Volume down" data-entity="${cfg.step}" data-dir="down" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-minus')}</button>
-      <span style="color:${isMuted ? cfg.c.onText : cfg.c.muted};font-size:13px;min-width:56px;text-align:center;font-variant-numeric:tabular-nums">${label}</span>
+      <span style="color:${muted ? cfg.c.onText : cfg.c.muted};font-size:13px;min-width:56px;text-align:center">${muted ? 'Muted' : 'Volume'}</span>
       <button style="${btn}" aria-label="Volume up" data-entity="${cfg.step}" data-dir="up" onclick="event.stopPropagation();window.__dwellVol.step(this)">${icon('mdi:volume-plus')}</button></div>`;
   }
-  const e = states[entity];
-  const level = Math.round((Number(e?.attributes?.volume_level) || 0) * 100);
-  const muted = !!e?.attributes?.is_volume_muted;
+  const level = Math.round((Number(raw) || 0) * 100);
   const off = !e || ['off', 'unavailable', 'unknown'].includes(e.state);
   const fill = muted ? 0 : level;
+  // A TV that only steps gets the slider too: moving it presses the volume key once per percent.
+  const how = steps ? `data-mode="steps" data-level="${level}" data-entity="${cfg.step}"${cfg.keys ? ` data-keys="${cfg.keys}"` : ''}` : `data-entity="${entity}"`;
   return `<div class="vl" style="display:grid;grid-template-columns:36px 1fr 44px;align-items:center;gap:10px;opacity:${off ? 0.5 : 1}">
-    ${cfg.mute ? `<button style="${btn}" aria-label="${muted ? 'Unmute' : 'Mute'}" data-entity="${cfg.mute}" data-muted="${muted ? 1 : 0}" onclick="event.stopPropagation();window.__dwellVol.mute(this)">${icon(muted ? 'mdi:volume-off' : level < 35 ? 'mdi:volume-low' : level < 70 ? 'mdi:volume-medium' : 'mdi:volume-high')}</button>`
-      : `<span style="display:grid;place-items:center;color:${cfg.c.muted}">${icon('mdi:volume-high')}</span>`}
-    <input type="range" min="0" max="100" step="1" value="${level}" aria-label="Volume" data-entity="${entity}" ${off ? 'disabled' : ''}
+    ${muteBtn || `<span style="display:grid;place-items:center;color:${cfg.c.muted}">${icon('mdi:volume-high')}</span>`}
+    <input type="range" min="0" max="100" step="1" value="${level}" aria-label="Volume" ${how} ${off ? 'disabled' : ''}
       style="width:100%;height:28px;margin:0;accent-color:${cfg.c.on};cursor:pointer;background:transparent;--fill:${fill}%"
       onclick="event.stopPropagation()" oninput="event.stopPropagation();window.__dwellVol.show(this)" onchange="event.stopPropagation();window.__dwellVol.set(this)">
     <span class="pc" style="font-size:13px;color:${cfg.c.text};text-align:right;font-variant-numeric:tabular-nums">${muted ? 'Muted' : level + '%'}</span></div>`;
@@ -731,6 +743,7 @@ export function tvCard(requested, hass) {
   const areas = ['"i n power"', '"i l power"', '"now now now"', '"media media media"'];
   if (sliderPlayers.length || volumePlayer) {
     fields.vol = touchSafe(`${sharedCode(dwellVolume)}(states, ${JSON.stringify({entities: sliderPlayers, step: stepPlayer || (sliderPlayers.length ? null : volumePlayer),
+      keys: tv && remote?.platform === 'androidtv_remote' && remote.id?.startsWith('remote.') ? remote.id : null,
       mute: playerFor(sources.filter(ownVolume), hass, FEATURE.volumeMute) || playerFor(sources, hass, FEATURE.volumeMute), c: {line: C.line, text: C.text, muted: C.muted, on: C.on, onText: C.onText, card: C.card}})})`);
     areas.push('"vol vol vol"');
   }

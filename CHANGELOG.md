@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.64 — A volume slider for TVs that only step
+
+- **The slider is back on TVs that only step their volume.** Moving it presses the TV's volume key once per percent, all at once through its remote (Android TV Remote). From 34% to 40% is six presses up.
+  - **A TV that doesn't report its level** keeps the − and + buttons.
+  - **The mute button stays next to the slider.**
+
 ## 0.9.63 — TV volume buttons, with mute
 
 - **A TV that steps its volume gets − and + buttons, even when ADB is connected.** On some Android TVs, ADB's set-volume does nothing while the volume keys work.
