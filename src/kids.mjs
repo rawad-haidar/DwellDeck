@@ -119,17 +119,22 @@ export function tabChoices(view, hass) {
       if (Array.isArray(card?.cards) && card.type !== 'custom:button-card') { walk(card.cards); continue; }
       const refs = [...new Set((JSON.stringify(card).match(ENTITY_ID) || []).filter(id => known.has(id) && !OPEN_DOMAINS.has(id.split('.')[0])))].sort();
       if (!refs.length) continue;
-      const name = [card.name, card.title, friendly(card.entity)].find(v => typeof v === 'string' && v.trim() && !v.includes('[[[')) ||
-        (refs.length === 1 ? friendly(refs[0]) || refs[0] : `${heading || 'Card'} · ${refs.length} items`);
+      const own = [card.name, card.title, friendly(card.entity)].find(v => typeof v === 'string' && v.trim() && !v.includes('[[[')) ||
+        (refs.length === 1 ? friendly(refs[0]) || refs[0] : `${refs.length} items`);
       const key = refs.join(',');
       const entry = byKey.get(key);
-      if (entry) { if (!entry.names.includes(name)) entry.names.push(name); }
-      else byKey.set(key, {value: key, names: [name]});
+      if (entry) { if (!entry.names.includes(own)) entry.names.push(own); }
+      else byKey.set(key, {value: key, heading, names: [own]});
     }
   };
   for (const section of view?.sections || []) { heading = section.title || ''; walk(section.cards); }
   walk(view?.cards);
-  return [...byKey.values()].map(entry => ({value: entry.value, label: entry.names.join(' / ')}));
+  // The heading above says where a card is ("Kitchen · Open all / Close all"), unless the name already does.
+  return [...byKey.values()].map(({value, heading, names}) => {
+    const label = names.join(' / ');
+    const where = heading || (/^\d+ items$/.test(label) ? 'Summary' : '');
+    return {value, label: where && !label.toLowerCase().includes(where.toLowerCase()) ? `${where} · ${label}` : label};
+  });
 }
 
 // The full dashboard's views a limited user was given, with the hidden subviews those views open

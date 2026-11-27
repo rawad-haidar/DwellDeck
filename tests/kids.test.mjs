@@ -91,8 +91,8 @@ test('each tab offers only its own cards, named after the card', async () => {
       {type: 'button', name: 'Again', entity: 'media_player.ali_tv'},
       {type: 'markdown', content: 'no entities'}]}]};
   assert.deepEqual(tabChoices(view, h), [
-    {value: 'media_player.ali_tv', label: 'Ali TV / Again'},
-    {value: 'media_player.saloon_tv', label: 'Saloon TV'},
+    {value: 'media_player.ali_tv', label: 'Bedrooms · Ali TV / Again'},
+    {value: 'media_player.saloon_tv', label: 'Bedrooms · Saloon TV'},
     {value: 'climate.ali_ac,light.ali_ceiling', label: 'Bedrooms · 2 items'}]);
 });
 
