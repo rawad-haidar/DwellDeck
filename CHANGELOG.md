@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.43 — Dashboard builds almost twice as fast
+
+- **The dashboard is built in about half the time.** Each time it opens (and each time the phone app comes back and reloads), DwellDeck builds the whole dashboard from Home Assistant's registries. To decide which entities belong to each room and whether a device has a camera, it scanned all entities again for every room and every entity checked. On a home with about 2,000 entities that took more than half of the build. DwellDeck now indexes the registries once per build. Measured on a real home in Chrome on a Mac: 395 ms → 220 ms, with identical output. Slower devices like phones save proportionally more.
+
 ## 0.9.42 — All off right after All on is not an error
 
 - **A newer All on / All off press takes over from an older one.** Pressing All off within a few seconds of All on showed "lights did not turn on" for every light, because All on checked its lights after All off had already switched them off. Now the newer press takes over every light it covers: the older one sends nothing more to those lights and does not report them, so an All on still running can no longer switch a light back on after All off.
