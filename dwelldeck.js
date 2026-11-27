@@ -4771,10 +4771,16 @@ function kidsDashboard(config, hass, kid, buildFull) {
     const page = to && to.split('/').filter(Boolean).pop();
     return !!page && full.views.some(view => view.path === page) && !paths.has(page);
   };
-  const tidy = cards => (cards || []).filter(card => !leadsNowhere(card)).map(card => Array.isArray(card?.cards) ? {...card, cards: tidy(card.cards)} : card);
+  // A card that shows their things stays (tapping it does nothing); a plain shortcut goes.
+  const tidy = (cards, shortcuts) => (cards || []).flatMap(card => {
+    if (Array.isArray(card?.cards) && card.type !== 'custom:button-card') return [{...card, cards: tidy(card.cards, shortcuts)}];
+    if (!leadsNowhere(card)) return [card];
+    return shortcuts || !refsIn(card, known).length ? [] : [{...card, tap_action: {action: 'none'}}];
+  });
+  const isShortcuts = section => (section.cards || []).some(card => card?.type === 'heading' && /^shortcuts$/i.test(card.heading || ''));
   return {...full, views: views.map(view => ({...view,
-    ...(Array.isArray(view.sections) ? {sections: view.sections.map(section => ({...section, cards: tidy(section.cards)})).filter(section => section.cards.some(SUBSTANTIVE))} : {}),
-    ...(Array.isArray(view.cards) ? {cards: tidy(view.cards)} : {})}))};
+    ...(Array.isArray(view.sections) ? {sections: view.sections.map(section => ({...section, cards: tidy(section.cards, isShortcuts(section))})).filter(section => section.cards.some(SUBSTANTIVE))} : {}),
+    ...(Array.isArray(view.cards) ? {cards: tidy(view.cards, false)} : {})}))};
 }
 // The guard: a Home Assistant automation that undoes changes a limited user makes to anything that
 // is not theirs. Home Assistant lets every signed-in user control every entity; the limited users'
